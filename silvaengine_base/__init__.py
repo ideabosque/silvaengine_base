@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 __author__ = "bibow"
 
-__all__ = ["lambdahandler"]
-from .lambdahandler import Resources
-from .lambdahandler import Tasks
-from .lambdahandler import Worker
+__all__ = ["resources", "tasks", "worker"]
+from .resources import Resources
+from .tasks import Tasks
+from .worker import Worker
