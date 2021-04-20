@@ -12,6 +12,10 @@ from .models import (
 )
 
 
+class FunctionError(Exception):
+    pass
+
+
 class LambdaBase(object):
 
     aws_lambda = boto3.client("lambda")
@@ -35,7 +39,7 @@ class LambdaBase(object):
         )
         if "FunctionError" in response.keys():
             log = json.loads(response["Payload"].read())
-            raise Exception(log)
+            raise FunctionError(log)
         if invocation_type == "RequestResponse":
             return json.loads(response["Payload"].read())
 
