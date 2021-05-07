@@ -60,6 +60,8 @@ class ConfigMap(MapAttribute):
     module_name = UnicodeAttribute()
     setting = UnicodeAttribute()
     auth_required = BooleanAttribute(default=False)
+    graphql = BooleanAttribute(default=False)
+    mutation = MapAttribute()
 
 
 class FunctionsModel(BaseModel):
