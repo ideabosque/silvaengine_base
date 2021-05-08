@@ -5,6 +5,7 @@ __author__ = "bibow"
 import json, traceback, os
 from .lambdabase import LambdaBase
 from .models import BaseModel
+from silvaengine_auth import Auth
 from silvaengine_utility import Utility
 
 
@@ -31,7 +32,6 @@ class Resources(LambdaBase):
             )
             body = event["body"]
             api_key = event["requestContext"]["identity"]["apiKey"]
-            self.logger.info([endpoint_id, funct, api_key, method])
 
             (setting, function) = LambdaBase.get_function(
                 endpoint_id, funct, api_key=api_key, method=method
@@ -43,10 +43,42 @@ class Resources(LambdaBase):
 
             # If auth_required is True, validate authorization.
             # If graphql, append the graphql query path to the path.
-            user = event["requestContext"]["identity"].get("user")
-            assert (
-                True if function.config.auth_required else True
-            ), f"Don't have the permission to access at /{area}/{endpoint_id}/{funct}."
+            if function.config.auth_required:
+                # user = event["requestContext"]["identity"].get("user")
+                # params = {
+                #     "uid": event["requestContext"]["identity"].get("user"),
+                #     "path": f"/{area}/{endpoint_id}/{funct}",
+                #     "permission": 2,
+                # }
+
+                print(type(event))
+                collection = event
+                collection["fnConfigurations"] = function
+
+                isAuthorized = Auth.isAuthorized(collection, self.logger)
+                self.logger.info("Authorized: ")
+                self.logger.info(isAuthorized)
+
+                if not isAuthorized:
+                    return {
+                        "statusCode": 403,
+                        "headers": {
+                            "Access-Control-Allow-Headers": "Access-Control-Allow-Origin",
+                            "Access-Control-Allow-Origin": "*",
+                        },
+                        "body": (
+                            json.dumps(
+                                {
+                                    "error": f"Don't have the permission to access at /{area}/{endpoint_id}/{funct}."
+                                },
+                                indent=4,
+                            )
+                        ),
+                    }
+
+                # assert (
+                #     True if function.config.auth_required else True
+                # ), f"Don't have the permission to access at /{area}/{endpoint_id}/{funct}."
 
             payload = {
                 "MODULENAME": function.config.module_name,
@@ -56,6 +88,10 @@ class Resources(LambdaBase):
                 "params": json.dumps(params),
                 "body": body,
             }
+
+            self.logger.info("Request payload: ")
+            self.logger.info(payload)
+
             res = LambdaBase.invoke(
                 function.aws_lambda_arn,
                 payload,
