@@ -61,7 +61,7 @@ class ConfigMap(MapAttribute):
     setting = UnicodeAttribute()
     auth_required = BooleanAttribute(default=False)
     graphql = BooleanAttribute(default=False)
-    mutation = MapAttribute()
+    mutations = MapAttribute()
 
 
 class FunctionsModel(BaseModel):
