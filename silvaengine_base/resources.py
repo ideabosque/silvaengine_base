@@ -55,11 +55,11 @@ class Resources(LambdaBase):
                 collection = event
                 collection["fnConfigurations"] = function
 
-                isAuthorized = Auth.isAuthorized(collection, self.logger)
+                is_authorized = Auth.is_authorized(collection, self.logger)
                 self.logger.info("Authorized: ")
-                self.logger.info(isAuthorized)
+                self.logger.info(is_authorized)
 
-                if not isAuthorized:
+                if not is_authorized:
                     return {
                         "statusCode": 403,
                         "headers": {
