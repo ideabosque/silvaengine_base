@@ -98,10 +98,7 @@ class Resources(LambdaBase):
                 invocation_type=function.config.funct_type,
             )
             return {
-                "statusCode": 500
-                if funct.find("graphql") != -1
-                and "errors" in Utility.json_loads(res).keys()
-                else 200,
+                "statusCode": 200,
                 "headers": {
                     "Access-Control-Allow-Headers": "Access-Control-Allow-Origin",
                     "Access-Control-Allow-Origin": "*",
