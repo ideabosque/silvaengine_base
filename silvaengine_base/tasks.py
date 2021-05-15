@@ -5,8 +5,6 @@ __author__ = "bibow"
 import json, traceback, boto3, os
 from botocore.exceptions import ClientError
 from .lambdabase import LambdaBase
-from .models import BaseModel
-from silvaengine_utility import Utility
 
 
 class Tasks(LambdaBase):
@@ -17,7 +15,6 @@ class Tasks(LambdaBase):
     def __init__(self, logger):  # implementation-specific args and/or kwargs
         # implementation
         self.logger = logger
-        BaseModel.Meta.region = os.environ["REGIONNAME"]
 
     @classmethod
     def get_queue_attributes(cls, queue_url=None):

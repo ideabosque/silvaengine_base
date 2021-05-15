@@ -2,18 +2,15 @@
 # -*- coding: utf-8 -*-
 __author__ = "bibow"
 
-import json, traceback, os
+import json, traceback
 from .lambdabase import LambdaBase
-from .models import BaseModel
 from silvaengine_auth import Auth
-from silvaengine_utility import Utility
 
 
 class Resources(LambdaBase):
     def __init__(self, logger):  # implementation-specific args and/or kwargs
         # implementation
         self.logger = logger
-        BaseModel.Meta.region = os.environ["REGIONNAME"]
 
     def handle(self, event, context):
         # TODO implement
