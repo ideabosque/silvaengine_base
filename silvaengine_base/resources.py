@@ -5,6 +5,7 @@ __author__ = "bibow"
 import json, traceback
 from .lambdabase import LambdaBase
 from silvaengine_auth import Auth
+from silvaengine_utility import Utility
 
 
 class Resources(LambdaBase):
@@ -89,18 +90,21 @@ class Resources(LambdaBase):
             self.logger.info("Request payload: ")
             self.logger.info(payload)
 
-            res = LambdaBase.invoke(
-                function.aws_lambda_arn,
-                payload,
-                invocation_type=function.config.funct_type,
+            res = Utility.json_loads(
+                LambdaBase.invoke(
+                    function.aws_lambda_arn,
+                    payload,
+                    invocation_type=function.config.funct_type,
+                )
             )
+            status_code = res.pop("status_code", 200)
             return {
-                "statusCode": 200,
+                "statusCode": status_code,
                 "headers": {
                     "Access-Control-Allow-Headers": "Access-Control-Allow-Origin",
                     "Access-Control-Allow-Origin": "*",
                 },
-                "body": res,
+                "body": Utility.json_dumps(res),
             }
 
         except Exception:
