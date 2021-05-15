@@ -4,20 +4,19 @@ from __future__ import print_function
 
 __author__ = "bibow"
 
+import os
 from pynamodb.models import Model
 from pynamodb.attributes import (
     MapAttribute,
     ListAttribute,
     UnicodeAttribute,
     BooleanAttribute,
-    NumberAttribute,
-    UnicodeSetAttribute,
-    UTCDateTimeAttribute,
 )
 
 
 class BaseModel(Model):
     class Meta:
+        region = os.environ["REGIONNAME"]
         billing_mode = "PAY_PER_REQUEST"
 
 
