@@ -90,6 +90,16 @@ class Resources(LambdaBase):
             self.logger.info("Request payload: ")
             self.logger.info(payload)
 
+            if function.config.funct_type == "Event":
+                return {
+                    "statusCode": 200,
+                    "headers": {
+                        "Access-Control-Allow-Headers": "Access-Control-Allow-Origin",
+                        "Access-Control-Allow-Origin": "*",
+                    },
+                    "body": "",
+                }
+
             res = Utility.json_loads(
                 LambdaBase.invoke(
                     function.aws_lambda_arn,
