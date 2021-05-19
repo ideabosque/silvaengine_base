@@ -91,6 +91,11 @@ class Resources(LambdaBase):
             self.logger.info(payload)
 
             if function.config.funct_type == "Event":
+                LambdaBase.invoke(
+                    function.aws_lambda_arn,
+                    payload,
+                    invocation_type=function.config.funct_type,
+                )
                 return {
                     "statusCode": 200,
                     "headers": {
