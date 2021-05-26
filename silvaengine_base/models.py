@@ -37,7 +37,7 @@ class EndpointsModel(BaseModel):
     special_connection = BooleanAttribute(default=False)
 
 
-class FunctioonMap(MapAttribute):
+class FunctionMap(MapAttribute):
     aws_lambda_arn = UnicodeAttribute()
     function = UnicodeAttribute()
     setting = UnicodeAttribute()
@@ -49,7 +49,7 @@ class ConnectionsModel(BaseModel):
 
     api_key = UnicodeAttribute(hash_key=True)
     endpoint_id = UnicodeAttribute(range_key=True, default="#####")
-    functions = ListAttribute(of=FunctioonMap)
+    functions = ListAttribute(of=FunctionMap)
 
 
 class ConfigMap(MapAttribute):

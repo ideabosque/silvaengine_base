@@ -34,6 +34,7 @@ class Worker(LambdaBase):
 
         params = event.get("params")
         body = event.get("body")
+        context = event.get("context")
 
         if params is None and body is None:
             return funct()
@@ -42,7 +43,12 @@ class Worker(LambdaBase):
             (k, v)
             for k, v in dict(
                 ({} if params is None else json.loads(params, parse_float=Decimal)),
-                **({} if body is None else json.loads(body, parse_float=Decimal))
+                **({} if body is None else json.loads(body, parse_float=Decimal)),
+                **(
+                    {}
+                    if context is None
+                    else {"context": json.loads(body, parse_float=Decimal)}
+                )
             ).items()
             if v is not None and v != ""
         )
