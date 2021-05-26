@@ -85,6 +85,7 @@ class Resources(LambdaBase):
                 "setting": json.dumps(setting),
                 "params": json.dumps(params),
                 "body": body,
+                "context": event["requestContext"],
             }
 
             self.logger.info("Request payload: ")
