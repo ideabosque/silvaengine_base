@@ -41,15 +41,13 @@ class Resources(LambdaBase):
 
             # If auth_required is True, validate authorization.
             # If graphql, append the graphql query path to the path.
-            if function.config.auth_required:
+            if function.get("config") and function.get("config").get("auth_required"):
                 # user = event["requestContext"]["identity"].get("user")
                 # params = {
                 #     "uid": event["requestContext"]["identity"].get("user"),
                 #     "path": f"/{area}/{endpoint_id}/{funct}",
                 #     "permission": 2,
                 # }
-
-                print(type(event))
                 collection = event
                 collection["fnConfigurations"] = function
 
@@ -85,7 +83,7 @@ class Resources(LambdaBase):
                 "setting": json.dumps(setting),
                 "params": json.dumps(params),
                 "body": body,
-                "context": event["requestContext"],
+                "context": Utility.json_dumps(event["requestContext"]),
             }
 
             self.logger.info("Request payload: ")
