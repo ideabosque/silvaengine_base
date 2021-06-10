@@ -52,6 +52,13 @@ class ConnectionsModel(BaseModel):
     functions = ListAttribute(of=FunctionMap)
 
 
+class OperationMap(MapAttribute):
+    create = ListAttribute()
+    query = ListAttribute()
+    update = ListAttribute()
+    delete = ListAttribute()
+
+
 class ConfigMap(MapAttribute):
     class_name = UnicodeAttribute()
     funct_type = UnicodeAttribute()
@@ -60,7 +67,7 @@ class ConfigMap(MapAttribute):
     setting = UnicodeAttribute()
     auth_required = BooleanAttribute(default=False)
     graphql = BooleanAttribute(default=False)
-    mutations = MapAttribute()
+    operations = OperationMap()
 
 
 class FunctionsModel(BaseModel):

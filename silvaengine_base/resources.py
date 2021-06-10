@@ -41,7 +41,7 @@ class Resources(LambdaBase):
 
             # If auth_required is True, validate authorization.
             # If graphql, append the graphql query path to the path.
-            if function.get("config") and function.get("config").get("auth_required"):
+            if function.config.auth_required:
                 # user = event["requestContext"]["identity"].get("user")
                 # params = {
                 #     "uid": event["requestContext"]["identity"].get("user"),
