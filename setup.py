@@ -15,7 +15,7 @@ setup(
     include_package_data=True,
     zip_safe=False,
     platforms="Linux",
-    install_requires=["SilvaEngine-Utility"],
+    install_requires=["SilvaEngine-Utility", "SilvaEngine-Auth", "Event-Triggers"],
     classifiers=[
         "Programming Language :: Python",
         "Environment :: Web Environment",

@@ -1,11 +1,16 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
+from __future__ import print_function
+
 __author__ = "bibow"
 
 import json, traceback
 from .lambdabase import LambdaBase
 from silvaengine_auth import Auth
+from event_triggers import Cognito
 from silvaengine_utility import Utility
+
+# from event_recorder import Recorder
 
 
 class Resources(LambdaBase):
@@ -16,6 +21,14 @@ class Resources(LambdaBase):
     def handle(self, event, context):
         # TODO implement
         try:
+            # Trigger hooks
+            if event and event.get("triggerSource") and event.get("userPoolId"):
+                settings = LambdaBase.get_setting("event_triggers")
+
+                return Cognito(self.logger, **settings).pre_token_generate(
+                    event, context
+                )
+
             area = event["pathParameters"]["area"]
             method = event["httpMethod"]
             endpoint_id = event["pathParameters"]["endpoint_id"]
@@ -39,6 +52,9 @@ class Resources(LambdaBase):
                 area == function.area
             ), f"Area ({area}) is not matched the configuration of the function ({funct}).  Please check the parameters."
 
+            collection = event
+            collection["fnConfigurations"] = function
+
             # If auth_required is True, validate authorization.
             # If graphql, append the graphql query path to the path.
             if function.config.auth_required:
@@ -48,8 +64,8 @@ class Resources(LambdaBase):
                 #     "path": f"/{area}/{endpoint_id}/{funct}",
                 #     "permission": 2,
                 # }
-                collection = event
-                collection["fnConfigurations"] = function
+                # collection = event
+                # collection["fnConfigurations"] = function
 
                 is_authorized = Auth.is_authorized(collection, self.logger)
                 self.logger.info("Authorized: ")
@@ -72,9 +88,12 @@ class Resources(LambdaBase):
                         ),
                     }
 
-                # assert (
-                #     True if function.config.auth_required else True
-                # ), f"Don't have the permission to access at /{area}/{endpoint_id}/{funct}."
+            # if function.config.log_required:
+            #     Recorder.add_event_log(collection, self.logger)
+
+            # assert (
+            #     True if function.config.auth_required else True
+            # ), f"Don't have the permission to access at /{area}/{endpoint_id}/{funct}."
 
             payload = {
                 "MODULENAME": function.config.module_name,
