@@ -47,7 +47,7 @@ class Worker(LambdaBase):
                 **(
                     {}
                     if context is None
-                    else {"context": json.loads(body, parse_float=Decimal)}
+                    else {"context": json.loads(context, parse_float=Decimal)}
                 )
             ).items()
             if v is not None and v != ""
