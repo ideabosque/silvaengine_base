@@ -105,9 +105,6 @@ class Resources(LambdaBase):
                 "context": Utility.json_dumps(event["requestContext"]),
             }
 
-            self.logger.info("Request payload: ")
-            self.logger.info(payload)
-
             if function.config.funct_type == "Event":
                 LambdaBase.invoke(
                     function.aws_lambda_arn,
