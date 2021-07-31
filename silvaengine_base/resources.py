@@ -68,6 +68,7 @@ class Resources(LambdaBase):
             elif event.get("body"):
                 event.update(Auth(self.logger).verify_permission(event, context))
 
+            print("SILVAENGINE BASE:", event)
             payload = {
                 "MODULENAME": function.config.module_name,
                 "CLASSNAME": function.config.class_name,
