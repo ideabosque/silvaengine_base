@@ -61,6 +61,8 @@ class Resources(LambdaBase):
                 {"fnConfigurations": Utility.json_loads(Utility.json_dumps(function))}
             )
 
+            print("ORIGIN REQUEST:", event)
+
             # If auth_required is True, validate authorization.
             # If graphql, append the graphql query path to the path.
             if str(event.get("type")).lower() == "request":
@@ -68,7 +70,6 @@ class Resources(LambdaBase):
             elif event.get("body"):
                 event.update(Auth(self.logger).verify_permission(event, context))
 
-            print("SILVAENGINE BASE:", event)
             payload = {
                 "MODULENAME": function.config.module_name,
                 "CLASSNAME": function.config.class_name,
