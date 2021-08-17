@@ -8,7 +8,7 @@ import json, traceback, asyncio
 from .lambdabase import LambdaBase
 from silvaengine_auth import Auth
 from event_triggers import Cognito
-from silvaengine_utility import Utility
+from silvaengine_utility import Utility, Authorizer
 from importlib.util import find_spec
 from importlib import import_module
 
@@ -120,20 +120,35 @@ class Resources(LambdaBase):
             message = e.args[0]
             status_code = 500
 
-            if len(e.args) > 1:
+            if len(e.args) > 1 and type(e.args[1]) is int:
                 status_code = e.args[1]
 
             if message is None:
                 message = log
 
-            print("SilvaEngine Base exception:", status_code, message, type(message))
+            if str(event.get("type")).lower() == "request":
+                principal = event.get("path")
+                aws_account_id = event.get("requestContext").get("accountId")
+                api_id = event.get("requestContext").get("apiId")
+                region = event.get("methodArn").split(":")[3]
+                stage = event.get("requestContext").get("stage")
+                ctx = {"error_message": message}
+
+                return Authorizer(
+                    principal=principal,
+                    aws_account_id=aws_account_id,
+                    api_id=api_id,
+                    region=region,
+                    stage=stage,
+                ).authorize(is_allow=False, context=ctx)
+
             return {
-                "statusCode": status_code,
+                "statusCode": int(status_code),
                 "headers": {
                     "Access-Control-Allow-Headers": "Access-Control-Allow-Origin",
                     "Access-Control-Allow-Origin": "*",
                 },
-                "body": Utility.json_dumps({"error": message}),
+                "body": json.dumps({"error": message}),
             }
 
     # Exec hooks
