@@ -12,8 +12,6 @@ from silvaengine_utility import Utility, Authorizer
 from importlib.util import find_spec
 from importlib import import_module
 
-# from event_recorder import Recorder
-
 
 class Resources(LambdaBase):
     def __init__(self, logger):  # implementation-specific args and/or kwargs
@@ -21,9 +19,8 @@ class Resources(LambdaBase):
         self.logger = logger
 
     def handle(self, event, context):
-        # TODO implement
         try:
-            # Trigger hooks
+            # Trigger aws hooks
             if event and event.get("triggerSource") and event.get("userPoolId"):
                 settings = LambdaBase.get_setting("event_triggers")
 
@@ -70,6 +67,12 @@ class Resources(LambdaBase):
             elif event.get("body"):
                 event.update(Auth(self.logger).verify_permission(event, context))
 
+            # Execute triggers.
+            self.trigger_hooks(
+                logger=self.logger, settings=json.dumps(setting), event=event
+            )
+
+            # Transfer the request to the lower-level logic
             payload = {
                 "MODULENAME": function.config.module_name,
                 "CLASSNAME": function.config.class_name,
@@ -152,55 +155,23 @@ class Resources(LambdaBase):
             }
 
     # Exec hooks
-    # If returns True, break exec
-    def trigger_hooks(self, event, context):
-        # 1. Get hooks from settings
-        api_id = event.get("requestContext").get("apiId")
+    def trigger_hooks(self, logger=None, settings=None, event=None, context=None):
+        try:
+            # print("Execute hooks")
+            # # 1. Record the activity log.
+            # arguments = {
+            #     "module_name": "event_recorder",
+            #     "function_name": "add_event_log",
+            #     "class_name": "Recorder",
+            #     "constructor_parameters": {"logger": logger, "setting": settings},
+            # }
+            # print(arguments)
+            # log_recorder = Utility.import_dynamically(**arguments)
 
-        if api_id is None:
-            raise Exception("API ID is invalid", 500)
-
-        hooks = LambdaBase.get_hooks(api_id)
-        aysnc_hooks = []
-
-        # 2. Exec hooks
-        for hook in hooks:
-            # 2.1. Load module by dynamic
-            module_name = hook.get("module_name")
-            function_name = hook.get("function_name")
-
-            if module_name is None or function_name is None:
-                continue
-
-            spec = find_spec(module_name)
-
-            if spec is None:
-                continue
-
-            module = import_module(module_name)
-
-            if not hasattr(module, function_name):
-                continue
-
-            function = getattr(module, function_name)()
-
-            if hook.get("is_async"):
-                # 2.2. Add function to async queue
-                aysnc_hooks.append(function)
-            else:
-                # 2.3. Exec hook by sync
-                result = function(event, context)
-
-                # 2.3.1. If the function returns false, it just means that the verification failed
-                if result == False:
-                    return result
-
-        # 3. Exec async hooks
-        if len(aysnc_hooks):
-
-            async def exec_async_hooks(hooks):
-                await asyncio.gather(*[hook(event, context) for hook in hooks])
-
-            asyncio.run(exec_async_hooks(hooks))
-
-        return True
+            # # 2. Call recorder by async
+            # if log_recorder:
+            #     print("Record event log")
+            #     Utility.callByAsync(lambda: log_recorder(event))
+            return None
+        except Exception:
+            logger.exception(traceback.format_exc())
