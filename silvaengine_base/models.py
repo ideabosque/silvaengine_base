@@ -54,10 +54,11 @@ class ConnectionsModel(BaseModel):
 
 
 class OperationMap(MapAttribute):
-    create = ListAttribute()
+    # create = ListAttribute()
     query = ListAttribute()
-    update = ListAttribute()
-    delete = ListAttribute()
+    mutation = ListAttribute()
+    # update = ListAttribute()
+    # delete = ListAttribute()
 
 
 class ConfigMap(MapAttribute):
