@@ -18,7 +18,7 @@ class FunctionError(Exception):
 
 class LambdaBase(object):
 
-    aws_lambda = boto3.client("lambda")
+    aws_lambda = boto3.client("lambda", region_name=os.environ["REGIONNAME"])
 
     @classmethod
     def get_handler(cls, *args, **kwargs):
