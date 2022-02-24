@@ -1,17 +1,18 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 from __future__ import print_function
-
-__author__ = "bibow"
-
-import os
 from pynamodb.models import Model
 from pynamodb.attributes import (
     MapAttribute,
     ListAttribute,
     UnicodeAttribute,
     BooleanAttribute,
+    NumberAttribute,
 )
+import os
+
+
+__author__ = "bibow"
 
 
 class BaseModel(Model):
@@ -34,6 +35,7 @@ class EndpointsModel(BaseModel):
         table_name = "se-endpoints"
 
     endpoint_id = UnicodeAttribute(hash_key=True)
+    code = NumberAttribute()
     special_connection = BooleanAttribute(default=False)
 
 
