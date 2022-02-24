@@ -4,13 +4,13 @@ from __future__ import print_function
 
 __author__ = "bibow"
 
-import json, traceback
+import json, traceback, asyncio
 from .lambdabase import LambdaBase
 from silvaengine_auth import Auth
 from event_triggers import Cognito
-from silvaengine_utility import Utility
-
-# from event_recorder import Recorder
+from silvaengine_utility import Utility, Authorizer
+from importlib.util import find_spec
+from importlib import import_module
 
 
 class Resources(LambdaBase):
@@ -19,9 +19,8 @@ class Resources(LambdaBase):
         self.logger = logger
 
     def handle(self, event, context):
-        # TODO implement
         try:
-            # Trigger hooks
+            # Trigger aws hooks
             if event and event.get("triggerSource") and event.get("userPoolId"):
                 settings = LambdaBase.get_setting("event_triggers")
 
@@ -30,7 +29,7 @@ class Resources(LambdaBase):
                 )
 
             area = event["pathParameters"]["area"]
-            method = event["httpMethod"]
+            api_key = event["requestContext"]["identity"]["apiKey"]
             endpoint_id = event["pathParameters"]["endpoint_id"]
             funct = event["pathParameters"]["proxy"]
             params = dict(
@@ -41,8 +40,11 @@ class Resources(LambdaBase):
                     else {}
                 ),
             )
-            body = event["body"]
-            api_key = event["requestContext"]["identity"]["apiKey"]
+            method = (
+                event.get("requestContext").get("httpMethod")
+                if event.get("requestContext").get("httpMethod")
+                else event["httpMethod"]
+            )
 
             (setting, function) = LambdaBase.get_function(
                 endpoint_id, funct, api_key=api_key, method=method
@@ -52,56 +54,32 @@ class Resources(LambdaBase):
                 area == function.area
             ), f"Area ({area}) is not matched the configuration of the function ({funct}).  Please check the parameters."
 
-            collection = event
-            collection["fnConfigurations"] = function
+            event.update(
+                {"fnConfigurations": Utility.json_loads(Utility.json_dumps(function))}
+            )
+
+            print("ORIGIN REQUEST:", event)
 
             # If auth_required is True, validate authorization.
             # If graphql, append the graphql query path to the path.
-            if function.config.auth_required:
-                # user = event["requestContext"]["identity"].get("user")
-                # params = {
-                #     "uid": event["requestContext"]["identity"].get("user"),
-                #     "path": f"/{area}/{endpoint_id}/{funct}",
-                #     "permission": 2,
-                # }
-                # collection = event
-                # collection["fnConfigurations"] = function
+            if str(event.get("type")).lower() == "request":
+                return Auth(self.logger).authorize(event, context)
+            elif event.get("body"):
+                event.update(Auth(self.logger).verify_permission(event, context))
 
-                is_authorized = Auth.is_authorized(collection, self.logger)
-                self.logger.info("Authorized: ")
-                self.logger.info(is_authorized)
+            # Execute triggers.
+            self.trigger_hooks(
+                logger=self.logger, settings=json.dumps(setting), event=event
+            )
 
-                if not is_authorized:
-                    return {
-                        "statusCode": 403,
-                        "headers": {
-                            "Access-Control-Allow-Headers": "Access-Control-Allow-Origin",
-                            "Access-Control-Allow-Origin": "*",
-                        },
-                        "body": (
-                            json.dumps(
-                                {
-                                    "error": f"Don't have the permission to access at /{area}/{endpoint_id}/{funct}."
-                                },
-                                indent=4,
-                            )
-                        ),
-                    }
-
-            # if function.config.log_required:
-            #     Recorder.add_event_log(collection, self.logger)
-
-            # assert (
-            #     True if function.config.auth_required else True
-            # ), f"Don't have the permission to access at /{area}/{endpoint_id}/{funct}."
-
+            # Transfer the request to the lower-level logic
             payload = {
                 "MODULENAME": function.config.module_name,
                 "CLASSNAME": function.config.class_name,
                 "funct": function.function,
                 "setting": json.dumps(setting),
                 "params": json.dumps(params),
-                "body": body,
+                "body": event["body"],
                 "context": Utility.json_dumps(event["requestContext"]),
             }
 
@@ -111,6 +89,7 @@ class Resources(LambdaBase):
                     payload,
                     invocation_type=function.config.funct_type,
                 )
+
                 return {
                     "statusCode": 200,
                     "headers": {
@@ -128,6 +107,7 @@ class Resources(LambdaBase):
                 )
             )
             status_code = res.pop("status_code", 200)
+
             return {
                 "statusCode": status_code,
                 "headers": {
@@ -137,14 +117,61 @@ class Resources(LambdaBase):
                 "body": Utility.json_dumps(res),
             }
 
-        except Exception:
+        except Exception as e:
             log = traceback.format_exc()
             self.logger.exception(log)
+            message = e.args[0]
+            status_code = 500
+
+            if len(e.args) > 1 and type(e.args[1]) is int:
+                status_code = e.args[1]
+
+            if message is None:
+                message = log
+
+            if str(event.get("type")).lower() == "request":
+                principal = event.get("path")
+                aws_account_id = event.get("requestContext").get("accountId")
+                api_id = event.get("requestContext").get("apiId")
+                region = event.get("methodArn").split(":")[3]
+                stage = event.get("requestContext").get("stage")
+                ctx = {"error_message": message}
+
+                return Authorizer(
+                    principal=principal,
+                    aws_account_id=aws_account_id,
+                    api_id=api_id,
+                    region=region,
+                    stage=stage,
+                ).authorize(is_allow=False, context=ctx)
+
             return {
-                "statusCode": 500,
+                "statusCode": int(status_code),
                 "headers": {
                     "Access-Control-Allow-Headers": "Access-Control-Allow-Origin",
                     "Access-Control-Allow-Origin": "*",
                 },
-                "body": (json.dumps({"error": log}, indent=4)),
+                "body": json.dumps({"error": message}),
             }
+
+    # Exec hooks
+    def trigger_hooks(self, logger=None, settings=None, event=None, context=None):
+        try:
+            # print("Execute hooks")
+            # # 1. Record the activity log.
+            # arguments = {
+            #     "module_name": "event_recorder",
+            #     "function_name": "add_event_log",
+            #     "class_name": "Recorder",
+            #     "constructor_parameters": {"logger": logger, "setting": settings},
+            # }
+            # print(arguments)
+            # log_recorder = Utility.import_dynamically(**arguments)
+
+            # # 2. Call recorder by async
+            # if log_recorder:
+            #     print("Record event log")
+            #     Utility.callByAsync(lambda: log_recorder(event))
+            return None
+        except Exception:
+            logger.exception(traceback.format_exc())

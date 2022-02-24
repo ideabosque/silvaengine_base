@@ -27,11 +27,9 @@ class Worker(LambdaBase):
         Worker.set_last_request_id(context.aws_request_id)
 
         _class = getattr(__import__(event.get("MODULENAME")), event.get("CLASSNAME"))
-
         funct = getattr(
             _class(self.logger, **json.loads(event.get("setting"))), event.get("funct")
         )
-
         params = event.get("params")
         body = event.get("body")
         context = event.get("context")

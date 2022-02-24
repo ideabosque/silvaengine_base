@@ -9,6 +9,7 @@ from .models import (
     EndpointsModel,
     ConnectionsModel,
     FunctionsModel,
+    HooksModel,
 )
 
 
@@ -42,6 +43,17 @@ class LambdaBase(object):
             raise FunctionError(log)
         if invocation_type == "RequestResponse":
             return json.loads(response["Payload"].read())
+
+    @classmethod
+    def get_hooks(cls, api_id) -> list:
+        hooks = [
+            dict(
+                (item.variable, item.value)
+                for item in HooksModel.query(api_id, None, HooksModel.status == True)
+            )
+        ]
+
+        return hooks
 
     @classmethod
     def get_setting(cls, setting_id):

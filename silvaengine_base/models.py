@@ -47,16 +47,18 @@ class ConnectionsModel(BaseModel):
     class Meta(BaseModel.Meta):
         table_name = "se-connections"
 
-    api_key = UnicodeAttribute(hash_key=True)
-    endpoint_id = UnicodeAttribute(range_key=True, default="#####")
+    endpoint_id = UnicodeAttribute(hash_key=True)
+    api_key = UnicodeAttribute(range_key=True, default="#####")
     functions = ListAttribute(of=FunctionMap)
+    whitelist = ListAttribute()
 
 
 class OperationMap(MapAttribute):
-    create = ListAttribute()
+    # create = ListAttribute()
     query = ListAttribute()
-    update = ListAttribute()
-    delete = ListAttribute()
+    mutation = ListAttribute()
+    # update = ListAttribute()
+    # delete = ListAttribute()
 
 
 class ConfigMap(MapAttribute):
@@ -78,3 +80,16 @@ class FunctionsModel(BaseModel):
     function = UnicodeAttribute(range_key=True)
     area = UnicodeAttribute()
     config = ConfigMap()
+
+
+class HooksModel(BaseModel):
+    class Meta(BaseModel.Meta):
+        table_name = "se-hooks"
+
+    api_id = UnicodeAttribute(hash_key=True)
+    module_name = UnicodeAttribute(range_key=True)
+    function_name = UnicodeAttribute()
+    is_async = BooleanAttribute(default=False)
+    is_interruptible = BooleanAttribute(default=False)
+    status = BooleanAttribute(default=True)
+    description = UnicodeAttribute()
