@@ -94,7 +94,7 @@ class LambdaBase(object):
         ## (the setting in the funct of a connection will override the setting in the function).
         setting = dict(
             cls.get_setting(function.config.setting),
-            **cls.get_setting(functs[0].setting),
+            **cls.get_setting(functs[0].setting) if functs[0].setting else {},
         )
 
         if method is not None:
