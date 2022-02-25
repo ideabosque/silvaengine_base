@@ -35,7 +35,6 @@ class EndpointsModel(BaseModel):
         table_name = "se-endpoints"
 
     endpoint_id = UnicodeAttribute(hash_key=True)
-    code = NumberAttribute()
     special_connection = BooleanAttribute(default=False)
 
 

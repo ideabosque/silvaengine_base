@@ -29,50 +29,36 @@ class Resources(LambdaBase):
                 if callable(fn):
                     return fn(event, context)
 
-            area = event["pathParameters"]["area"]
-            api_key = event["requestContext"]["identity"]["apiKey"]
-            endpoint_id = event["pathParameters"]["endpoint_id"]
-            funct = event["pathParameters"]["proxy"]
+            request_context = event.get("requestContext", {})
+            path_parameters = event.get("pathParameters", {})
+
+            assert request_context and path_parameters, "Unrecognized event context."
+
+            area = path_parameters.get("area")
+            api_key = request_context.get("identity", {}).get("apiKey")
+            endpoint_id = path_parameters.get("endpoint_id")
+            funct = path_parameters.get("proxy")
             params = dict(
                 {"endpoint_id": endpoint_id, "area": area},
-                **(
-                    event["queryStringParameters"]
-                    if event["queryStringParameters"] is not None
-                    else {}
-                ),
+                **(event.get("queryStringParameters", {})),
             )
-            method = (
-                event.get("requestContext", {}).get("httpMethod")
-                if event.get("requestContext", {}).get("httpMethod")
-                else event["httpMethod"]
-            )
+            method = request_context.get("httpMethod", event.get("httpMethod", "POST"))
+
+            assert (
+                area and api_key and endpoint_id and funct and method
+            ), "Missing required parameter(s) in event context."
 
             ### 2. Get function settings.
-            (endpoint, setting, function) = LambdaBase.get_function(
-                endpoint_id,
-                funct,
-                api_key=api_key,
-                method=method,
-                return_endpoint=True,
+            (setting, function) = LambdaBase.get_function(
+                endpoint_id, funct, api_key=api_key, method=method
             )
 
             assert (
                 area == function.area
-            ), f"Area ({area}) is not matched the configuration of the function ({funct}).  Please check the parameters."
+            ), f"Area ({area}) is not matched the configuration of the function ({funct}), please check the parameters."
 
             event.update(
-                {
-                    "fnConfigurations": Utility.json_loads(
-                        Utility.json_dumps(function)
-                    ),
-                    "requestContext": dict(
-                        {
-                            "appName": endpoint.endpoint_id,
-                            "appCode": endpoint.code,
-                        },
-                        **(event.get("requestContext", {})),
-                    ),
-                }
+                {"fnConfigurations": Utility.json_loads(Utility.json_dumps(function))}
             )
 
             print("REQUEST >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>", event)
@@ -114,14 +100,14 @@ class Resources(LambdaBase):
                 "setting": json.dumps(setting),
                 "params": json.dumps(params),
                 "body": event["body"],
-                "context": Utility.json_dumps(event["requestContext"]),
+                "context": Utility.json_dumps(request_context),
             }
 
-            if function.config.funct_type == "Event":
+            if str(function.config.funct_type).strip().lower() == "event":
                 LambdaBase.invoke(
                     function.aws_lambda_arn,
                     payload,
-                    invocation_type=function.config.funct_type,
+                    invocation_type="Event",
                 )
 
                 return {
@@ -137,7 +123,7 @@ class Resources(LambdaBase):
                 LambdaBase.invoke(
                     function.aws_lambda_arn,
                     payload,
-                    invocation_type=function.config.funct_type,
+                    invocation_type=str(function.config.funct_type).strip(),
                 )
             )
             status_code = response.pop("status_code", 200)
@@ -163,9 +149,9 @@ class Resources(LambdaBase):
             if message is None:
                 message = log
 
-            if str(event.get("type")).lower() == "request":
+            if str(event.get("type")).strip().lower() == "request":
                 principal = event.get("path")
-                aws_account_id = event.get("requestContext").get("accountId")
+                aws_account_id = event.get("requestContext", {}).get("accountId")
                 api_id = event.get("requestContext").get("apiId")
                 region = event.get("methodArn").split(":")[3]
                 stage = event.get("requestContext").get("stage")
