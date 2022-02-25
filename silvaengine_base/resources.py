@@ -15,6 +15,8 @@ class Resources(LambdaBase):
 
     def handle(self, event, context):
         try:
+            print("REQUEST >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>", event)
+
             ### 1. Trigger hooks.
             if event and event.get("triggerSource") and event.get("userPoolId"):
                 settings = LambdaBase.get_setting("event_triggers")
@@ -31,22 +33,25 @@ class Resources(LambdaBase):
 
             request_context = event.get("requestContext", {})
             path_parameters = event.get("pathParameters", {})
-
-            assert request_context and path_parameters, "Unrecognized event context."
-
             area = path_parameters.get("area")
             api_key = request_context.get("identity", {}).get("apiKey")
-            endpoint_id = path_parameters.get("endpoint_id")
             funct = path_parameters.get("proxy")
+            endpoint_id = path_parameters.get("endpoint_id")
             params = dict(
                 {"endpoint_id": endpoint_id, "area": area},
-                **(event.get("queryStringParameters", {})),
+                **(
+                    event.get("queryStringParameters", {})
+                    if event.get("queryStringParameters") is not None
+                    else {}
+                ),
             )
-            method = request_context.get("httpMethod", event.get("httpMethod", "POST"))
-
-            assert (
-                area and api_key and endpoint_id and funct and method
-            ), "Missing required parameter(s) in event context."
+            method = (
+                request_context.get("httpMethod")
+                if request_context.get("httpMethod") is not None
+                else event.get("httpMethod")
+                if event.get("httpMethod") is not None
+                else "POST"
+            )
 
             ### 2. Get function settings.
             (setting, function) = LambdaBase.get_function(
@@ -55,13 +60,11 @@ class Resources(LambdaBase):
 
             assert (
                 area == function.area
-            ), f"Area ({area}) is not matched the configuration of the function ({funct}), please check the parameters."
+            ), f"Area ({area}) is not matched the configuration of the function ({funct}).  Please check the parameters."
 
             event.update(
                 {"fnConfigurations": Utility.json_loads(Utility.json_dumps(function))}
             )
-
-            print("REQUEST >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>", event)
 
             # Authorize
             if str(event.get("type")).strip().lower() == "request":
@@ -99,7 +102,7 @@ class Resources(LambdaBase):
                 "funct": function.function,
                 "setting": json.dumps(setting),
                 "params": json.dumps(params),
-                "body": event["body"],
+                "body": event.get("body"),
                 "context": Utility.json_dumps(request_context),
             }
 
@@ -152,9 +155,9 @@ class Resources(LambdaBase):
             if str(event.get("type")).strip().lower() == "request":
                 principal = event.get("path")
                 aws_account_id = event.get("requestContext", {}).get("accountId")
-                api_id = event.get("requestContext").get("apiId")
-                region = event.get("methodArn").split(":")[3]
-                stage = event.get("requestContext").get("stage")
+                api_id = event.get("requestContext", {}).get("apiId")
+                region = event.get("methodArn", {}).split(":")[3]
+                stage = event.get("requestContext", {}).get("stage")
                 ctx = {"error_message": message}
 
                 return ApiGatewayAuthorizer(
