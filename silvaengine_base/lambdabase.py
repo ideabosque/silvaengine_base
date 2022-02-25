@@ -71,13 +71,10 @@ class LambdaBase(object):
         return setting
 
     @classmethod
-    def get_function(
-        cls, endpoint_id, funct, api_key="#####", method=None, return_endpoint=False
-    ):
+    def get_function(cls, endpoint_id, funct, api_key="#####", method=None):
         # If a task calls this function, the special_connection should be TRUE.
-        endpoint = EndpointsModel.get(endpoint_id)
-
         if endpoint_id != "0":
+            endpoint = EndpointsModel.get(endpoint_id)
             endpoint_id = endpoint_id if endpoint.special_connection else "1"
 
         connection = ConnectionsModel.get(endpoint_id, api_key)
@@ -104,8 +101,5 @@ class LambdaBase(object):
             assert (
                 method in function.config.methods
             ), f"The function({funct}) doesn't support the method({method})."
-
-        if return_endpoint:
-            return (endpoint, setting, function)
 
         return (setting, function)
