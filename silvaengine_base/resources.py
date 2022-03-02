@@ -62,8 +62,19 @@ class Resources(LambdaBase):
                 area == function.area
             ), f"Area ({area}) is not matched the configuration of the function ({funct}).  Please check the parameters."
 
+            request_context.update(
+                {
+                    "channel": endpoint_id,
+                    "area": area,
+                }
+            )
             event.update(
-                {"fnConfigurations": Utility.json_loads(Utility.json_dumps(function))}
+                {
+                    "fnConfigurations": Utility.json_loads(
+                        Utility.json_dumps(function)
+                    ),
+                    "requestContext": request_context,
+                }
             )
 
             # Authorize
@@ -153,11 +164,12 @@ class Resources(LambdaBase):
                 message = log
 
             if str(event.get("type")).strip().lower() == "request":
+                requestContext = event.get("requestContext", {})
                 principal = event.get("path")
-                aws_account_id = event.get("requestContext", {}).get("accountId")
-                api_id = event.get("requestContext", {}).get("apiId")
+                aws_account_id = requestContext.get("accountId")
+                api_id = requestContext.get("apiId")
                 region = event.get("methodArn", {}).split(":")[3]
-                stage = event.get("requestContext", {}).get("stage")
+                stage = requestContext.get("stage")
                 ctx = {"error_message": message}
 
                 return ApiGatewayAuthorizer(
@@ -194,7 +206,7 @@ class Resources(LambdaBase):
             # # 2. Call recorder by async
             # if log_recorder:
             #     print("Record event log")
-            #     Utility.callByAsync(lambda: log_recorder(event))
+            #     Utility.call_by_async(lambda: log_recorder(event))
             return None
         except Exception:
             logger.exception(traceback.format_exc())
