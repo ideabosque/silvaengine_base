@@ -9,8 +9,8 @@ from .lambdabase import LambdaBase
 
 class Tasks(LambdaBase):
 
-    sqs = boto3.client("sqs")
-    sns = boto3.client("sns")
+    sqs = boto3.client("sqs", region_name=os.getenv("REGIONNAME", "us-east-1"))
+    sns = boto3.client("sns", region_name=os.getenv("REGIONNAME", "us-east-1"))
 
     def __init__(self, logger):  # implementation-specific args and/or kwargs
         # implementation
