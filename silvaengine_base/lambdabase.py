@@ -14,8 +14,12 @@ class FunctionError(Exception):
 
 class LambdaBase(object):
 
-    aws_lambda = boto3.client("lambda", region_name=os.environ["REGIONNAME"])
-    dynamodb = boto3.resource("dynamodb", region_name=os.environ["REGIONNAME"])
+    aws_lambda = boto3.client(
+        "lambda", region_name=os.getenv("REGIONNAME", "us-east-1")
+    )
+    dynamodb = boto3.resource(
+        "dynamodb", region_name=os.getenv("REGIONNAME", "us-east-1")
+    )
 
     @classmethod
     def get_handler(cls, *args, **kwargs):
