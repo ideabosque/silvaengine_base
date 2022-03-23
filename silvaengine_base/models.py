@@ -16,7 +16,7 @@ __author__ = "bibow"
 
 class BaseModel(Model):
     class Meta:
-        region = os.environ["REGIONNAME"]
+        region = os.getenv("REGIONNAME", "us-east-1")
         billing_mode = "PAY_PER_REQUEST"
 
 
