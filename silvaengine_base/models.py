@@ -7,7 +7,6 @@ from pynamodb.attributes import (
     ListAttribute,
     UnicodeAttribute,
     BooleanAttribute,
-    NumberAttribute,
 )
 import os
 
@@ -19,15 +18,6 @@ class BaseModel(Model):
     class Meta:
         region = os.environ["REGIONNAME"]
         billing_mode = "PAY_PER_REQUEST"
-
-
-class ConfigDataModel(BaseModel):
-    class Meta(BaseModel.Meta):
-        table_name = "se-configdata"
-
-    setting_id = UnicodeAttribute(hash_key=True)
-    variable = UnicodeAttribute(range_key=True)
-    value = UnicodeAttribute()
 
 
 class EndpointsModel(BaseModel):

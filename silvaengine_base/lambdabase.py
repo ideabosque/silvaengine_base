@@ -4,13 +4,8 @@ __author__ = "bibow"
 
 
 import json, boto3, os
-from .models import (
-    ConfigDataModel,
-    EndpointsModel,
-    ConnectionsModel,
-    FunctionsModel,
-    HooksModel,
-)
+from boto3.dynamodb.conditions import Key
+from .models import EndpointsModel, ConnectionsModel, FunctionsModel, HooksModel
 
 
 class FunctionError(Exception):
@@ -20,6 +15,7 @@ class FunctionError(Exception):
 class LambdaBase(object):
 
     aws_lambda = boto3.client("lambda", region_name=os.environ["REGIONNAME"])
+    dynamodb = boto3.resource("dynamodb", region_name=os.environ["REGIONNAME"])
 
     @classmethod
     def get_handler(cls, *args, **kwargs):
@@ -60,19 +56,19 @@ class LambdaBase(object):
         if setting_id == "":
             return {}
 
-        setting = dict(
-            (item.variable, item.value)
-            for item in ConfigDataModel.query(setting_id, None)
+        response = cls.dynamodb.Table("se-configdata").query(
+            KeyConditionExpression=Key("setting_id").eq(setting_id)
         )
         assert (
-            len(setting.keys()) > 0
+            response["Count"] > 0
         ), f"Cannot find values with the setting_id ({setting_id})."
 
-        return setting
+        return {item["variable"]: item["value"] for item in response["Items"]}
 
     @classmethod
     def get_function(cls, endpoint_id, funct, api_key="#####", method=None):
         # If a task calls this function, the special_connection should be TRUE.
+        # If special_connection is FALSE, the endpoint will be used to store the store token like shopify API; otherwise, special_connection should be TRUE.
         if endpoint_id != "0":
             endpoint = EndpointsModel.get(endpoint_id)
             endpoint_id = endpoint_id if endpoint.special_connection else "1"
