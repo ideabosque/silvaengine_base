@@ -52,7 +52,27 @@ class Tasks(LambdaBase):
                             endpoint_id,
                             funct,
                             params=params,
-                        ),
+                        )
+                elif event.get("Records")[0]["eventSource"] == "aws:s3":
+                    bucket = event["Records"][0]["s3"]["bucket"]["name"]
+                    key = event["Records"][0]["s3"]["object"]["key"]
+                    params = {"bucket": bucket, "key": key}
+
+                    pieces = key.split("/")
+                    params.update(
+                        {
+                            piece.split(":")[0]: piece.split(":")[1]
+                            for piece in pieces
+                            if piece.find(":") != -1
+                        }
+                    )
+                    endpoint_id = pieces[0]
+                    funct = pieces[1]
+                    Tasks.dispatch(
+                        endpoint_id,
+                        funct,
+                        params=params,
+                    )
                 else:
                     raise Exception(
                         f"The event source ({event.get('Records')[0]['eventSource']}) is not supported!!!"
@@ -67,7 +87,7 @@ class Tasks(LambdaBase):
                     endpoint_id,
                     funct,
                     params=params,
-                ),
+                )
 
         except Exception:
             self.logger.info(event)
