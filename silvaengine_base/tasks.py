@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 __author__ = "bibow"
 
-import traceback, boto3, os
+import traceback, boto3, os, urllib.parse
 from silvaengine_utility import Utility
 from .lambdabase import LambdaBase
 
@@ -47,7 +47,9 @@ class Tasks(LambdaBase):
                         funct = record["messageAttributes"]["funct"].get("stringValue")
                         params = Utility.json_loads(record["body"])["params"]
 
-                        self.logger.info(f"endpoint: {endpoint_id}, funct: {funct}")
+                        self.logger.info(
+                            f"endpoint_id: {endpoint_id}, funct: {funct}, params: {Utility.json_dumps(params)}"
+                        )
                         Tasks.dispatch(
                             endpoint_id,
                             funct,
@@ -55,7 +57,9 @@ class Tasks(LambdaBase):
                         )
                 elif event.get("Records")[0]["eventSource"] == "aws:s3":
                     bucket = event["Records"][0]["s3"]["bucket"]["name"]
-                    key = event["Records"][0]["s3"]["object"]["key"]
+                    key = urllib.parse.unquote(
+                        event["Records"][0]["s3"]["object"]["key"]
+                    )
                     params = {"bucket": bucket, "key": key}
 
                     pieces = key.split("/")
@@ -66,8 +70,13 @@ class Tasks(LambdaBase):
                             if piece.find(":") != -1
                         }
                     )
+
                     endpoint_id = pieces[0]
                     funct = pieces[1]
+
+                    self.logger.info(
+                        f"endpoint_id: {endpoint_id}, funct: {funct}, params: {Utility.json_dumps(params)}"
+                    )
                     Tasks.dispatch(
                         endpoint_id,
                         funct,
@@ -82,7 +91,9 @@ class Tasks(LambdaBase):
                 funct = event.get("funct")
                 params = event.get("params")
 
-                self.logger.info(f"endpoint: {endpoint_id}, funct: {funct}")
+                self.logger.info(
+                    f"endpoint_id: {endpoint_id}, funct: {funct}, params: {Utility.json_dumps(params)}"
+                )
                 Tasks.dispatch(
                     endpoint_id,
                     funct,
