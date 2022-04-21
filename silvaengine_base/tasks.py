@@ -60,15 +60,19 @@ class Tasks(LambdaBase):
                     key = urllib.parse.unquote(
                         event["Records"][0]["s3"]["object"]["key"]
                     )
-                    params = {"bucket": bucket, "key": key}
 
                     pieces = key.split("/")
-                    params.update(
+                    params = dict(
                         {
+                            "bucket": bucket,
+                            "key": key,
+                            "id": pieces[-1].replace(".csv", "").replace(".xlsx", ""),
+                        },
+                        **{
                             piece.split(":")[0]: piece.split(":")[1]
                             for piece in pieces
                             if piece.find(":") != -1
-                        }
+                        },
                     )
 
                     endpoint_id = pieces[0]
