@@ -133,13 +133,12 @@ class Resources(LambdaBase):
                     "body": "",
                 }
 
-            response = Utility.json_loads(
-                LambdaBase.invoke(
-                    function.aws_lambda_arn,
-                    payload,
-                    invocation_type=str(function.config.funct_type).strip(),
-                )
+            result = LambdaBase.invoke(
+                function.aws_lambda_arn,
+                payload,
+                invocation_type=str(function.config.funct_type).strip(),
             )
+            response = Utility.json_loads(result)
             status_code = response.pop("status_code", 200)
 
             return {
@@ -148,7 +147,8 @@ class Resources(LambdaBase):
                     "Access-Control-Allow-Headers": "Access-Control-Allow-Origin",
                     "Access-Control-Allow-Origin": "*",
                 },
-                "body": Utility.json_dumps(response),
+                # "body": Utility.json_dumps(response),
+                "body": result,
             }
 
         except Exception as e:
