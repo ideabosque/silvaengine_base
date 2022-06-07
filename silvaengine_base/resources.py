@@ -133,6 +133,8 @@ class Resources(LambdaBase):
                     "body": "",
                 }
 
+            print("############################ Context: ", payload.get("context"))
+
             result = LambdaBase.invoke(
                 function.aws_lambda_arn,
                 payload,
