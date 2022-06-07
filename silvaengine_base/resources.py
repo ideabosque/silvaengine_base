@@ -15,7 +15,7 @@ class Resources(LambdaBase):
 
     def handle(self, event, context):
         try:
-            print("REQUEST >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>", event)
+            # print("REQUEST >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>", event)
 
             ### 1. Trigger hooks.
             if event and event.get("triggerSource") and event.get("userPoolId"):
@@ -63,6 +63,7 @@ class Resources(LambdaBase):
             ), f"Area ({area}) is not matched the configuration of the function ({funct}).  Please check the parameters."
 
             print("==========================================\r\n")
+            print(jsonpickle.encode(function, unpicklable=True))
             fnc = jsonpickle.decode(jsonpickle.encode(function, unpicklable=True))
             print(fnc, type(fnc))
 
