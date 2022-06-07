@@ -73,9 +73,9 @@ class Resources(LambdaBase):
             )
             event.update(
                 {
-                    "fnConfigurations": jsonpickle.decode(
-                        jsonpickle.encode(function, unpicklable=False)
-                    ).get("attribute_values", function),
+                    "fnConfigurations": Utility.json_loads(
+                        Utility.json_dumps(function)
+                    ),
                     "requestContext": request_context,
                 }
             )
