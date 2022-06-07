@@ -79,6 +79,12 @@ class Resources(LambdaBase):
                     "requestContext": request_context,
                 }
             )
+            print("----------------------------------------")
+            print(
+                jsonpickle.decode(jsonpickle.encode(function, unpicklable=False)).get(
+                    "attribute_values", function
+                )
+            )
 
             # Authorize
             if str(event.get("type")).strip().lower() == "request":
