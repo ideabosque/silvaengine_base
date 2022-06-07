@@ -63,8 +63,8 @@ class Resources(LambdaBase):
             ), f"Area ({area}) is not matched the configuration of the function ({funct}).  Please check the parameters."
 
             print("==========================================\r\n")
-            print(jsonpickle.encode(function, unpicklable=True))
-            fnc = jsonpickle.decode(jsonpickle.encode(function, unpicklable=True))
+            print(jsonpickle.encode(function, unpicklable=False))
+            fnc = jsonpickle.decode(jsonpickle.encode(function, unpicklable=False))
             print(fnc, type(fnc))
 
             request_context.update(
@@ -114,7 +114,7 @@ class Resources(LambdaBase):
             # Transfer the request to the lower-level logic
             print(
                 "========= ctx::::",
-                jsonpickle.encode(request_context, unpicklable=True),
+                jsonpickle.encode(request_context, unpicklable=False),
             )
             payload = {
                 "MODULENAME": function.config.module_name,
