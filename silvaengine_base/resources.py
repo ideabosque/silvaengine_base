@@ -111,7 +111,7 @@ class Resources(LambdaBase):
                     r = fn(event, context)
                     print(r)
                     # If graphql, append the graphql query path to the path.
-                    event.update(result)
+                    event.update(r)
 
             # Execute triggers.
             # self.trigger_hooks(
