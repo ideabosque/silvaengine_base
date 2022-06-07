@@ -138,7 +138,7 @@ class Resources(LambdaBase):
                 payload,
                 invocation_type=str(function.config.funct_type).strip(),
             )
-            response = Utility.json_loads(result)
+            response = jsonpickle.decode(result)
             status_code = response.pop("status_code", 200)
 
             return {
