@@ -103,9 +103,15 @@ class Resources(LambdaBase):
                     constructor_parameters=dict({"logger": self.logger}),
                 )
 
+                print(
+                    "22222222222222222222222222222222222222222222222222222222222222222222222"
+                )
+
                 if callable(fn):
+                    r = fn(event, context)
+                    print(r)
                     # If graphql, append the graphql query path to the path.
-                    event.update(fn(event, context))
+                    event.update(result)
 
             # Execute triggers.
             # self.trigger_hooks(
