@@ -19,6 +19,9 @@ class Resources(LambdaBase):
 
             ### 1. Trigger hooks.
             if event and event.get("triggerSource") and event.get("userPoolId"):
+                print(
+                    "00000000000000000000000000000000000000000000000000000000000000000000000"
+                )
                 settings = LambdaBase.get_setting("event_triggers")
 
                 fn = Utility.import_dynamically(
@@ -79,6 +82,9 @@ class Resources(LambdaBase):
 
             # Authorize
             if str(event.get("type")).strip().lower() == "request":
+                print(
+                    "1111111111111111111111111111111111111111111111111111111111111111111111"
+                )
                 fn = Utility.import_dynamically(
                     module_name="silvaengine_authorizer",
                     function_name="authorize",
@@ -105,7 +111,7 @@ class Resources(LambdaBase):
             # self.trigger_hooks(
             #     logger=self.logger, settings=json.dumps(setting), event=event
             # )
-            print("\r\n\r\n+++++++++++++++++++++++++++++++++++\r\n",event)
+            print("\r\n\r\n+++++++++++++++++++++++++++++++++++\r\n", event)
 
             # Transfer the request to the lower-level logic
             payload = {
@@ -135,6 +141,9 @@ class Resources(LambdaBase):
                 }
 
             print("############################ Context: ", payload.get("context"))
+            print(
+                "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@"
+            )
 
             result = LambdaBase.invoke(
                 function.aws_lambda_arn,
