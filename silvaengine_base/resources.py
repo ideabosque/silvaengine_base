@@ -3,6 +3,7 @@
 from __future__ import print_function
 from .lambdabase import LambdaBase
 from silvaengine_utility import Utility, Authorizer as ApiGatewayAuthorizer
+from pynamodb_encoder.encoder import Encoder
 import json, traceback, jsonpickle
 
 __author__ = "bibow"
@@ -73,24 +74,13 @@ class Resources(LambdaBase):
             )
             event.update(
                 {
-                    "fnConfigurations": Utility.json_loads(
-                        Utility.json_dumps(function)
-                    ),
+                    "fnConfigurations": Encoder.encode(function),
                     "requestContext": request_context,
                 }
-            )
-            print("----------------------------------------")
-            print(
-                jsonpickle.decode(jsonpickle.encode(function, unpicklable=False)).get(
-                    "attribute_values", function
-                )
             )
 
             # Authorize
             if str(event.get("type")).strip().lower() == "request":
-                print(
-                    "1111111111111111111111111111111111111111111111111111111111111111111111"
-                )
                 fn = Utility.import_dynamically(
                     module_name="silvaengine_authorizer",
                     function_name="authorize",
@@ -109,21 +99,9 @@ class Resources(LambdaBase):
                     constructor_parameters=dict({"logger": self.logger}),
                 )
 
-                print(
-                    "22222222222222222222222222222222222222222222222222222222222222222222222"
-                )
-
                 if callable(fn):
-                    r = fn(event, context)
-                    print(r)
                     # If graphql, append the graphql query path to the path.
-                    event.update(r)
-
-            # Execute triggers.
-            # self.trigger_hooks(
-            #     logger=self.logger, settings=json.dumps(setting), event=event
-            # )
-            print("\r\n\r\n+++++++++++++++++++++++++++++++++++\r\n", event)
+                    event.update(fn(event, context))
 
             # Transfer the request to the lower-level logic
             payload = {
@@ -152,17 +130,12 @@ class Resources(LambdaBase):
                     "body": "",
                 }
 
-            print("############################ Context: ", payload.get("context"))
-            print(
-                "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@"
-            )
-
             result = LambdaBase.invoke(
                 function.aws_lambda_arn,
                 payload,
                 invocation_type=str(function.config.funct_type).strip(),
             )
-            response = Utility.json_loads(result)
+            response = jsonpickle.decode(result)
             status_code = response.pop("status_code", 200)
 
             return {
