@@ -3,7 +3,6 @@
 from __future__ import print_function
 from .lambdabase import LambdaBase
 from silvaengine_utility import Utility, Authorizer as ApiGatewayAuthorizer
-from pynamodb_encoder.encoder import Encoder
 import json, traceback, jsonpickle, pendulum
 
 __author__ = "bibow"
@@ -85,7 +84,9 @@ class Resources(LambdaBase):
             )
             event.update(
                 {
-                    "fnConfigurations": Encoder.encode(function),
+                    "fnConfigurations": Utility.json_loads(
+                        Utility.json_dumps(function)
+                    ),
                     "requestContext": request_context,
                 }
             )
