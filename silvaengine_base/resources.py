@@ -4,7 +4,7 @@ from __future__ import print_function
 from .lambdabase import LambdaBase
 from silvaengine_utility import Utility, Authorizer as ApiGatewayAuthorizer
 from pynamodb_encoder.encoder import Encoder
-import json, traceback, jsonpickle
+import json, traceback, jsonpickle, pendulum
 
 __author__ = "bibow"
 
@@ -16,13 +16,17 @@ class Resources(LambdaBase):
 
     def handle(self, event, context):
         try:
-            # print("REQUEST >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>", event)
+            t = lambda: int(pendulum.now().timestamp() * 1000)
+            s = t()
+            f = s
+            print(
+                "1. REQUEST START >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> {}".format(
+                    s
+                )
+            )
 
             ### 1. Trigger hooks.
             if event and event.get("triggerSource") and event.get("userPoolId"):
-                print(
-                    "00000000000000000000000000000000000000000000000000000000000000000000000"
-                )
                 settings = LambdaBase.get_setting("event_triggers")
 
                 fn = Utility.import_dynamically(
@@ -57,6 +61,13 @@ class Resources(LambdaBase):
                 else "POST"
             )
 
+            print(
+                "2. EXECUTE HOOKS SPENT >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> {}".format(
+                    t() - s
+                )
+            )
+            s = t()
+
             ### 2. Get function settings.
             (setting, function) = LambdaBase.get_function(
                 endpoint_id, funct, api_key=api_key, method=method
@@ -78,6 +89,13 @@ class Resources(LambdaBase):
                     "requestContext": request_context,
                 }
             )
+
+            print(
+                "3. GET FUNCTION SETTINGS SPENT >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> {}".format(
+                    t() - s
+                )
+            )
+            s = t()
 
             # Authorize
             if str(event.get("type")).strip().lower() == "request":
@@ -102,6 +120,12 @@ class Resources(LambdaBase):
                 if callable(fn):
                     # If graphql, append the graphql query path to the path.
                     event.update(fn(event, context))
+
+            print(
+                "4. AUTHORIZE SPENT >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> {}".format(
+                    t() - s
+                )
+            )
 
             # Transfer the request to the lower-level logic
             payload = {
@@ -130,13 +154,28 @@ class Resources(LambdaBase):
                     "body": "",
                 }
 
+            s = t()
+
             result = LambdaBase.invoke(
                 function.aws_lambda_arn,
                 payload,
                 invocation_type=str(function.config.funct_type).strip(),
             )
+
+            print(
+                "5. EXECUTE REQUEST >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> {}".format(
+                    t() - s
+                )
+            )
+
             response = jsonpickle.decode(result)
             status_code = response.pop("status_code", 200)
+
+            print(
+                "6. TOTAL SPENT >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> {}".format(
+                    t() - f
+                )
+            )
 
             return {
                 "statusCode": status_code,
