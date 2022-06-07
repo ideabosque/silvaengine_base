@@ -178,6 +178,15 @@ class Resources(LambdaBase):
                 )
             )
 
+            if t() - f > 2500:
+                print(
+                    ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\r\nModule: {}, Class: {}, Function: {}\r\n>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\r\n".format(
+                        function.config.module_name,
+                        function.config.class_name,
+                        function.function,
+                    )
+                )
+
             return {
                 "statusCode": status_code,
                 "headers": {
