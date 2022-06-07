@@ -3,7 +3,7 @@
 from __future__ import print_function
 from .lambdabase import LambdaBase
 from silvaengine_utility import Utility, Authorizer as ApiGatewayAuthorizer
-import json, traceback, jsonpickle
+import json, traceback
 
 __author__ = "bibow"
 
@@ -70,8 +70,8 @@ class Resources(LambdaBase):
             )
             event.update(
                 {
-                    "fnConfigurations": jsonpickle.decode(
-                        jsonpickle.encode(function, unpicklable=True)
+                    "fnConfigurations": Utility.json_loads(
+                        Utility.json_dumps(function)
                     ),
                     "requestContext": request_context,
                 }
@@ -111,10 +111,10 @@ class Resources(LambdaBase):
                 "MODULENAME": function.config.module_name,
                 "CLASSNAME": function.config.class_name,
                 "funct": function.function,
-                "setting": jsonpickle.encode(setting, unpicklable=True),
-                "params": jsonpickle.encode(params, unpicklable=True),
+                "setting": json.dumps(setting),
+                "params": json.dumps(params),
                 "body": event.get("body"),
-                "context": jsonpickle.encode(request_context, unpicklable=True),
+                "context": Utility.json_dumps(request_context),
             }
 
             if str(function.config.funct_type).strip().lower() == "event":
@@ -138,7 +138,7 @@ class Resources(LambdaBase):
                 payload,
                 invocation_type=str(function.config.funct_type).strip(),
             )
-            response = jsonpickle.decode(result)
+            response = Utility.json_loads(result)
             status_code = response.pop("status_code", 200)
 
             return {
@@ -186,7 +186,7 @@ class Resources(LambdaBase):
                     "Access-Control-Allow-Headers": "Access-Control-Allow-Origin",
                     "Access-Control-Allow-Origin": "*",
                 },
-                "body": jsonpickle.encode({"error": message}, unpicklable=True),
+                "body": json.dumps({"error": message}),
             }
 
     # Exec hooks
