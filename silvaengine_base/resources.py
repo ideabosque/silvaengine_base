@@ -105,6 +105,7 @@ class Resources(LambdaBase):
             # self.trigger_hooks(
             #     logger=self.logger, settings=json.dumps(setting), event=event
             # )
+            print("\r\n\r\n+++++++++++++++++++++++++++++++++++\r\n",event)
 
             # Transfer the request to the lower-level logic
             payload = {
