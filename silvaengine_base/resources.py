@@ -3,7 +3,7 @@
 from __future__ import print_function
 from .lambdabase import LambdaBase
 from silvaengine_utility import Utility, Authorizer as ApiGatewayAuthorizer
-import json, traceback
+import json, traceback, jsonpickle
 
 __author__ = "bibow"
 
@@ -70,8 +70,8 @@ class Resources(LambdaBase):
             )
             event.update(
                 {
-                    "fnConfigurations": Utility.json_loads(
-                        Utility.json_dumps(function)
+                    "fnConfigurations": jsonpickle.decode(
+                        jsonpickle.encode(function, unpicklable=True)
                     ),
                     "requestContext": request_context,
                 }
@@ -111,10 +111,10 @@ class Resources(LambdaBase):
                 "MODULENAME": function.config.module_name,
                 "CLASSNAME": function.config.class_name,
                 "funct": function.function,
-                "setting": json.dumps(setting),
-                "params": json.dumps(params),
+                "setting": jsonpickle.encode(setting, unpicklable=True),
+                "params": jsonpickle.encode(params, unpicklable=True),
                 "body": event.get("body"),
-                "context": Utility.json_dumps(request_context),
+                "context": jsonpickle.encode(request_context, unpicklable=True),
             }
 
             if str(function.config.funct_type).strip().lower() == "event":
@@ -186,7 +186,7 @@ class Resources(LambdaBase):
                     "Access-Control-Allow-Headers": "Access-Control-Allow-Origin",
                     "Access-Control-Allow-Origin": "*",
                 },
-                "body": json.dumps({"error": message}),
+                "body": jsonpickle.encode({"error": message}, unpicklable=True),
             }
 
     # Exec hooks
