@@ -62,11 +62,6 @@ class Resources(LambdaBase):
                 area == function.area
             ), f"Area ({area}) is not matched the configuration of the function ({funct}).  Please check the parameters."
 
-            print("==========================================\r\n")
-            print(jsonpickle.encode(function, unpicklable=False))
-            fnc = jsonpickle.decode(jsonpickle.encode(function, unpicklable=False))
-            print(fnc, type(fnc))
-
             request_context.update(
                 {
                     "channel": endpoint_id,
@@ -75,9 +70,9 @@ class Resources(LambdaBase):
             )
             event.update(
                 {
-                    "fnConfigurations": Utility.json_loads(
-                        Utility.json_dumps(function)
-                    ),
+                    "fnConfigurations": jsonpickle.decode(
+                        jsonpickle.encode(function, unpicklable=False)
+                    ).get("attribute_values", function),
                     "requestContext": request_context,
                 }
             )
@@ -112,10 +107,6 @@ class Resources(LambdaBase):
             # )
 
             # Transfer the request to the lower-level logic
-            print(
-                "========= ctx::::",
-                jsonpickle.encode(request_context, unpicklable=False),
-            )
             payload = {
                 "MODULENAME": function.config.module_name,
                 "CLASSNAME": function.config.class_name,
@@ -123,7 +114,7 @@ class Resources(LambdaBase):
                 "setting": json.dumps(setting),
                 "params": json.dumps(params),
                 "body": event.get("body"),
-                "context": Utility.json_dumps(request_context),
+                "context": jsonpickle.encode(request_context, unpicklable=False),
             }
 
             if str(function.config.funct_type).strip().lower() == "event":
