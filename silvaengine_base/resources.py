@@ -3,7 +3,7 @@
 from __future__ import print_function
 from .lambdabase import LambdaBase
 from silvaengine_utility import Utility, Authorizer as ApiGatewayAuthorizer
-import json, traceback
+import json, traceback, jsonpickle, pendulum
 
 __author__ = "bibow"
 
@@ -15,7 +15,14 @@ class Resources(LambdaBase):
 
     def handle(self, event, context):
         try:
-            print("REQUEST >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>", event)
+            t = lambda: int(pendulum.now().timestamp() * 1000)
+            s = t()
+            f = s
+            print(
+                "1. REQUEST START >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> {}".format(
+                    s
+                )
+            )
 
             ### 1. Trigger hooks.
             if event and event.get("triggerSource") and event.get("userPoolId"):
@@ -53,6 +60,13 @@ class Resources(LambdaBase):
                 else "POST"
             )
 
+            print(
+                "2. EXECUTE HOOKS SPENT >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> {}".format(
+                    t() - s
+                )
+            )
+            s = t()
+
             ### 2. Get function settings.
             (setting, function) = LambdaBase.get_function(
                 endpoint_id, funct, api_key=api_key, method=method
@@ -76,6 +90,13 @@ class Resources(LambdaBase):
                     "requestContext": request_context,
                 }
             )
+
+            print(
+                "3. GET FUNCTION SETTINGS SPENT >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> {}".format(
+                    t() - s
+                )
+            )
+            s = t()
 
             # Authorize
             if str(event.get("type")).strip().lower() == "request":
@@ -101,10 +122,11 @@ class Resources(LambdaBase):
                     # If graphql, append the graphql query path to the path.
                     event.update(fn(event, context))
 
-            # Execute triggers.
-            # self.trigger_hooks(
-            #     logger=self.logger, settings=json.dumps(setting), event=event
-            # )
+            print(
+                "4. AUTHORIZE SPENT >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> {}".format(
+                    t() - s
+                )
+            )
 
             # Transfer the request to the lower-level logic
             payload = {
@@ -114,7 +136,7 @@ class Resources(LambdaBase):
                 "setting": json.dumps(setting),
                 "params": json.dumps(params),
                 "body": event.get("body"),
-                "context": Utility.json_dumps(request_context),
+                "context": jsonpickle.encode(request_context, unpicklable=False),
             }
 
             if str(function.config.funct_type).strip().lower() == "event":
@@ -133,14 +155,37 @@ class Resources(LambdaBase):
                     "body": "",
                 }
 
-            response = Utility.json_loads(
-                LambdaBase.invoke(
-                    function.aws_lambda_arn,
-                    payload,
-                    invocation_type=str(function.config.funct_type).strip(),
+            s = t()
+
+            result = LambdaBase.invoke(
+                function.aws_lambda_arn,
+                payload,
+                invocation_type=str(function.config.funct_type).strip(),
+            )
+
+            print(
+                "5. EXECUTE REQUEST >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> {}".format(
+                    t() - s
                 )
             )
+
+            response = jsonpickle.decode(result)
             status_code = response.pop("status_code", 200)
+
+            print(
+                "6. TOTAL SPENT >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> {}".format(
+                    t() - f
+                )
+            )
+
+            if t() - f > 2500:
+                print(
+                    ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\r\nModule: {}, Class: {}, Function: {}\r\n>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\r\n".format(
+                        function.config.module_name,
+                        function.config.class_name,
+                        function.function,
+                    )
+                )
 
             return {
                 "statusCode": status_code,
@@ -148,7 +193,8 @@ class Resources(LambdaBase):
                     "Access-Control-Allow-Headers": "Access-Control-Allow-Origin",
                     "Access-Control-Allow-Origin": "*",
                 },
-                "body": Utility.json_dumps(response),
+                # "body": Utility.json_dumps(response),
+                "body": result,
             }
 
         except Exception as e:
