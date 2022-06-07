@@ -3,7 +3,7 @@
 from __future__ import print_function
 from .lambdabase import LambdaBase
 from silvaengine_utility import Utility, Authorizer as ApiGatewayAuthorizer
-import json, traceback
+import json, traceback, jsonpickle
 
 __author__ = "bibow"
 
@@ -62,6 +62,10 @@ class Resources(LambdaBase):
                 area == function.area
             ), f"Area ({area}) is not matched the configuration of the function ({funct}).  Please check the parameters."
 
+            print("==========================================\r\n")
+            fnc = jsonpickle.decode(jsonpickle.encode(function, unpicklable=True))
+            print(fnc, type(fnc))
+
             request_context.update(
                 {
                     "channel": endpoint_id,
@@ -107,6 +111,10 @@ class Resources(LambdaBase):
             # )
 
             # Transfer the request to the lower-level logic
+            print(
+                "========= ctx::::",
+                jsonpickle.encode(request_context, unpicklable=True),
+            )
             payload = {
                 "MODULENAME": function.config.module_name,
                 "CLASSNAME": function.config.class_name,
