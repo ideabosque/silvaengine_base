@@ -167,7 +167,7 @@ class Resources(LambdaBase):
                 )
 
                 for item in execute_analysis:
-                    print("{}\r\n", item)
+                    print("{}\r\n".format(item))
 
                 print("*" * 80)
 
