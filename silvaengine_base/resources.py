@@ -18,11 +18,7 @@ class Resources(LambdaBase):
             t = lambda: int(pendulum.now().timestamp() * 1000)
             s = t()
             f = s
-            print(
-                "1. REQUEST START >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> {}".format(
-                    s
-                )
-            )
+            execute_analysis = []
 
             ### 1. Trigger hooks.
             if event and event.get("triggerSource") and event.get("userPoolId"):
@@ -60,11 +56,7 @@ class Resources(LambdaBase):
                 else "POST"
             )
 
-            print(
-                "2. EXECUTE HOOKS SPENT >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> {}".format(
-                    t() - s
-                )
-            )
+            execute_analysis.append("1. EXECUTE HOOKS SPENT: {}".format(t() - s))
             s = t()
 
             ### 2. Get function settings.
@@ -91,10 +83,8 @@ class Resources(LambdaBase):
                 }
             )
 
-            print(
-                "3. GET FUNCTION SETTINGS SPENT >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> {}".format(
-                    t() - s
-                )
+            execute_analysis.append(
+                "2. GET FUNCTION SETTINGS SPENT: {}".format(t() - s)
             )
             s = t()
 
@@ -122,11 +112,7 @@ class Resources(LambdaBase):
                     # If graphql, append the graphql query path to the path.
                     event.update(fn(event, context))
 
-            print(
-                "4. AUTHORIZE SPENT >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> {}".format(
-                    t() - s
-                )
-            )
+            execute_analysis.append("3. AUTHORIZE SPENT: {}".format(t() - s))
 
             # Transfer the request to the lower-level logic
             payload = {
@@ -163,29 +149,27 @@ class Resources(LambdaBase):
                 invocation_type=str(function.config.funct_type).strip(),
             )
 
-            print(
-                "5. EXECUTE REQUEST >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> {}".format(
-                    t() - s
-                )
-            )
+            execute_analysis.append("4. EXECUTE REQUEST SPENT: {}".format(t() - s))
 
             response = jsonpickle.decode(result)
             status_code = response.pop("status_code", 200)
 
-            print(
-                "6. TOTAL SPENT >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> {}".format(
-                    t() - f
-                )
-            )
+            execute_analysis.append("5. TOTAL SPENT: {}".format(t() - s))
 
-            if t() - f > 2500:
+            if t() - f > 1500:
                 print(
-                    ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\r\nModule: {}, Class: {}, Function: {}\r\n>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\r\n".format(
+                    "{}\r\nModule: {}, Class: {}, Function: {}\r\n\r\n".format(
+                        "*" * 80,
                         function.config.module_name,
                         function.config.class_name,
                         function.function,
                     )
                 )
+
+                for item in execute_analysis:
+                    print("{}\r\n", item)
+
+                print("*" * 80)
 
             return {
                 "statusCode": status_code,
