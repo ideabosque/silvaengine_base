@@ -86,22 +86,28 @@ class Tasks(LambdaBase):
                         funct,
                         params=params,
                     )
+                elif event.get("Records")[0]["eventSource"] == "aws:dynamodb":
+                    endpoint_id = os.getenv("DYNAMODBSTREAMENDPOINTID")
+                    funct = "stream_handle"
+                    params = {"records": event.get("Records")}
+
+                    Tasks.dispatch(
+                        endpoint_id,
+                        funct,
+                        params=params,
+                    )
                 else:
                     raise Exception(
                         f"The event source ({event.get('Records')[0]['eventSource']}) is not supported!!!"
                     )
             else:
-                endpoint_id = event.get("endpoint_id")
-                funct = event.get("funct")
-                params = event.get("params")
-
                 self.logger.info(
-                    f"endpoint_id: {endpoint_id}, funct: {funct}, params: {Utility.json_dumps(params)}"
+                    f"endpoint_id: {event.get('endpoint_id')}, funct: {event.get('funct')}, params: {Utility.json_dumps(event.get('params'))}"
                 )
                 Tasks.dispatch(
-                    endpoint_id,
-                    funct,
-                    params=params,
+                    event.get("endpoint_id"),
+                    event.get("funct"),
+                    params=event.get("params"),
                 )
 
         except Exception:
