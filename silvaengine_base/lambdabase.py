@@ -73,7 +73,6 @@ class LambdaBase(object):
     def get_function(cls, endpoint_id, funct, api_key="#####", method=None):
         # If a task calls this function, the special_connection should be TRUE.
         # If special_connection is FALSE, the endpoint will be used to store the store token like shopify API; otherwise, special_connection should be TRUE.
-        print(">>>>>>>>>>>>>>>>>>", endpoint_id, funct)
         if endpoint_id != "0":
             endpoint = EndpointsModel.get(endpoint_id)
             endpoint_id = endpoint_id if endpoint.special_connection else "1"

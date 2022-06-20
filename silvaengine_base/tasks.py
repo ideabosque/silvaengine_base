@@ -19,7 +19,6 @@ class Tasks(LambdaBase):
     @classmethod
     def dispatch(cls, endpoint_id, funct, params=None):
         (setting, function) = cls.get_function(endpoint_id, funct)
-
         payload = {
             "MODULENAME": function.config.module_name,
             "CLASSNAME": function.config.class_name,
@@ -27,10 +26,6 @@ class Tasks(LambdaBase):
             "setting": Utility.json_dumps(setting),
             "params": Utility.json_dumps(params),
         }
-
-        print(
-            "===================", function.aws_lambda_arn, function.config.funct_type
-        )
 
         cls.invoke(
             function.aws_lambda_arn,
