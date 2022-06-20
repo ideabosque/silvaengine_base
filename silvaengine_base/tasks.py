@@ -28,6 +28,10 @@ class Tasks(LambdaBase):
             "params": Utility.json_dumps(params),
         }
 
+        print(
+            "===================", function.aws_lambda_arn, function.config.funct_type
+        )
+
         cls.invoke(
             function.aws_lambda_arn,
             payload,
