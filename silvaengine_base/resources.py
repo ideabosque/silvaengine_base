@@ -72,6 +72,7 @@ class Resources(LambdaBase):
                 {
                     "channel": endpoint_id,
                     "area": area,
+                    "headers": event.get("headers"),
                 }
             )
             event.update(
