@@ -18,6 +18,8 @@ class Tasks(LambdaBase):
 
     @classmethod
     def dispatch(cls, endpoint_id, funct, params=None):
+        print("-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_")
+        print(endpoint_id, funct)
         (setting, function) = cls.get_function(endpoint_id, funct)
         payload = {
             "MODULENAME": function.config.module_name,
@@ -26,6 +28,8 @@ class Tasks(LambdaBase):
             "setting": Utility.json_dumps(setting),
             "params": Utility.json_dumps(params),
         }
+
+        print(function.aws_lambda_arn, function.config.funct_type, payload)
 
         cls.invoke(
             function.aws_lambda_arn,
