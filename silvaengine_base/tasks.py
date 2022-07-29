@@ -18,7 +18,9 @@ class Tasks(LambdaBase):
 
     @classmethod
     def dispatch(cls, endpoint_id, funct, params=None):
-        print("-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_")
+        print(
+            "-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_ START -_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_"
+        )
         print(endpoint_id, funct)
         (setting, function) = cls.get_function(endpoint_id, funct)
         payload = {
@@ -30,12 +32,15 @@ class Tasks(LambdaBase):
         }
 
         print(function.aws_lambda_arn, function.config.funct_type, payload)
+        print("-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_ END -_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_")
 
-        cls.invoke(
+        result = cls.invoke(
             function.aws_lambda_arn,
             payload,
             invocation_type=function.config.funct_type,
         )
+
+        print(">>>>>>>>>>> TASK EXECUTE RESULT::::", result)
 
     def handle(self, event, context):
         # TODO implement
