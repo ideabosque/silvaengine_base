@@ -38,6 +38,10 @@ class LambdaBase(object):
             InvocationType=invocation_type,
             Payload=json.dumps(payload),
         )
+
+        print("00000000000000000000000000000000000000000000000000")
+        print(response)
+
         if "FunctionError" in response.keys():
             log = json.loads(response["Payload"].read())
             raise FunctionError(log)
