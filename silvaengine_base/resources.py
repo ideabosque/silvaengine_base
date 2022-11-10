@@ -1,9 +1,9 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 from __future__ import print_function
-from .lambdabase import LambdaBase
+from silvaengine_base.lambdabase import LambdaBase
 from silvaengine_utility import Utility, Authorizer as ApiGatewayAuthorizer
-import json, traceback, jsonpickle, pendulum
+import json, traceback, jsonpickle, pendulum, sentry_sdk
 
 __author__ = "bibow"
 
@@ -12,6 +12,7 @@ class Resources(LambdaBase):
     def __init__(self, logger):  # implementation-specific args and/or kwargs
         # implementation
         self.logger = logger
+        self.init()
 
     def handle(self, event, context):
         try:
@@ -183,6 +184,8 @@ class Resources(LambdaBase):
             }
 
         except Exception as e:
+            sentry_sdk.capture_exception(e)
+            
             log = traceback.format_exc()
             self.logger.exception(log)
             message = e.args[0]
@@ -241,3 +244,21 @@ class Resources(LambdaBase):
             return None
         except Exception:
             logger.exception(traceback.format_exc())
+
+
+    def init(self):
+        settings = LambdaBase.get_setting("general")
+
+        if settings.get('sentry_enabled', False) and settings.get('sentry_dsn'):
+            sentry_sdk.init(
+                dsn=settings.get('sentry_dsn'),
+                integrations=[
+                    sentry_sdk.integrations.aws_lambda.AwsLambdaIntegration(),
+                ],
+
+                # Set traces_sample_rate to 1.0 to capture 100%
+                # of transactions for performance monitoring.
+                # We recommend adjusting this value in production,
+                traces_sample_rate=float(settings.get('sentry_traces_sample_rate', 1.0)),
+            )
+    
