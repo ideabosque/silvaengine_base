@@ -3,6 +3,7 @@
 from __future__ import print_function
 from silvaengine_base.lambdabase import LambdaBase
 from silvaengine_utility import Utility, Authorizer as ApiGatewayAuthorizer
+from sentry_sdk.integrations.aws_lambda import AwsLambdaIntegration
 import json, traceback, jsonpickle, pendulum, sentry_sdk
 
 __author__ = "bibow"
@@ -253,7 +254,7 @@ class Resources(LambdaBase):
             sentry_sdk.init(
                 dsn=settings.get('sentry_dsn'),
                 integrations=[
-                    sentry_sdk.integrations.aws_lambda.AwsLambdaIntegration(),
+                    AwsLambdaIntegration(),
                 ],
 
                 # Set traces_sample_rate to 1.0 to capture 100%
