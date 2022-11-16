@@ -4,7 +4,7 @@ from __future__ import print_function
 from silvaengine_base.lambdabase import LambdaBase
 from silvaengine_utility import Utility, Authorizer as ApiGatewayAuthorizer
 from sentry_sdk.integrations.aws_lambda import AwsLambdaIntegration
-import json, traceback, jsonpickle, pendulum, sentry_sdk
+import json, traceback, jsonpickle, sentry_sdk
 
 __author__ = "bibow"
 
@@ -17,11 +17,6 @@ class Resources(LambdaBase):
 
     def handle(self, event, context):
         try:
-            t = lambda: int(pendulum.now().timestamp() * 1000)
-            s = t()
-            f = s
-            execute_analysis = []
-
             ### 1. Trigger hooks.
             if event and event.get("triggerSource") and event.get("userPoolId"):
                 settings = LambdaBase.get_setting("event_triggers")
@@ -58,9 +53,6 @@ class Resources(LambdaBase):
                 else "POST"
             )
 
-            execute_analysis.append("1. EXECUTE HOOKS SPENT: {}".format(t() - s))
-            s = t()
-
             ### 2. Get function settings.
             (setting, function) = LambdaBase.get_function(
                 endpoint_id, funct, api_key=api_key, method=method
@@ -86,11 +78,6 @@ class Resources(LambdaBase):
                 }
             )
 
-            execute_analysis.append(
-                "2. GET FUNCTION SETTINGS SPENT: {}".format(t() - s)
-            )
-            s = t()
-
             # Authorize
             if str(event.get("type")).strip().lower() == "request":
                 fn = Utility.import_dynamically(
@@ -114,8 +101,6 @@ class Resources(LambdaBase):
                 if callable(fn):
                     # If graphql, append the graphql query path to the path.
                     event.update(fn(event, context))
-
-            execute_analysis.append("3. AUTHORIZE SPENT: {}".format(t() - s))
 
             # Transfer the request to the lower-level logic
             payload = {
@@ -144,35 +129,14 @@ class Resources(LambdaBase):
                     "body": "",
                 }
 
-            s = t()
-
             result = LambdaBase.invoke(
                 function.aws_lambda_arn,
                 payload,
                 invocation_type=str(function.config.funct_type).strip(),
             )
 
-            execute_analysis.append("4. EXECUTE REQUEST SPENT: {}".format(t() - s))
-
             response = jsonpickle.decode(result)
             status_code = response.pop("status_code", 200)
-
-            execute_analysis.append("5. TOTAL SPENT: {}".format(t() - s))
-
-            if t() - f > 1500:
-                print(
-                    "{}\r\nModule: {}, Class: {}, Function: {}\r\n\r\n".format(
-                        "*" * 80,
-                        function.config.module_name,
-                        function.config.class_name,
-                        function.function,
-                    )
-                )
-
-                for item in execute_analysis:
-                    print("{}\r\n".format(item))
-
-                print("*" * 80)
 
             return {
                 "statusCode": status_code,
@@ -185,12 +149,16 @@ class Resources(LambdaBase):
             }
 
         except Exception as e:
-            sentry_sdk.capture_exception(e)
-            
             log = traceback.format_exc()
             self.logger.exception(log)
             message = e.args[0]
             status_code = 500
+            request_context = event.get("requestContext", {})
+            arn = event.get("methodArn", {})
+            path_parameters = event.get("pathParameters", {})
+            area = path_parameters.get("area")
+            endpoint_id = path_parameters.get("endpoint_id")
+            stage = request_context.get("stage")
 
             if len(e.args) > 1 and type(e.args[1]) is int:
                 status_code = e.args[1]
@@ -199,12 +167,10 @@ class Resources(LambdaBase):
                 message = log
 
             if str(event.get("type")).strip().lower() == "request":
-                requestContext = event.get("requestContext", {})
                 principal = event.get("path")
-                aws_account_id = requestContext.get("accountId")
-                api_id = requestContext.get("apiId")
-                region = event.get("methodArn", {}).split(":")[3]
-                stage = requestContext.get("stage")
+                aws_account_id = request_context.get("accountId")
+                api_id = request_context.get("apiId")
+                region = arn.split(":")[3]
                 ctx = {"error_message": message}
 
                 return ApiGatewayAuthorizer(
@@ -214,6 +180,12 @@ class Resources(LambdaBase):
                     region=region,
                     stage=stage,
                 ).authorize(is_allow=False, context=ctx)
+
+            if str(status_code).startswith('40'):
+                settings = LambdaBase.get_setting('{}_{}_{}'.format(stage, area, endpoint_id))
+
+                if settings.get('sentry_enabled', False):
+                    sentry_sdk.capture_exception(e)
 
             return {
                 "statusCode": int(status_code),
