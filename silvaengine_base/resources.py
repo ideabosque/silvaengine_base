@@ -181,7 +181,7 @@ class Resources(LambdaBase):
                     stage=stage,
                 ).authorize(is_allow=False, context=ctx)
 
-            if str(status_code).startswith('40'):
+            if str(status_code).startswith('50'):
                 settings = LambdaBase.get_setting('{}_{}_{}'.format(stage, area, endpoint_id))
 
                 if settings.get('sentry_enabled', False):
