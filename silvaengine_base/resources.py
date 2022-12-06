@@ -76,17 +76,21 @@ class Resources(LambdaBase):
 
             ### ? 1.1. Get global settings from se-configdata.
             global_settings = LambdaBase.get_setting(setting_id=setting_id)
-            proxy_path = (
-                str(global_settings.get("graphql_proxy_path", "")).strip().lower()
-            )
 
-            if proxy_path == str(funct).strip().lower():
-                proxy_api_name = str(
-                    global_settings.get("graphql_proxy_api", "")
+            if global_settings.get("enable_api_unified_call", False):
+                # proxy_path = (
+                #     str(global_settings.get("graphql_proxy_path", "graphql"))
+                #     .strip()
+                #     .lower()
+                # )
+
+                # if proxy_path == str(funct).strip().lower():
+                proxy_index = str(
+                    global_settings.get("graphql_proxy_index", "")
                 ).strip()
 
-                if not headers.get(proxy_api_name):
-                    funct = str(headers.get(proxy_api_name)).strip()
+                if not headers.get(proxy_index):
+                    funct = str(headers.get(proxy_index)).strip()
 
             ### ! 2. Get function settings.
             (setting, function) = LambdaBase.get_function(
