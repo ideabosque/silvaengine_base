@@ -10,6 +10,8 @@ __author__ = "bibow"
 
 
 class Resources(LambdaBase):
+    settings = {}
+
     def __init__(self, logger):  # implementation-specific args and/or kwargs
         # implementation
         self.logger = logger
@@ -17,20 +19,34 @@ class Resources(LambdaBase):
 
     def handle(self, event, context):
         try:
-            ### 1. Trigger hooks.
+            ### ! 1. Trigger Cognito hooks.
             if event and event.get("triggerSource") and event.get("userPoolId"):
-                settings = LambdaBase.get_setting("event_triggers")
+                # settings = LambdaBase.get_setting("event_triggers")
 
                 fn = Utility.import_dynamically(
-                    module_name="event_triggers",
-                    function_name="pre_token_generate",
-                    class_name="Cognito",
-                    constructor_parameters=dict({"logger": self.logger}, **settings),
+                    # module_name="event_triggers",
+                    module_name=self.settings.get(
+                        "cognito_hooks_module_name",
+                        "event_triggers",
+                    ),
+                    function_name=self.settings.get(
+                        "cognito_hooks_function_name",
+                        "pre_token_generate",
+                    ),
+                    class_name=self.settings.get(
+                        "cognito_hooks_class_name",
+                        "Cognito",
+                    ),
+                    constructor_parameters=dict(
+                        {"logger": self.logger},
+                        **self.settings,
+                    ),
                 )
 
                 if callable(fn):
                     return fn(event, context)
 
+            headers = event.get("headers", {})
             request_context = event.get("requestContext", {})
             path_parameters = event.get("pathParameters", {})
             area = path_parameters.get("area")
@@ -41,19 +57,38 @@ class Resources(LambdaBase):
                 {"endpoint_id": endpoint_id, "area": area},
                 **(
                     event.get("queryStringParameters", {})
-                    if event.get("queryStringParameters") is not None
+                    if not event.get("queryStringParameters")
                     else {}
                 ),
             )
             method = (
                 request_context.get("httpMethod")
-                if request_context.get("httpMethod") is not None
+                if not request_context.get("httpMethod")
                 else event.get("httpMethod")
-                if event.get("httpMethod") is not None
+                if not event.get("httpMethod")
                 else "POST"
             )
+            setting_id = "{stage}_{area}_{endpoint_id}".format(
+                stage=request_context.get("stage", "beta"),
+                area=area,
+                endpoint_id=endpoint_id,
+            )
 
-            ### 2. Get function settings.
+            ### ? 1.1. Get global settings from se-configdata.
+            global_settings = LambdaBase.get_setting(setting_id=setting_id)
+            proxy_path = (
+                str(global_settings.get("graphql_proxy_path", "")).strip().lower()
+            )
+
+            if proxy_path == str(funct).strip().lower():
+                proxy_api_name = str(
+                    global_settings.get("graphql_proxy_api", "")
+                ).strip()
+
+                if not headers.get(proxy_api_name):
+                    funct = str(headers.get(proxy_api_name)).strip()
+
+            ### ! 2. Get function settings.
             (setting, function) = LambdaBase.get_function(
                 endpoint_id, funct, api_key=api_key, method=method
             )
@@ -66,7 +101,7 @@ class Resources(LambdaBase):
                 {
                     "channel": endpoint_id,
                     "area": area,
-                    "headers": event.get("headers"),
+                    "headers": headers,
                 }
             )
             event.update(
@@ -78,7 +113,7 @@ class Resources(LambdaBase):
                 }
             )
 
-            # Authorize
+            ### ! 3. Authorize
             if str(event.get("type")).strip().lower() == "request":
                 fn = Utility.import_dynamically(
                     module_name="silvaengine_authorizer",
@@ -102,7 +137,7 @@ class Resources(LambdaBase):
                     # If graphql, append the graphql query path to the path.
                     event.update(fn(event, context))
 
-            # Transfer the request to the lower-level logic
+            ### ! 4. Transfer the request to the lower-level logic
             payload = {
                 "MODULENAME": function.config.module_name,
                 "CLASSNAME": function.config.class_name,
@@ -181,10 +216,12 @@ class Resources(LambdaBase):
                     stage=stage,
                 ).authorize(is_allow=False, context=ctx)
 
-            if str(status_code).startswith('5'):
-                settings = LambdaBase.get_setting('{}_{}_{}'.format(stage, area, endpoint_id))
+            if str(status_code).startswith("5"):
+                settings = LambdaBase.get_setting(
+                    "{}_{}_{}".format(stage, area, endpoint_id)
+                )
 
-                if settings.get('sentry_enabled', False):
+                if settings.get("sentry_enabled", False):
                     sentry_sdk.capture_exception(e)
 
             return {
@@ -218,20 +255,21 @@ class Resources(LambdaBase):
         except Exception:
             logger.exception(traceback.format_exc())
 
-
     def init(self):
-        settings = LambdaBase.get_setting("general")
+        self.settings = LambdaBase.get_setting("general")
+        sentry_enabled = self.settings.get("sentry_enabled", False)
+        sentry_dsn = self.settings.get("sentry_dsn")
 
-        if settings.get('sentry_enabled', False) and settings.get('sentry_dsn'):
+        if sentry_enabled and sentry_dsn:
             sentry_sdk.init(
-                dsn=settings.get('sentry_dsn'),
+                dsn=sentry_dsn,
                 integrations=[
                     AwsLambdaIntegration(),
                 ],
-
                 # Set traces_sample_rate to 1.0 to capture 100%
                 # of transactions for performance monitoring.
                 # We recommend adjusting this value in production,
-                traces_sample_rate=float(settings.get('sentry_traces_sample_rate', 1.0)),
+                traces_sample_rate=float(
+                    self.settings.get("sentry_traces_sample_rate", 1.0)
+                ),
             )
-    
