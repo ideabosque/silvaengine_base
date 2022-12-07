@@ -87,7 +87,7 @@ class Resources(LambdaBase):
             # if proxy_path == str(funct).strip().lower():
             proxy_index = str(global_settings.get("api_unified_call_index", "")).strip()
 
-            if not headers.get(proxy_index):
+            if headers.get(proxy_index):
                 funct = str(headers.get(proxy_index)).strip()
 
             ### ! 2. Get function settings.
