@@ -57,15 +57,15 @@ class Resources(LambdaBase):
                 {"endpoint_id": endpoint_id, "area": area},
                 **(
                     event.get("queryStringParameters", {})
-                    if not event.get("queryStringParameters")
+                    if event.get("queryStringParameters") is not None
                     else {}
                 ),
             )
             method = (
                 request_context.get("httpMethod")
-                if not request_context.get("httpMethod")
+                if request_context.get("httpMethod") is not None
                 else event.get("httpMethod")
-                if not event.get("httpMethod")
+                if event.get("httpMethod") is not None
                 else "POST"
             )
             setting_id = "{stage}_{area}_{endpoint_id}".format(
