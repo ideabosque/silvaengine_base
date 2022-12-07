@@ -14,6 +14,7 @@ class Resources(LambdaBase):
 
     def __init__(self, logger):  # implementation-specific args and/or kwargs
         # implementation
+        self.settings = LambdaBase.get_setting("general")
         self.logger = logger
         self.init()
 
@@ -57,25 +58,25 @@ class Resources(LambdaBase):
                 {"endpoint_id": endpoint_id, "area": area},
                 **(
                     event.get("queryStringParameters", {})
-                    if event.get("queryStringParameters") is not None
+                    if event.get("queryStringParameters")
                     else {}
                 ),
             )
             method = (
                 request_context.get("httpMethod")
-                if request_context.get("httpMethod") is not None
+                if request_context.get("httpMethod")
                 else event.get("httpMethod")
-                if event.get("httpMethod") is not None
+                if event.get("httpMethod")
                 else "POST"
             )
-            setting_id = "{stage}_{area}_{endpoint_id}".format(
-                stage=request_context.get("stage", "beta"),
-                area=area,
-                endpoint_id=endpoint_id,
-            )
+            # setting_id = "{stage}_{area}_{endpoint_id}".format(
+            #     stage=request_context.get("stage", "beta"),
+            #     area=area,
+            #     endpoint_id=endpoint_id,
+            # )
 
             ### ? 1.1. Get global settings from se-configdata.
-            global_settings = LambdaBase.get_setting(setting_id=setting_id)
+            # global_settings = LambdaBase.get_setting(setting_id=setting_id)
 
             # if global_settings.get("enable_api_unified_call", False):
             # proxy_path = (
@@ -85,7 +86,7 @@ class Resources(LambdaBase):
             # )
 
             # if proxy_path == str(funct).strip().lower():
-            proxy_index = str(global_settings.get("api_unified_call_index", "")).strip()
+            proxy_index = str(self.settings.get("api_unified_call_index", "")).strip()
             print("=======================", proxy_index)
 
             if headers.get(proxy_index):
@@ -260,7 +261,6 @@ class Resources(LambdaBase):
             logger.exception(traceback.format_exc())
 
     def init(self):
-        self.settings = LambdaBase.get_setting("general")
         sentry_enabled = self.settings.get("sentry_enabled", False)
         sentry_dsn = self.settings.get("sentry_dsn")
 
