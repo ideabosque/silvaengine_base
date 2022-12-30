@@ -21,7 +21,7 @@ class Resources(LambdaBase):
         try:
             ### ! init
             if len(self.settings) < 1:
-                self.init()
+                self.init(event=event)
 
             ### ! 1. Trigger Cognito hooks.
             if event and event.get("triggerSource") and event.get("userPoolId"):
