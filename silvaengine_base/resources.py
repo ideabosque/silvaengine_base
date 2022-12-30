@@ -14,12 +14,15 @@ class Resources(LambdaBase):
 
     def __init__(self, logger):  # implementation-specific args and/or kwargs
         # implementation
-        self.settings = LambdaBase.get_setting("general")
+        # self.settings = LambdaBase.get_setting("general")
         self.logger = logger
-        self.init()
 
     def handle(self, event, context):
         try:
+            ### ! init
+            if len(self.settings) < 1:
+                self.init()
+
             ### ! 1. Trigger Cognito hooks.
             if event and event.get("triggerSource") and event.get("userPoolId"):
                 # settings = LambdaBase.get_setting("event_triggers")
@@ -209,7 +212,7 @@ class Resources(LambdaBase):
                 aws_account_id = request_context.get("accountId")
                 api_id = request_context.get("apiId")
                 region = arn.split(":")[3]
-                ctx = {"error_message": message}
+                context = {"error_message": message}
 
                 return ApiGatewayAuthorizer(
                     principal=principal,
@@ -217,14 +220,13 @@ class Resources(LambdaBase):
                     api_id=api_id,
                     region=region,
                     stage=stage,
-                ).authorize(is_allow=False, context=ctx)
+                ).authorize(is_allow=False, context=context)
 
             if str(status_code).startswith("5"):
-                settings = LambdaBase.get_setting(
-                    "{}_{}_{}".format(stage, area, endpoint_id)
-                )
+                if len(self.settings) < 1:
+                    self.init(event=event)
 
-                if settings.get("sentry_enabled", False):
+                if self.settings.get("sentry_enabled", False):
                     sentry_sdk.capture_exception(e)
 
             return {
@@ -258,7 +260,37 @@ class Resources(LambdaBase):
         except Exception:
             logger.exception(traceback.format_exc())
 
-    def init(self):
+    # Get setting index of config data
+    def get_setting_index(self, event):
+        try:
+            if event:
+                if event.get("triggerSource") and event.get("userPoolId"):
+                    settings = LambdaBase.get_setting("general")
+
+                    if settings:
+                        index = settings.get(event.get("userPoolId"))
+
+                        if index:
+                            return index
+                elif event.get("requestContext") and event.get("pathParameters"):
+                    request_context = event.get("requestContext", {})
+                    path_parameters = event.get("pathParameters", {})
+                    area = path_parameters.get("area")
+                    endpoint_id = path_parameters.get("endpoint_id")
+                    stage = request_context.get("stage")
+
+                    if area and endpoint_id and stage:
+                        return "{}_{}_{}".format(stage, area, endpoint_id)
+
+            raise Exception("Invalid event request")
+        except Exception as e:
+            raise e
+
+    def init(self, event):
+        ### ! Load settings from config data
+        self.settings = LambdaBase.get_setting(self.get_setting_index(event=event))
+
+        ### ! Init sentry
         sentry_enabled = self.settings.get("sentry_enabled", False)
         sentry_dsn = self.settings.get("sentry_dsn")
 
