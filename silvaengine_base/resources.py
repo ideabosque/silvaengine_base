@@ -277,12 +277,14 @@ class Resources(LambdaBase):
                     path_parameters = event.get("pathParameters", {})
                     area = path_parameters.get("area")
                     endpoint_id = path_parameters.get("endpoint_id")
-                    stage = request_context.get("stage")
+                    stage = request_context.get("stage", "beta")
 
                     if area and endpoint_id and stage:
                         return "{}_{}_{}".format(stage, area, endpoint_id)
 
-            raise Exception("Invalid event request")
+            # raise Exception("Invalid event request")
+            print("++++++++++++++++++++++++++++++++++++++++++++++")
+            print(event)
         except Exception as e:
             raise e
 
