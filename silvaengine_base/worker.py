@@ -8,7 +8,6 @@ from .lambdabase import LambdaBase
 
 
 class Worker(LambdaBase):
-
     last_request_id = None
 
     @classmethod
