@@ -8,7 +8,6 @@ from .lambdabase import LambdaBase
 
 
 class Tasks(LambdaBase):
-
     sqs = boto3.client("sqs", region_name=os.getenv("REGIONNAME", "us-east-1"))
     sns = boto3.client("sns", region_name=os.getenv("REGIONNAME", "us-east-1"))
 
@@ -41,6 +40,7 @@ class Tasks(LambdaBase):
         )
 
         print(">>>>>>>>>>> TASK EXECUTE RESULT::::", result)
+        return result
 
     def handle(self, event, context):
         # TODO implement
@@ -74,7 +74,10 @@ class Tasks(LambdaBase):
                         {
                             "bucket": bucket,
                             "key": key,
-                            "id": pieces[-1].replace(".csv", "").replace(".xlsx", ""),
+                            "id": pieces[-1]
+                            .replace(".csv", "")
+                            .replace(".xlsx", "")
+                            .replace(".pdf", ""),
                         },
                         **{
                             piece.split(":")[0]: piece.split(":")[1]
@@ -108,6 +111,18 @@ class Tasks(LambdaBase):
                     raise Exception(
                         f"The event source ({event.get('Records')[0]['eventSource']}) is not supported!!!"
                     )
+            elif event.get("bot") is not None:
+                endpoint_id = event["bot"].get("name")
+                funct = "lex_dispatch"
+                params = event
+                self.logger.info(
+                    f"endpoint_id: {endpoint_id}, funct: {funct}, params: {Utility.json_dumps(params)}"
+                )
+                return Tasks.dispatch(
+                    endpoint_id,
+                    funct,
+                    params=params,
+                )
             else:
                 self.logger.info(
                     f"endpoint_id: {event.get('endpoint_id')}, funct: {event.get('funct')}, params: {Utility.json_dumps(event.get('params'))}"
