@@ -112,8 +112,8 @@ class Tasks(LambdaBase):
                         f"The event source ({event.get('Records')[0]['eventSource']}) is not supported!!!"
                     )
             elif event.get("bot") is not None:
-                endpoint_id = event["bot"].get("name")
-                funct = "lex_dispatch"
+                endpoint_id = event["bot"]["id"]
+                funct = f"{event['bot']['name'].lower()}_lex_dispatch"
                 params = event
                 self.logger.info(
                     f"endpoint_id: {endpoint_id}, funct: {funct}, params: {Utility.json_dumps(params)}"
