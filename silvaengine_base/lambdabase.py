@@ -85,6 +85,7 @@ class LambdaBase(object):
             len(functs) == 1
         ), f"Cannot find the function({funct}) with endpoint_id({endpoint_id}) and api_key({api_key})."
 
+        print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>> Lambda ARN: ", functs[0].aws_lambda_arn, ", Function: ", functs[0].function)
         function = FunctionsModel.get(functs[0].aws_lambda_arn, functs[0].function)
 
         assert (
