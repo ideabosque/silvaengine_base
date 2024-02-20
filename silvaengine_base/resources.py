@@ -4,9 +4,26 @@ from __future__ import print_function
 from silvaengine_base.lambdabase import LambdaBase
 from silvaengine_utility import Utility, Authorizer as ApiGatewayAuthorizer
 from sentry_sdk.integrations.aws_lambda import AwsLambdaIntegration
-import json, traceback, jsonpickle, sentry_sdk
+import json, traceback, jsonpickle, sentry_sdk, yaml
 
 __author__ = "bibow"
+
+
+def is_yaml(content):
+    try:
+        # Try loading the content as YAML
+        yaml.load(content, Loader=yaml.SafeLoader)
+        return True
+    except yaml.YAMLError:
+        return False
+
+
+def is_json(content):
+    try:
+        json.loads(content)
+        return True
+    except ValueError:
+        return False
 
 
 class Resources(LambdaBase):
@@ -52,10 +69,10 @@ class Resources(LambdaBase):
 
             headers = event.get("headers", {})
             request_context = event.get("requestContext", {})
+            api_key = request_context.get("identity", {}).get("apiKey")
+
             path_parameters = event.get("pathParameters", {})
             area = path_parameters.get("area")
-            api_key = request_context.get("identity", {}).get("apiKey")
-            funct = path_parameters.get("proxy")
             endpoint_id = path_parameters.get("endpoint_id")
             params = dict(
                 {"endpoint_id": endpoint_id, "area": area},
@@ -65,12 +82,22 @@ class Resources(LambdaBase):
                     else {}
                 ),
             )
+
+            proxy = path_parameters.get("proxy")
+            index = proxy.find("/")
+            funct = proxy[:index] if index != -1 else proxy
+
+            if index != -1:
+                params.update(
+                    {
+                        "path": proxy[index + 1 :],
+                    }
+                )
+
             method = (
                 request_context.get("httpMethod")
                 if request_context.get("httpMethod")
-                else event.get("httpMethod")
-                if event.get("httpMethod")
-                else "POST"
+                else event.get("httpMethod") if event.get("httpMethod") else "POST"
             )
             # setting_id = "{stage}_{area}_{endpoint_id}".format(
             #     stage=request_context.get("stage", "beta"),
@@ -176,19 +203,40 @@ class Resources(LambdaBase):
                 invocation_type=str(function.config.funct_type).strip(),
             )
 
-            response = jsonpickle.decode(result)
-            status_code = response.pop("status_code", 200)
+            # Prepare headers based on the content type
+            headers = {
+                "Access-Control-Allow-Headers": "Access-Control-Allow-Origin",
+                "Access-Control-Allow-Origin": "*",
+            }
+            if is_yaml(result):
+                headers["Content-Type"] = "application/x-yaml"
+                status_code = 200
+                body = result  # Assuming the YAML content is already a string
+            elif is_json(result):
+                headers["Content-Type"] = "application/json"
+                try:
+                    response = jsonpickle.decode(result)
+                    status_code = response.pop("status_code", 200)
+                    body = jsonpickle.encode(
+                        response
+                    )  # Convert the modified response back to a JSON string
+                except (ValueError, jsonpickle.UnpicklingError):
+                    # If decoding somehow still fails, return an error (this should be rare given the is_json check)
+                    status_code = 400  # Bad Request
+                    body = '{"error": "Failed to decode JSON"}'
+            else:
+                # If content is neither YAML nor JSON, handle accordingly
+                status_code = (
+                    400  # Bad Request or consider another appropriate status code
+                )
+                body = '{"error": "Unsupported content format"}'
+                headers["Content-Type"] = "application/json"
 
             return {
                 "statusCode": status_code,
-                "headers": {
-                    "Access-Control-Allow-Headers": "Access-Control-Allow-Origin",
-                    "Access-Control-Allow-Origin": "*",
-                },
-                # "body": Utility.json_dumps(response),
-                "body": result,
+                "headers": headers,
+                "body": body,
             }
-
         except Exception as e:
             log = traceback.format_exc()
             self.logger.exception(log)
