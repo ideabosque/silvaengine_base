@@ -13,7 +13,6 @@ class FunctionError(Exception):
 
 
 class LambdaBase(object):
-
     aws_lambda = boto3.client(
         "lambda", region_name=os.getenv("REGIONNAME", "us-east-1")
     )
@@ -78,6 +77,7 @@ class LambdaBase(object):
             endpoint = EndpointsModel.get(endpoint_id)
             endpoint_id = endpoint_id if endpoint.special_connection else "1"
 
+        print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>> Endpoint ID: ", endpoint_id, ", API Key: ", api_key, ", Function: ", funct)
         connection = ConnectionsModel.get(endpoint_id, api_key)
         functs = list(filter(lambda x: x.function == funct, connection.functions))
 
@@ -85,6 +85,7 @@ class LambdaBase(object):
             len(functs) == 1
         ), f"Cannot find the function({funct}) with endpoint_id({endpoint_id}) and api_key({api_key})."
 
+        print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>> Lambda ARN: ", functs[0].aws_lambda_arn, ", Function: ", functs[0].function)
         function = FunctionsModel.get(functs[0].aws_lambda_arn, functs[0].function)
 
         assert (
