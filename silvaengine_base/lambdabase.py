@@ -77,6 +77,9 @@ class LambdaBase(object):
             endpoint = EndpointsModel.get(endpoint_id)
             endpoint_id = endpoint_id if endpoint.special_connection else "1"
 
+        if not api_key:
+            api_key = "#####"
+
         print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>> Endpoint ID: ", endpoint_id, ", API Key: ", api_key, ", Function: ", funct)
         connection = ConnectionsModel.get(endpoint_id, api_key)
         functs = list(filter(lambda x: x.function == funct, connection.functions))
