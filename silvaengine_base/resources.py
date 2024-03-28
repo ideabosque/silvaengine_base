@@ -161,7 +161,7 @@ class Resources(LambdaBase):
                 if callable(fn):
                     print("{}:{} >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> 33333333333333333333333333".format(endpoint_id, api_key))
                     r = fn(event, context)
-                    print("{}:{}:{}".format(endpoint_id, api_key, r))
+                    print("{}:{}:{}".format(endpoint_id, api_key, r), r)
                     return r
             elif event.get("body"):
                 print("{}:{} >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> 4444444444444444444444444444".format(endpoint_id, api_key))
