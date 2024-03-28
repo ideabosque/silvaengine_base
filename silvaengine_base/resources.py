@@ -147,7 +147,9 @@ class Resources(LambdaBase):
             )
 
             ### ! 3. Authorize
+            print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> 11111111111111111111111")
             if str(event.get("type")).strip().lower() == "request":
+                print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> 222222222222222222222222")
                 fn = Utility.import_dynamically(
                     module_name="silvaengine_authorizer",
                     function_name="authorize",
@@ -157,8 +159,10 @@ class Resources(LambdaBase):
 
                 # If auth_required is True, validate authorization.
                 if callable(fn):
+                    print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> 33333333333333333333333333")
                     return fn(event, context)
             elif event.get("body"):
+                print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> 4444444444444444444444444444")
                 fn = Utility.import_dynamically(
                     module_name="silvaengine_authorizer",
                     function_name="verify_permission",
@@ -167,6 +171,7 @@ class Resources(LambdaBase):
                 )
 
                 if callable(fn):
+                    print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> 5555555555555555555555555555")
                     # If graphql, append the graphql query path to the path.
                     event.update(fn(event, context))
 
@@ -180,8 +185,10 @@ class Resources(LambdaBase):
                 "body": event.get("body"),
                 "context": jsonpickle.encode(request_context, unpicklable=False),
             }
+            print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> 666666666666666666666666666666666")
 
             if str(function.config.funct_type).strip().lower() == "event":
+                print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> 777777777777777777777777777777777")
                 LambdaBase.invoke(
                     function.aws_lambda_arn,
                     payload,
@@ -202,17 +209,20 @@ class Resources(LambdaBase):
                 payload,
                 invocation_type=str(function.config.funct_type).strip(),
             )
-
             # Prepare headers based on the content type
             headers = {
                 "Access-Control-Allow-Headers": "Access-Control-Allow-Origin",
                 "Access-Control-Allow-Origin": "*",
             }
+            print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> 888888888888888888888888888888")
+
             if is_yaml(result):
+                print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> 99999999999999999999999999")
                 headers["Content-Type"] = "application/x-yaml"
                 status_code = 200
                 body = result  # Assuming the YAML content is already a string
             elif is_json(result):
+                print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
                 headers["Content-Type"] = "application/json"
                 try:
                     response = jsonpickle.decode(result)
@@ -225,6 +235,7 @@ class Resources(LambdaBase):
                     status_code = 400  # Bad Request
                     body = '{"error": "Failed to decode JSON"}'
             else:
+                print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb")
                 # If content is neither YAML nor JSON, handle accordingly
                 status_code = (
                     400  # Bad Request or consider another appropriate status code
@@ -232,6 +243,7 @@ class Resources(LambdaBase):
                 body = '{"error": "Unsupported content format"}'
                 headers["Content-Type"] = "application/json"
 
+            print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> ccccccccccccccccccccccccccccccccccccccc")
             return {
                 "statusCode": status_code,
                 "headers": headers,
@@ -255,12 +267,15 @@ class Resources(LambdaBase):
             if message is None:
                 message = log
 
+            print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> ddddddddddddddddddddddddddddddddddd")
+
             if str(event.get("type")).strip().lower() == "request":
                 principal = event.get("path")
                 aws_account_id = request_context.get("accountId")
                 api_id = request_context.get("apiId")
                 region = arn.split(":")[3]
                 context = {"error_message": message}
+                print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee")
 
                 return ApiGatewayAuthorizer(
                     principal=principal,
@@ -270,6 +285,7 @@ class Resources(LambdaBase):
                     stage=stage,
                 ).authorize(is_allow=False, context=context)
 
+            print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> fffffffffffffffffffffffffffffffffffffffffffff")
             if str(status_code).startswith("5"):
                 if len(self.settings) < 1:
                     self.init(event=event)
@@ -277,6 +293,7 @@ class Resources(LambdaBase):
                 if self.settings.get("sentry_enabled", False):
                     sentry_sdk.capture_exception(e)
 
+            print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> ggggggggggggggggggggggggggggggggggggggggg")
             return {
                 "statusCode": int(status_code),
                 "headers": {
