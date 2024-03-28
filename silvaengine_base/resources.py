@@ -147,35 +147,35 @@ class Resources(LambdaBase):
             )
 
             ### ! 3. Authorize
-            # print("{}:{} >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> 11111111111111111111111".format(endpoint_id, api_key))
-            # if str(event.get("type")).strip().lower() == "request":
-            #     print("{}:{} >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> 222222222222222222222222".format(endpoint_id, api_key))
-            #     fn = Utility.import_dynamically(
-            #         module_name="silvaengine_authorizer",
-            #         function_name="authorize",
-            #         class_name="Authorizer",
-            #         constructor_parameters=dict({"logger": self.logger}),
-            #     )
+            print("{}:{} >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> 11111111111111111111111".format(endpoint_id, api_key))
+            if str(event.get("type")).strip().lower() == "request":
+                print("{}:{} >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> 222222222222222222222222".format(endpoint_id, api_key))
+                fn = Utility.import_dynamically(
+                    module_name="silvaengine_authorizer",
+                    function_name="authorize",
+                    class_name="Authorizer",
+                    constructor_parameters=dict({"logger": self.logger}),
+                )
 
-            #     # If auth_required is True, validate authorization.
-            #     if callable(fn):
-            #         print("{}:{} >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> 33333333333333333333333333".format(endpoint_id, api_key))
-            #         r = fn(event, context)
-            #         print("{}:{}:{}".format(endpoint_id, api_key, r), r)
-            #         return r
-            # elif event.get("body"):
-            #     print("{}:{} >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> 4444444444444444444444444444".format(endpoint_id, api_key))
-            #     fn = Utility.import_dynamically(
-            #         module_name="silvaengine_authorizer",
-            #         function_name="verify_permission",
-            #         class_name="Authorizer",
-            #         constructor_parameters=dict({"logger": self.logger}),
-            #     )
+                # If auth_required is True, validate authorization.
+                if callable(fn):
+                    print("{}:{} >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> 33333333333333333333333333".format(endpoint_id, api_key))
+                    r = fn(event, context)
+                    print("{}:{}:{}".format(endpoint_id, api_key, r), r)
+                    return r
+            elif event.get("body"):
+                print("{}:{} >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> 4444444444444444444444444444".format(endpoint_id, api_key))
+                fn = Utility.import_dynamically(
+                    module_name="silvaengine_authorizer",
+                    function_name="verify_permission",
+                    class_name="Authorizer",
+                    constructor_parameters=dict({"logger": self.logger}),
+                )
 
-            #     if callable(fn):
-            #         print("{}:{} >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> 5555555555555555555555555555".format(endpoint_id, api_key))
-            #         # If graphql, append the graphql query path to the path.
-            #         event.update(fn(event, context))
+                if callable(fn):
+                    print("{}:{} >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> 5555555555555555555555555555".format(endpoint_id, api_key))
+                    # If graphql, append the graphql query path to the path.
+                    event.update(fn(event, context))
 
             ### ! 4. Transfer the request to the lower-level logic
             payload = {
