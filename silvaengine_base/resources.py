@@ -147,9 +147,9 @@ class Resources(LambdaBase):
             )
 
             ### ! 3. Authorize
-            print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> 11111111111111111111111")
+            print("{}:{} >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> 11111111111111111111111".format(endpoint_id, api_key))
             if str(event.get("type")).strip().lower() == "request":
-                print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> 222222222222222222222222")
+                print("{}:{} >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> 222222222222222222222222".format(endpoint_id, api_key))
                 fn = Utility.import_dynamically(
                     module_name="silvaengine_authorizer",
                     function_name="authorize",
@@ -159,10 +159,10 @@ class Resources(LambdaBase):
 
                 # If auth_required is True, validate authorization.
                 if callable(fn):
-                    print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> 33333333333333333333333333")
+                    print("{}:{} >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> 33333333333333333333333333".format(endpoint_id, api_key))
                     return fn(event, context)
             elif event.get("body"):
-                print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> 4444444444444444444444444444")
+                print("{}:{} >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> 4444444444444444444444444444".format(endpoint_id, api_key))
                 fn = Utility.import_dynamically(
                     module_name="silvaengine_authorizer",
                     function_name="verify_permission",
@@ -171,7 +171,7 @@ class Resources(LambdaBase):
                 )
 
                 if callable(fn):
-                    print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> 5555555555555555555555555555")
+                    print("{}:{} >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> 5555555555555555555555555555".format(endpoint_id, api_key))
                     # If graphql, append the graphql query path to the path.
                     event.update(fn(event, context))
 
@@ -185,10 +185,10 @@ class Resources(LambdaBase):
                 "body": event.get("body"),
                 "context": jsonpickle.encode(request_context, unpicklable=False),
             }
-            print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> 666666666666666666666666666666666")
+            print("{}:{} >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> 666666666666666666666666666666666".format(endpoint_id, api_key))
 
             if str(function.config.funct_type).strip().lower() == "event":
-                print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> 777777777777777777777777777777777")
+                print("{}:{} >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> 777777777777777777777777777777777".format(endpoint_id, api_key))
                 LambdaBase.invoke(
                     function.aws_lambda_arn,
                     payload,
@@ -214,15 +214,15 @@ class Resources(LambdaBase):
                 "Access-Control-Allow-Headers": "Access-Control-Allow-Origin",
                 "Access-Control-Allow-Origin": "*",
             }
-            print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> 888888888888888888888888888888")
+            print("{}:{} >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> 888888888888888888888888888888".format(endpoint_id, api_key))
 
             if is_yaml(result):
-                print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> 99999999999999999999999999")
+                print("{}:{} >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> 99999999999999999999999999".format(endpoint_id, api_key))
                 headers["Content-Type"] = "application/x-yaml"
                 status_code = 200
                 body = result  # Assuming the YAML content is already a string
             elif is_json(result):
-                print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+                print("{}:{} >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".format(endpoint_id, api_key))
                 headers["Content-Type"] = "application/json"
                 try:
                     response = jsonpickle.decode(result)
@@ -235,7 +235,7 @@ class Resources(LambdaBase):
                     status_code = 400  # Bad Request
                     body = '{"error": "Failed to decode JSON"}'
             else:
-                print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb")
+                print("{}:{} >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb".format(endpoint_id, api_key))
                 # If content is neither YAML nor JSON, handle accordingly
                 status_code = (
                     400  # Bad Request or consider another appropriate status code
@@ -243,7 +243,7 @@ class Resources(LambdaBase):
                 body = '{"error": "Unsupported content format"}'
                 headers["Content-Type"] = "application/json"
 
-            print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> ccccccccccccccccccccccccccccccccccccccc")
+            print("{}:{} >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> ccccccccccccccccccccccccccccccccccccccc".format(endpoint_id, api_key))
             return {
                 "statusCode": status_code,
                 "headers": headers,
@@ -267,7 +267,7 @@ class Resources(LambdaBase):
             if message is None:
                 message = log
 
-            print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> ddddddddddddddddddddddddddddddddddd")
+            print("{}:{} >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> ddddddddddddddddddddddddddddddddddd".format(endpoint_id, api_key))
 
             if str(event.get("type")).strip().lower() == "request":
                 principal = event.get("path")
@@ -275,7 +275,7 @@ class Resources(LambdaBase):
                 api_id = request_context.get("apiId")
                 region = arn.split(":")[3]
                 context = {"error_message": message}
-                print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee")
+                print("{}:{} >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee".format(endpoint_id, api_key))
 
                 return ApiGatewayAuthorizer(
                     principal=principal,
@@ -285,7 +285,7 @@ class Resources(LambdaBase):
                     stage=stage,
                 ).authorize(is_allow=False, context=context)
 
-            print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> fffffffffffffffffffffffffffffffffffffffffffff")
+            print("{}:{} >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> fffffffffffffffffffffffffffffffffffffffffffff".format(endpoint_id, api_key))
             if str(status_code).startswith("5"):
                 if len(self.settings) < 1:
                     self.init(event=event)
@@ -293,7 +293,7 @@ class Resources(LambdaBase):
                 if self.settings.get("sentry_enabled", False):
                     sentry_sdk.capture_exception(e)
 
-            print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> ggggggggggggggggggggggggggggggggggggggggg")
+            print("{}:{} >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> ggggggggggggggggggggggggggggggggggggggggg".format(endpoint_id, api_key))
             return {
                 "statusCode": int(status_code),
                 "headers": {
