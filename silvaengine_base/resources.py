@@ -160,7 +160,9 @@ class Resources(LambdaBase):
                 # If auth_required is True, validate authorization.
                 if callable(fn):
                     print("{}:{} >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> 33333333333333333333333333".format(endpoint_id, api_key))
-                    return fn(event, context)
+                    r = fn(event, context)
+                    print()
+                    return r
             elif event.get("body"):
                 print("{}:{} >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> 4444444444444444444444444444".format(endpoint_id, api_key))
                 fn = Utility.import_dynamically(
