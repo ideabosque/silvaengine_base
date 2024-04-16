@@ -235,12 +235,13 @@ class Resources(LambdaBase):
                 print("#############################################", function.aws_lambda_arn, payload,str(function.config.funct_type).strip())
                 print("#############################################", result)
 
-            if  is_yaml(result):
-                print("{}:{} >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> 99999999999999999999999999".format(endpoint_id, api_key))
-                headers["Content-Type"] = "application/x-yaml"
-                status_code = 200
-                body = result  # Assuming the YAML content is already a string
-            elif is_json(result):
+            # if  is_yaml(result):
+            #     print("{}:{} >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> 99999999999999999999999999".format(endpoint_id, api_key))
+            #     headers["Content-Type"] = "application/x-yaml"
+            #     status_code = 200
+            #     body = result  # Assuming the YAML content is already a string
+            # el
+            if is_json(result):
                 print("{}:{} >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".format(endpoint_id, api_key))
                 headers["Content-Type"] = "application/json"
                 try:
