@@ -252,6 +252,7 @@ class Resources(LambdaBase):
                         response
                     )  # Convert the modified response back to a JSON string
                     print("!!!!----------------------------------------", status_code)
+                    print("!!!!----------------------------------------", body)
                 except (ValueError, jsonpickle.UnpicklingError) as e:
                     # If decoding somehow still fails, return an error (this should be rare given the is_json check)
                     status_code = 400  # Bad Request
