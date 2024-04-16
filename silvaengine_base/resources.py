@@ -36,6 +36,8 @@ class Resources(LambdaBase):
 
     def handle(self, event, context):
         try:
+            event["requestContext"]["identity"]["apiKey"] = "KwhtmyYf2u9JuGvHELx2BwpsQGkYkocayXWX2Rq1"
+            print("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$", event.get("requestContext", {}).get("identity", {}).get("apiKey"))
             ### ! init
             if len(self.settings) < 1:
                 self.init(event=event)
@@ -70,6 +72,7 @@ class Resources(LambdaBase):
             headers = event.get("headers", {})
             request_context = event.get("requestContext", {})
             api_key = request_context.get("identity", {}).get("apiKey")
+            
 
             path_parameters = event.get("pathParameters", {})
             area = path_parameters.get("area")
