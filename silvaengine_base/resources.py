@@ -164,11 +164,11 @@ class Resources(LambdaBase):
                 # If auth_required is True, validate authorization.
                 if callable(fn):
                     print("***********************************",event.get("path","/"))
-                    # if not event.get("path","/").endswith("/ping"):
-                    #     print("21212121212121212121212121212121212121")
-                    #     return fn(event, context)
+                    if not event.get("path","/").endswith("/ping"):
+                        print("21212121212121212121212121212121212121")
+                        return fn(event, context)
                     
-                    r = fn(event, context)
+                    # r = fn(event, context)
                     print("{}:{} >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> 33333333333333333333333333".format(endpoint_id, api_key))
                     print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
                     print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~", r)
@@ -182,7 +182,7 @@ class Resources(LambdaBase):
                     print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
                     print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
                     print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
-                    return r
+                    # return r
             elif event.get("body"):
                 print("{}:{} >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> 4444444444444444444444444444".format(endpoint_id, api_key))
                 fn = Utility.import_dynamically(
