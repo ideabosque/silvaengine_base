@@ -12,9 +12,9 @@ __author__ = "bibow"
 def is_yaml(content):
     try:
         # Try loading the content as YAML
-        yaml.safe_load(content)
+        yaml.load(content, Loader=yaml.SafeLoader)
         return True
-    except yaml.YAMLError:
+    except:
         return False
 
 
@@ -22,7 +22,7 @@ def is_json(content):
     try:
         json.loads(content)
         return True
-    except ValueError:
+    except:
         return False
 
 
