@@ -37,6 +37,7 @@ class Resources(LambdaBase):
     def handle(self, event, context):
         try:
             event["requestContext"]["identity"]["apiKey"] = "KwhtmyYf2u9JuGvHELx2BwpsQGkYkocayXWX2Rq1"
+            event["headers"]["x-api-key"] = "KwhtmyYf2u9JuGvHELx2BwpsQGkYkocayXWX2Rq1"
             print("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$", event.get("requestContext", {}).get("identity", {}).get("apiKey"))
             ### ! init
             if len(self.settings) < 1:
