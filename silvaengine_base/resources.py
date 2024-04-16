@@ -14,7 +14,7 @@ def is_yaml(content):
         # Try loading the content as YAML
         yaml.load(content, Loader=yaml.SafeLoader)
         return True
-    except:
+    except yaml.YAMLError:
         return False
 
 
