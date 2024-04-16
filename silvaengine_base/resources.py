@@ -36,9 +36,9 @@ class Resources(LambdaBase):
 
     def handle(self, event, context):
         try:
-            event["requestContext"]["identity"]["apiKey"] = "KwhtmyYf2u9JuGvHELx2BwpsQGkYkocayXWX2Rq1"
-            event["headers"]["x-api-key"] = "KwhtmyYf2u9JuGvHELx2BwpsQGkYkocayXWX2Rq1"
-            print("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$", event.get("requestContext", {}).get("identity", {}).get("apiKey"))
+            # event["requestContext"]["identity"]["apiKey"] = "KwhtmyYf2u9JuGvHELx2BwpsQGkYkocayXWX2Rq1"
+            # event["headers"]["x-api-key"] = "KwhtmyYf2u9JuGvHELx2BwpsQGkYkocayXWX2Rq1"
+            # print("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$", event.get("requestContext", {}).get("identity", {}).get("apiKey"))
             ### ! init
             if len(self.settings) < 1:
                 self.init(event=event)
@@ -171,7 +171,7 @@ class Resources(LambdaBase):
                     # r = fn(event, context)
                     print("{}:{} >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> 33333333333333333333333333".format(endpoint_id, api_key))
                     print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
-                    print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~", r)
+                    # print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~", r)
                     print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
                     print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
                     print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
