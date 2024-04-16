@@ -230,7 +230,9 @@ class Resources(LambdaBase):
                 "Access-Control-Allow-Origin": "*",
             }
             print("{}:{} >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> 888888888888888888888888888888".format(endpoint_id, api_key))
-            print("#############################################", result)
+            
+            if event.get("path","/").endswith("/ping"):
+                print("#############################################", result)
 
             if result is not None and is_yaml(result):
                 print("{}:{} >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> 99999999999999999999999999".format(endpoint_id, api_key))
