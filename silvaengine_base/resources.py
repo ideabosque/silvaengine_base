@@ -159,6 +159,7 @@ class Resources(LambdaBase):
 
                 # If auth_required is True, validate authorization.
                 if callable(fn):
+                    print("***********************************",event.get("path","/"))
                     print("{}:{} >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> 33333333333333333333333333".format(endpoint_id, api_key))
                     r = fn(event, context)
                     print("{}:{}:{}".format(endpoint_id, api_key, r), r)
