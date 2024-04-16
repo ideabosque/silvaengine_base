@@ -230,13 +230,14 @@ class Resources(LambdaBase):
                 "Access-Control-Allow-Origin": "*",
             }
             print("{}:{} >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> 888888888888888888888888888888".format(endpoint_id, api_key))
+            print("#############################################", result)
 
             if result is not None and is_yaml(result):
                 print("{}:{} >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> 99999999999999999999999999".format(endpoint_id, api_key))
                 headers["Content-Type"] = "application/x-yaml"
                 status_code = 200
                 body = result  # Assuming the YAML content is already a string
-            elif is_json(result):
+            elif result is not None and is_json(result):
                 print("{}:{} >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".format(endpoint_id, api_key))
                 headers["Content-Type"] = "application/json"
                 try:
