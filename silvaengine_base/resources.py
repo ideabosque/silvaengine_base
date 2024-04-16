@@ -245,14 +245,17 @@ class Resources(LambdaBase):
                 headers["Content-Type"] = "application/json"
                 try:
                     response = jsonpickle.decode(result)
+                    print("----------------------------------------", response)
                     status_code = response.pop("status_code", 200)
                     body = jsonpickle.encode(
                         response
                     )  # Convert the modified response back to a JSON string
-                except (ValueError, jsonpickle.UnpicklingError):
+                    print("----------------------------------------", status_code)
+                except (ValueError, jsonpickle.UnpicklingError) as e:
                     # If decoding somehow still fails, return an error (this should be rare given the is_json check)
                     status_code = 400  # Bad Request
                     body = '{"error": "Failed to decode JSON"}'
+                    print("----------------------------------------", e)
             else:
                 print("{}:{} >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb".format(endpoint_id, api_key))
                 # If content is neither YAML nor JSON, handle accordingly
