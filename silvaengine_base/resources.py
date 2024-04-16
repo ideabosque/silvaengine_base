@@ -22,7 +22,7 @@ def is_json(content):
     try:
         json.loads(content)
         return True
-    except:
+    except ValueError:
         return False
 
 
