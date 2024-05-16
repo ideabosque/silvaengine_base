@@ -127,7 +127,7 @@ class Tasks(LambdaBase):
                 self.logger.info(
                     f"endpoint_id: {event.get('endpoint_id')}, funct: {event.get('funct')}, params: {Utility.json_dumps(event.get('params'))}"
                 )
-                Tasks.dispatch(
+                return Tasks.dispatch(
                     event.get("endpoint_id"),
                     event.get("funct"),
                     params=event.get("params"),
