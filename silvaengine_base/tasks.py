@@ -2,8 +2,14 @@
 # -*- coding: utf-8 -*-
 __author__ = "bibow"
 
-import traceback, boto3, os, urllib.parse
+import os
+import traceback
+import urllib.parse
+
+import boto3
+
 from silvaengine_utility import Utility
+
 from .lambdabase import LambdaBase
 
 
@@ -14,6 +20,18 @@ class Tasks(LambdaBase):
     def __init__(self, logger):  # implementation-specific args and/or kwargs
         # implementation
         self.logger = logger
+
+    @staticmethod
+    def extract_table_name(arn):
+        # Split the ARN by '/'
+        parts = arn.split("/")
+
+        # The table name is the part immediately after "table"
+        for i, part in enumerate(parts):
+            if part.find(":table") != -1:
+                return parts[i + 1]
+
+        return None
 
     @classmethod
     def dispatch(cls, endpoint_id, funct, params=None):
@@ -100,6 +118,18 @@ class Tasks(LambdaBase):
                 elif event.get("Records")[0]["eventSource"] == "aws:dynamodb":
                     endpoint_id = os.getenv("DYNAMODBSTREAMENDPOINTID")
                     funct = "stream_handle"
+
+                    ## Retrieve the table name to find the funct name and endpoint_id.
+                    table_name = Tasks.extract_table_name(
+                        event.get("Records")[0]["eventSourceARN"]
+                    )
+                    dynamodb_stream_config = LambdaBase.get_setting(
+                        "dynamodb_stream_config"
+                    )
+                    if dynamodb_stream_config.get(table_name):
+                        endpoint_id = dynamodb_stream_config[table_name]["endpoint_id"]
+                        funct = dynamodb_stream_config[table_name]["funct"]
+
                     params = {"records": event.get("Records")}
 
                     Tasks.dispatch(
