@@ -5,7 +5,7 @@ from silvaengine_base.lambdabase import LambdaBase, FunctionError
 from silvaengine_utility import Utility, Authorizer as ApiGatewayAuthorizer
 from sentry_sdk.integrations.aws_lambda import AwsLambdaIntegration
 from datetime import datetime
-import ujson as json, traceback, sentry_sdk, yaml, random, string
+import ujson, json, traceback, sentry_sdk, yaml, random, string
 
 __author__ = "bibow"
 
@@ -251,9 +251,9 @@ class Resources(LambdaBase):
                 js = int(datetime.now().timestamp() * 1000)
                 headers["Content-Type"] = "application/json"
                 try:
-                    response = json.loads(result)
+                    response = ujson.loads(result)
                     status_code = response.pop("status_code", 200)
-                    body = json.dumps(response)  # Convert the modified response back to a JSON string
+                    body = ujson.dumps(response)  # Convert the modified response back to a JSON string
                 except:
                     # If decoding somehow still fails, return an error (this should be rare given the is_json check)
                     status_code = 400  # Bad Request
