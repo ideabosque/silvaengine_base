@@ -236,46 +236,43 @@ class Resources(LambdaBase):
             )
 
             # Prepare headers based on the content type
-            headers = {
-                "Access-Control-Allow-Headers": "Access-Control-Allow-Origin",
-                "Access-Control-Allow-Origin": "*",
+            # headers = {
+            #     "Access-Control-Allow-Headers": "Access-Control-Allow-Origin",
+            #     "Access-Control-Allow-Origin": "*",
+            # }
+            response = {
+                "statusCode": 200,
+                "headers": {
+                    "Access-Control-Allow-Headers": "Access-Control-Allow-Origin",
+                    "Access-Control-Allow-Origin": "*",
+                    "Content-Type":"application/json",
+                },
+                "body": result,
             }
-
 
             if is_json(result, endpoint_id):
                 js = int(datetime.now().timestamp() * 1000)
-                headers["Content-Type"] = "application/json"
-                try:
-                    status_code = 200
-                    body = result   # Convert the modified response back to a JSON string
-                except (ValueError, jsonpickle.UnpicklingError):
-                    # If decoding somehow still fails, return an error (this should be rare given the is_json check)
-                    status_code = 400  # Bad Request
-                    body = '{"error": "Failed to decode JSON"}'
+                response["statusCode"] = 200
+                # headers["Content-Type"] = "application/json"
+                # status_code = 200
+                # body = result   # Convert the modified response back to a JSON string
+
                 runtime_debug(req+" ------------- build response (jsonpickle encode & decode)", js, endpoint_id)
             elif type(result) is FunctionError:
                 # If content is neither YAML nor JSON, handle accordingly
-                status_code = 500 # Bad Request or consider another appropriate status code
-                body = '{"error": '+result.args[0]+'}'
-                headers["Content-Type"] = "application/json"
+                response["statusCode"] = 500 # Bad Request or consider another appropriate status code
+                body = '{"error": "{}"}'.format(result.args[0])
+                response["headers"]["Content-Type"] = "application/json"
             elif is_yaml(result, endpoint_id):
-                headers["Content-Type"] = "application/x-yaml"
-                status_code = 200
-                body = result  # Assuming the YAML content is already a string
+                response["headers"]["Content-Type"] = "application/x-yaml"
             else:
                 # If content is neither YAML nor JSON, handle accordingly
-                status_code = 400 # Bad Request or consider another appropriate status code
-                body = '{"error": "Unsupported content format"}'
-                headers["Content-Type"] = "application/json"
+                response["statusCode"] = 400 # Bad Request or consider another appropriate status code
+                response["body"] = '{"error": "Unsupported content format"}'
 
-            
             # runtime_debug(req+":invoke request(7)", est)
             
-            return {
-                "statusCode": status_code,
-                "headers": headers,
-                "body": body,
-            }
+            return response
         except Exception as e:
             log = traceback.format_exc()
             self.logger.exception(log)
