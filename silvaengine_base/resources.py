@@ -263,15 +263,18 @@ class Resources(LambdaBase):
                 runtime_debug(req+" ------------- build response (jsonpickle encode & decode)", js, endpoint_id)
             elif type(result) is FunctionError:
                 # If content is neither YAML nor JSON, handle accordingly
-                status_code = (
-                    400  # Bad Request or consider another appropriate status code
-                )
-                body = '{"error": "Unsupported content format"}'
+                status_code = 500 # Bad Request or consider another appropriate status code
+                body = '{"error": '+result.args[0]+'}'
                 headers["Content-Type"] = "application/json"
-            else:
+            elif is_yaml(result, endpoint_id):
                 headers["Content-Type"] = "application/x-yaml"
                 status_code = 200
                 body = result  # Assuming the YAML content is already a string
+            else:
+                # If content is neither YAML nor JSON, handle accordingly
+                status_code = 400 # Bad Request or consider another appropriate status code
+                body = '{"error": "Unsupported content format"}'
+                headers["Content-Type"] = "application/json"
 
             
             # runtime_debug(req+":invoke request(7)", est)
