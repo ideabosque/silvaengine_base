@@ -15,7 +15,11 @@ def generate_random_string(length):
     return random_string
 
 def runtime_debug(r, t):
-    print("--------- It took {} seconds to execute request `{}`.".format(datetime.now().timestamp()-t, r))
+    d = int(datetime.now().timestamp() * 1000) - t
+
+    if d > 400:
+        print("--------- It took {} ms to execute request `{}`.".format(d, r))
+
 
 def is_yaml(content):
     try:
@@ -45,7 +49,7 @@ class Resources(LambdaBase):
     def handle(self, event, context):
         try:
             req = generate_random_string(8)
-            est = datetime.now().timestamp()
+            est = int(datetime.now().timestamp() * 1000)
 
             ### ! init
             if len(self.settings) < 1:
