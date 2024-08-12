@@ -5,7 +5,7 @@ from silvaengine_base.lambdabase import LambdaBase, FunctionError
 from silvaengine_utility import Utility, Authorizer as ApiGatewayAuthorizer
 from sentry_sdk.integrations.aws_lambda import AwsLambdaIntegration
 from datetime import datetime
-import ujson, json, traceback, sentry_sdk, yaml, random, string
+import json, traceback, jsonpickle, sentry_sdk, yaml, random, string
 
 __author__ = "bibow"
 
@@ -206,7 +206,7 @@ class Resources(LambdaBase):
                 "setting": json.dumps(setting),
                 "params": json.dumps(params),
                 "body": event.get("body"),
-                "context": json.loads(request_context),
+                "context": jsonpickle.encode(request_context, unpicklable=False),
             }
 
             runtime_debug(req+" ------------- build payload (Twice json dump)", js, endpoint_id)
@@ -251,10 +251,12 @@ class Resources(LambdaBase):
                 js = int(datetime.now().timestamp() * 1000)
                 headers["Content-Type"] = "application/json"
                 try:
-                    response = json.loads(result)
+                    response = jsonpickle.decode(result)
                     status_code = response.pop("status_code", 200)
-                    body = json.dumps(response)  # Convert the modified response back to a JSON string
-                except:
+                    body = jsonpickle.encode(
+                        response
+                    )  # Convert the modified response back to a JSON string
+                except (ValueError, jsonpickle.UnpicklingError):
                     # If decoding somehow still fails, return an error (this should be rare given the is_json check)
                     status_code = 400  # Bad Request
                     body = '{"error": "Failed to decode JSON"}'
