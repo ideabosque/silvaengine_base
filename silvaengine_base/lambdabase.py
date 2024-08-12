@@ -5,6 +5,7 @@ __author__ = "bibow"
 
 import json, boto3, os
 from boto3.dynamodb.conditions import Key
+from silvaengine_utility import monitor_decorator
 from .models import EndpointsModel, ConnectionsModel, FunctionsModel, HooksModel
 
 
@@ -30,6 +31,7 @@ class LambdaBase(object):
     def handle(self, event, context):
         raise NotImplementedError
 
+    @monitor_decorator
     @classmethod
     def invoke(cls, function_name, payload, invocation_type="Event"):
         response = cls.aws_lambda.invoke(
