@@ -17,8 +17,8 @@ def generate_random_string(length):
 def runtime_debug(r, t):
     d = int(datetime.now().timestamp() * 1000) - t
 
-    if d > 400:
-        print("--------- It took {} ms to execute request `{}`.".format(d, r))
+    # if d > 400:
+    print("--------- It took {} ms to execute request `{}`.".format(d, r))
 
 
 def is_yaml(content):
@@ -56,7 +56,7 @@ class Resources(LambdaBase):
             ### ! init
             if len(self.settings) < 1:
                 self.init(event=event)
-                runtime_debug(req+":init(1)", est)
+                # runtime_debug(req+":init(1)", est)
 
             ### ! 1. Trigger Cognito hooks.
             if event and event.get("triggerSource") and event.get("userPoolId"):
@@ -84,7 +84,7 @@ class Resources(LambdaBase):
 
                 if callable(fn):
                     resp = fn(event, context)
-                    runtime_debug(req+":pre_token_generate(2)", est)
+                    # runtime_debug(req+":pre_token_generate(2)", est)
                     return resp
 
             headers = event.get("headers", {})
@@ -145,7 +145,7 @@ class Resources(LambdaBase):
             (setting, function) = LambdaBase.get_function(
                 endpoint_id, funct, api_key=api_key, method=method
             )
-            runtime_debug(req+":get_function(3)", est)
+            # runtime_debug(req+":get_function(3)", est)
 
             assert (
                 area == function.area
@@ -179,7 +179,7 @@ class Resources(LambdaBase):
                 # If auth_required is True, validate authorization.
                 if callable(fn):
                     resp = fn(event, context)
-                    runtime_debug(req+":authorize(4)", est)
+                    # runtime_debug(req+":authorize(4)", est)
                     return resp
             elif event.get("body"):
                 fn = Utility.import_dynamically(
@@ -192,7 +192,7 @@ class Resources(LambdaBase):
                 if callable(fn):
                     # If graphql, append the graphql query path to the path.
                     event.update(fn(event, context))
-                    runtime_debug(req+":verify_permission(5)", est)
+                    # runtime_debug(req+":verify_permission(5)", est)
 
             ### ! 4. Transfer the request to the lower-level logic
             js = int(datetime.now().timestamp() * 1000)
@@ -215,7 +215,7 @@ class Resources(LambdaBase):
                     invocation_type="Event",
                 )
 
-                runtime_debug(req+":invoke event(6)", est)
+                # runtime_debug(req+":invoke event(6)", est)
 
                 return {
                     "statusCode": 200,
@@ -237,6 +237,8 @@ class Resources(LambdaBase):
                 "Access-Control-Allow-Headers": "Access-Control-Allow-Origin",
                 "Access-Control-Allow-Origin": "*",
             }
+
+            js = int(datetime.now().timestamp() * 1000)
             if is_yaml(result):
                 headers["Content-Type"] = "application/x-yaml"
                 status_code = 200
@@ -262,7 +264,8 @@ class Resources(LambdaBase):
                 headers["Content-Type"] = "application/json"
 
             
-            runtime_debug(req+":invoke request(7)", est)
+            # runtime_debug(req+":invoke request(7)", est)
+            runtime_debug(req+" ------------- build response (jsonpickle encode & decode)", js)
             return {
                 "statusCode": status_code,
                 "headers": headers,
@@ -286,7 +289,7 @@ class Resources(LambdaBase):
             if message is None:
                 message = log
 
-            runtime_debug(req+":exception(7)", est)
+            # runtime_debug(req+":exception(7)", est)
 
             if str(event.get("type")).strip().lower() == "request":
                 principal = event.get("path")
