@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 from __future__ import print_function
-from silvaengine_base.lambdabase import LambdaBase
+from silvaengine_base.lambdabase import LambdaBase, FunctionError
 from silvaengine_utility import Utility, Authorizer as ApiGatewayAuthorizer
 from sentry_sdk.integrations.aws_lambda import AwsLambdaIntegration
 from datetime import datetime
@@ -242,11 +242,12 @@ class Resources(LambdaBase):
             }
 
             
-            if is_yaml(result, endpoint_id):
-                headers["Content-Type"] = "application/x-yaml"
-                status_code = 200
-                body = result  # Assuming the YAML content is already a string
-            elif is_json(result, endpoint_id):
+            # if is_yaml(result, endpoint_id):
+            #     headers["Content-Type"] = "application/x-yaml"
+            #     status_code = 200
+            #     body = result  # Assuming the YAML content is already a string
+            # el
+            if is_json(result, endpoint_id):
                 js = int(datetime.now().timestamp() * 1000)
                 headers["Content-Type"] = "application/json"
                 try:
@@ -260,13 +261,17 @@ class Resources(LambdaBase):
                     status_code = 400  # Bad Request
                     body = '{"error": "Failed to decode JSON"}'
                 runtime_debug(req+" ------------- build response (jsonpickle encode & decode)", js, endpoint_id)
-            else:
+            elif type(result) is FunctionError:
                 # If content is neither YAML nor JSON, handle accordingly
                 status_code = (
                     400  # Bad Request or consider another appropriate status code
                 )
                 body = '{"error": "Unsupported content format"}'
                 headers["Content-Type"] = "application/json"
+            else:
+                headers["Content-Type"] = "application/x-yaml"
+                status_code = 200
+                body = result  # Assuming the YAML content is already a string
 
             
             # runtime_debug(req+":invoke request(7)", est)
