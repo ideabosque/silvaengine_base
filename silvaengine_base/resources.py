@@ -194,11 +194,12 @@ class Resources(LambdaBase):
                     constructor_parameters=dict({"logger": self.logger}),
                 )
 
+                est=runtime_debug(endpoint_id=endpoint_id, t=est, mark=f"{funct}:verify_permission(6.1)")
                 if callable(fn):
                     # If graphql, append the graphql query path to the path.
                     event.update(fn(event, context))
                     
-                    est=runtime_debug(endpoint_id=endpoint_id, t=est, mark=f"{funct}:verify_permission(6)")
+                    est=runtime_debug(endpoint_id=endpoint_id, t=est, mark=f"{funct}:verify_permission(6.2)")
 
             ### ! 4. Transfer the request to the lower-level logic
             js = int(datetime.now().timestamp() * 1000)
