@@ -5,7 +5,7 @@ __author__ = "bibow"
 
 import json, boto3, os
 from boto3.dynamodb.conditions import Key
-from .util import monitor_decorator
+from datetime import datetime, timezone
 from .models import EndpointsModel, ConnectionsModel, FunctionsModel, HooksModel
 
 
@@ -31,9 +31,9 @@ class LambdaBase(object):
     def handle(self, event, context):
         raise NotImplementedError
 
-    @monitor_decorator
     @classmethod
     def invoke(cls, function_name, payload, invocation_type="Event"):
+        print(">>> SILVA ENGINE > LABMDABASE > INVOKE at ", datetime.now(timezone.utc).isoformat())
         response = cls.aws_lambda.invoke(
             FunctionName=function_name,
             InvocationType=invocation_type,
@@ -42,9 +42,12 @@ class LambdaBase(object):
 
         if "FunctionError" in response.keys():
             log = json.loads(response["Payload"].read())
+            print("<<< SILVA ENGINE > LABMDABASE > INVOKE at ", datetime.now(timezone.utc).isoformat())
             raise FunctionError(log)
         if invocation_type == "RequestResponse":
+            print("<<< SILVA ENGINE > LABMDABASE > V at ", datetime.now(timezone.utc).isoformat())
             return json.loads(response["Payload"].read())
+        print("<<< SILVA ENGINE > LABMDABASE > INVOKE at ", datetime.now(timezone.utc).isoformat())
 
     @classmethod
     def get_hooks(cls, api_id) -> list:

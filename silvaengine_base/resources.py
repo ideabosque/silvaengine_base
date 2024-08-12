@@ -3,8 +3,8 @@
 from __future__ import print_function
 from silvaengine_base.lambdabase import LambdaBase
 from silvaengine_utility import Utility, Authorizer as ApiGatewayAuthorizer
-from .util import monitor_decorator
 from sentry_sdk.integrations.aws_lambda import AwsLambdaIntegration
+from datetime import datetime, timezone
 import json, traceback, jsonpickle, sentry_sdk, yaml
 
 __author__ = "bibow"
@@ -35,9 +35,9 @@ class Resources(LambdaBase):
         # self.settings = LambdaBase.get_setting("general")
         self.logger = logger
 
-    @monitor_decorator
     def handle(self, event, context):
         try:
+            print(">>> SILVA ENGINE > RESOURCES > HANDLE at ", datetime.now(timezone.utc).isoformat())
             ### ! init
             if len(self.settings) < 1:
                 self.init(event=event)
@@ -234,6 +234,7 @@ class Resources(LambdaBase):
                 body = '{"error": "Unsupported content format"}'
                 headers["Content-Type"] = "application/json"
 
+            print("<<< SILVA ENGINE > RESOURCES > HANDLE at ", datetime.now(timezone.utc).isoformat())
             return {
                 "statusCode": status_code,
                 "headers": headers,
@@ -256,6 +257,8 @@ class Resources(LambdaBase):
 
             if message is None:
                 message = log
+
+            print("<<< SILVA ENGINE > RESOURCES > HANDLE at ", datetime.now(timezone.utc).isoformat())
 
             if str(event.get("type")).strip().lower() == "request":
                 principal = event.get("path")
