@@ -15,8 +15,9 @@ def generate_random_string(length):
     return random_string
 
 def runtime_debug(endpoint_id, t, mark):
-    if str(endpoint_id).strip().lower() == "ss3":
-        print("--------- It took {} ms to execute request `{}`.".format(int(datetime.now().timestamp() * 1000) - t, mark))
+    d=int(datetime.now().timestamp() * 1000) - t
+    if str(endpoint_id).strip().lower() == "ss3" and d>0:
+        print("--------- It took {} ms to execute request `{}`.".format(d, mark))
     
     return int(datetime.now().timestamp() * 1000)
 
@@ -198,7 +199,6 @@ class Resources(LambdaBase):
                 if callable(fn):
                     # If graphql, append the graphql query path to the path.
                     event.update(fn(event, context))
-                    
                     est=runtime_debug(endpoint_id=endpoint_id, t=est, mark=f"{funct}:verify_permission(6.2)")
 
             ### ! 4. Transfer the request to the lower-level logic
