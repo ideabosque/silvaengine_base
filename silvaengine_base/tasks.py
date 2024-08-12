@@ -119,6 +119,8 @@ class Tasks(LambdaBase):
                     endpoint_id = os.getenv("DYNAMODBSTREAMENDPOINTID")
                     funct = "stream_handle"
 
+                    params = {"records": event.get("Records")}
+
                     ## Retrieve the table name to find the funct name and endpoint_id.
                     table_name = Tasks.extract_table_name(
                         event.get("Records")[0]["eventSourceARN"]
@@ -126,17 +128,24 @@ class Tasks(LambdaBase):
                     dynamodb_stream_config = LambdaBase.get_setting(
                         "dynamodb_stream_config"
                     )
-                    if dynamodb_stream_config.get(table_name):
-                        endpoint_id = dynamodb_stream_config[table_name]["endpoint_id"]
-                        funct = dynamodb_stream_config[table_name]["funct"]
 
-                    params = {"records": event.get("Records")}
+                    if dynamodb_stream_config.get(table_name) is None:
+                        Tasks.dispatch(
+                            endpoint_id,
+                            funct,
+                            params=params,
+                        )
+                        return
 
-                    Tasks.dispatch(
-                        endpoint_id,
-                        funct,
-                        params=params,
-                    )
+                    for config in dynamodb_stream_config[table_name]:
+                        endpoint_id = config["endpoint_id"]
+                        funct = config["funct"]
+                        Tasks.dispatch(
+                            endpoint_id,
+                            funct,
+                            params=params,
+                        )
+                    return
                 else:
                     raise Exception(
                         f"The event source ({event.get('Records')[0]['eventSource']}) is not supported!!!"
