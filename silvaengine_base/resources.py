@@ -23,8 +23,10 @@ def runtime_debug(r, t):
 
 def is_yaml(content):
     try:
+        js = int(datetime.now().timestamp() * 1000)
         # Try loading the content as YAML
         yaml.load(content, Loader=yaml.SafeLoader)
+        runtime_debug(" -------------- Check if the content is YAML.", js)
         return True
     except yaml.YAMLError:
         return False
@@ -34,7 +36,7 @@ def is_json(content):
     try:
         js = int(datetime.now().timestamp() * 1000)
         json.loads(content)
-        runtime_debug("Check if the content is JSON.", js)
+        runtime_debug(" -------------- Check if the content is JSON.", js)
         return True
     except ValueError:
         return False
@@ -238,12 +240,13 @@ class Resources(LambdaBase):
                 "Access-Control-Allow-Origin": "*",
             }
 
-            js = int(datetime.now().timestamp() * 1000)
+            
             if is_yaml(result):
                 headers["Content-Type"] = "application/x-yaml"
                 status_code = 200
                 body = result  # Assuming the YAML content is already a string
             elif is_json(result):
+                js = int(datetime.now().timestamp() * 1000)
                 headers["Content-Type"] = "application/json"
                 try:
                     response = jsonpickle.decode(result)
@@ -255,6 +258,7 @@ class Resources(LambdaBase):
                     # If decoding somehow still fails, return an error (this should be rare given the is_json check)
                     status_code = 400  # Bad Request
                     body = '{"error": "Failed to decode JSON"}'
+                runtime_debug(req+" ------------- build response (jsonpickle encode & decode)", js)
             else:
                 # If content is neither YAML nor JSON, handle accordingly
                 status_code = (
@@ -265,7 +269,7 @@ class Resources(LambdaBase):
 
             
             # runtime_debug(req+":invoke request(7)", est)
-            runtime_debug(req+" ------------- build response (jsonpickle encode & decode)", js)
+            
             return {
                 "statusCode": status_code,
                 "headers": headers,
