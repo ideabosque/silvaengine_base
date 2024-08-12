@@ -2,7 +2,8 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 from silvaengine_base.lambdabase import LambdaBase
-from silvaengine_utility import Utility, Authorizer as ApiGatewayAuthorizer, monitor_decorator
+from silvaengine_utility import Utility, Authorizer as ApiGatewayAuthorizer
+from .util import monitor_decorator
 from sentry_sdk.integrations.aws_lambda import AwsLambdaIntegration
 import json, traceback, jsonpickle, sentry_sdk, yaml
 

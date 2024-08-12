@@ -5,7 +5,7 @@ __author__ = "bibow"
 
 import json, boto3, os
 from boto3.dynamodb.conditions import Key
-from silvaengine_utility import monitor_decorator
+from .util import monitor_decorator
 from .models import EndpointsModel, ConnectionsModel, FunctionsModel, HooksModel
 
 
