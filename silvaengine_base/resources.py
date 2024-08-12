@@ -5,7 +5,7 @@ from silvaengine_base.lambdabase import LambdaBase, FunctionError
 from silvaengine_utility import Utility, Authorizer as ApiGatewayAuthorizer
 from sentry_sdk.integrations.aws_lambda import AwsLambdaIntegration
 from datetime import datetime
-import ujson as json, traceback, jsonpickle, sentry_sdk, yaml, random, string
+import json, traceback, jsonpickle, sentry_sdk, yaml, random, string
 
 __author__ = "bibow"
 
@@ -14,30 +14,25 @@ def generate_random_string(length):
     random_string = ''.join(random.choice(all_characters) for _ in range(length))
     return random_string
 
-def runtime_debug(r, t, s):
-    d = int(datetime.now().timestamp() * 1000) - t
+def runtime_debug(endpoint_id, t, mark):
+    if str(endpoint_id).strip().lower() == "ss3":
+        print("--------- It took {} ms to execute request `{}`.".format(int(datetime.now().timestamp() * 1000) - t, funct))
+    
+    return int(datetime.now().timestamp() * 1000)
 
-    # if d > 400:
-    if str(s).strip().lower() == "ss3":
-        print("--------- It took {} ms to execute request `{}`.".format(d, r))
 
-
-def is_yaml(content,s):
+def is_yaml(content):
     try:
-        js = int(datetime.now().timestamp() * 1000)
         # Try loading the content as YAML
         yaml.load(content, Loader=yaml.SafeLoader)
-        runtime_debug(" -------------- Check if the content is YAML.", js,s)
         return True
     except yaml.YAMLError:
         return False
 
 
-def is_json(content,s):
+def is_json(content):
     try:
-        js = int(datetime.now().timestamp() * 1000)
         json.loads(content)
-        runtime_debug(" -------------- Check if the content is JSON.", js,s)
         return True
     except ValueError:
         return False
@@ -53,13 +48,18 @@ class Resources(LambdaBase):
 
     def handle(self, event, context):
         try:
+            endpoint_id = event.get("pathParameters", {}).get("endpoint_id")
+            proxy = event.get("pathParameters", {}).get("proxy")
+            index = proxy.find("/")
+            funct = proxy[:index] if index != -1 else proxy
+
             req = generate_random_string(8)
             est = int(datetime.now().timestamp() * 1000)
 
             ### ! init
             if len(self.settings) < 1:
                 self.init(event=event)
-                # runtime_debug(req+":init(1)", est)
+                est=runtime_debug(endpoint_id=endpoint_id, t=est, mark=f"{funct}:init(1)")
 
             ### ! 1. Trigger Cognito hooks.
             if event and event.get("triggerSource") and event.get("userPoolId"):
@@ -87,13 +87,12 @@ class Resources(LambdaBase):
 
                 if callable(fn):
                     resp = fn(event, context)
-                    # runtime_debug(req+":pre_token_generate(2)", est)
+                    est=runtime_debug(endpoint_id=endpoint_id, t=est, mark=f"{funct}:pre_token_generate(2)")
                     return resp
 
             headers = event.get("headers", {})
             request_context = event.get("requestContext", {})
             api_key = request_context.get("identity", {}).get("apiKey")
-
             path_parameters = event.get("pathParameters", {})
             area = path_parameters.get("area")
             endpoint_id = path_parameters.get("endpoint_id")
@@ -148,7 +147,8 @@ class Resources(LambdaBase):
             (setting, function) = LambdaBase.get_function(
                 endpoint_id, funct, api_key=api_key, method=method
             )
-            # runtime_debug(req+":get_function(3)", est)
+            
+            est=runtime_debug(endpoint_id=endpoint_id, t=est, mark=f"{funct}:get_function(3)")
 
             assert (
                 area == function.area
@@ -169,6 +169,8 @@ class Resources(LambdaBase):
                     "requestContext": request_context,
                 }
             )
+            
+            est=runtime_debug(endpoint_id=endpoint_id, t=est, mark=f"{funct}:update event(4)")
 
             ### ! 3. Authorize
             if str(event.get("type")).strip().lower() == "request":
@@ -182,7 +184,7 @@ class Resources(LambdaBase):
                 # If auth_required is True, validate authorization.
                 if callable(fn):
                     resp = fn(event, context)
-                    # runtime_debug(req+":authorize(4)", est)
+                    est=runtime_debug(endpoint_id=endpoint_id, t=est, mark=f"{funct}:authorize(5)")
                     return resp
             elif event.get("body"):
                 fn = Utility.import_dynamically(
@@ -195,7 +197,8 @@ class Resources(LambdaBase):
                 if callable(fn):
                     # If graphql, append the graphql query path to the path.
                     event.update(fn(event, context))
-                    # runtime_debug(req+":verify_permission(5)", est)
+                    
+                    est=runtime_debug(endpoint_id=endpoint_id, t=est, mark=f"{funct}:verify_permission(6)")
 
             ### ! 4. Transfer the request to the lower-level logic
             js = int(datetime.now().timestamp() * 1000)
@@ -209,7 +212,7 @@ class Resources(LambdaBase):
                 "context": jsonpickle.encode(request_context, unpicklable=False),
             }
 
-            runtime_debug(req+" ------------- build payload (Twice json dump)", js, endpoint_id)
+            est=runtime_debug(endpoint_id=endpoint_id, t=est, mark=f"{funct}:build payload(7)")
 
             if str(function.config.funct_type).strip().lower() == "event":
                 LambdaBase.invoke(
@@ -218,7 +221,7 @@ class Resources(LambdaBase):
                     invocation_type="Event",
                 )
 
-                # runtime_debug(req+":invoke event(6)", est)
+                est=runtime_debug(endpoint_id=endpoint_id, t=est, mark=f"{funct}:invoke event(8)")
 
                 return {
                     "statusCode": 200,
@@ -236,10 +239,6 @@ class Resources(LambdaBase):
             )
 
             # Prepare headers based on the content type
-            # headers = {
-            #     "Access-Control-Allow-Headers": "Access-Control-Allow-Origin",
-            #     "Access-Control-Allow-Origin": "*",
-            # }
             response = {
                 "statusCode": 200,
                 "headers": {
@@ -253,16 +252,10 @@ class Resources(LambdaBase):
             if is_json(result, endpoint_id):
                 js = int(datetime.now().timestamp() * 1000)
                 response["statusCode"] = 200
-                # headers["Content-Type"] = "application/json"
-                # status_code = 200
-                # body = result   # Convert the modified response back to a JSON string
-
-                runtime_debug(req+" ------------- build response (jsonpickle encode & decode)", js, endpoint_id)
             elif type(result) is FunctionError:
                 # If content is neither YAML nor JSON, handle accordingly
                 response["statusCode"] = 500 # Bad Request or consider another appropriate status code
                 body = '{"error": "{}"}'.format(result.args[0])
-                response["headers"]["Content-Type"] = "application/json"
             elif is_yaml(result, endpoint_id):
                 response["headers"]["Content-Type"] = "application/x-yaml"
             else:
@@ -270,7 +263,7 @@ class Resources(LambdaBase):
                 response["statusCode"] = 400 # Bad Request or consider another appropriate status code
                 response["body"] = '{"error": "Unsupported content format"}'
 
-            # runtime_debug(req+":invoke request(7)", est)
+            est=runtime_debug(endpoint_id=endpoint_id, t=est, mark=f"{funct}:invoke request(9)")
             
             return response
         except Exception as e:
@@ -291,7 +284,7 @@ class Resources(LambdaBase):
             if message is None:
                 message = log
 
-            # runtime_debug(req+":exception(7)", est)
+            est=runtime_debug(endpoint_id=endpoint_id, t=est, mark=f"{funct}:exception(10)")
 
             if str(event.get("type")).strip().lower() == "request":
                 principal = event.get("path")
@@ -315,17 +308,13 @@ class Resources(LambdaBase):
                 if self.settings.get("sentry_enabled", False):
                     sentry_sdk.capture_exception(e)
 
-            js = int(datetime.now().timestamp() * 1000)
-            body = json.dumps({"error": message})
-            runtime_debug(req+" ------------- json dumps body of response", js, endpoint_id)
-
             return {
                 "statusCode": int(status_code),
                 "headers": {
                     "Access-Control-Allow-Headers": "Access-Control-Allow-Origin",
                     "Access-Control-Allow-Origin": "*",
                 },
-                "body": body,
+                "body": json.dumps({"error": message}),
             }
 
     # Exec hooks
