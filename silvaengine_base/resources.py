@@ -16,7 +16,7 @@ def generate_random_string(length):
 
 def runtime_debug(endpoint_id, t, mark):
     if str(endpoint_id).strip().lower() == "ss3":
-        print("--------- It took {} ms to execute request `{}`.".format(int(datetime.now().timestamp() * 1000) - t, funct))
+        print("--------- It took {} ms to execute request `{}`.".format(int(datetime.now().timestamp() * 1000) - t, mark))
     
     return int(datetime.now().timestamp() * 1000)
 
