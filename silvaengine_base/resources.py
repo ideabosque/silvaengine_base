@@ -241,21 +241,13 @@ class Resources(LambdaBase):
                 "Access-Control-Allow-Origin": "*",
             }
 
-            
-            # if is_yaml(result, endpoint_id):
-            #     headers["Content-Type"] = "application/x-yaml"
-            #     status_code = 200
-            #     body = result  # Assuming the YAML content is already a string
-            # el
+
             if is_json(result, endpoint_id):
                 js = int(datetime.now().timestamp() * 1000)
                 headers["Content-Type"] = "application/json"
                 try:
-                    response = jsonpickle.decode(result)
-                    status_code = response.pop("status_code", 200)
-                    body = jsonpickle.encode(
-                        response
-                    )  # Convert the modified response back to a JSON string
+                    status_code = 200
+                    body = result   # Convert the modified response back to a JSON string
                 except (ValueError, jsonpickle.UnpicklingError):
                     # If decoding somehow still fails, return an error (this should be rare given the is_json check)
                     status_code = 400  # Bad Request
