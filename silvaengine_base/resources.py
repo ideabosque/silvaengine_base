@@ -5,10 +5,17 @@ from silvaengine_base.lambdabase import LambdaBase
 from silvaengine_utility import Utility, Authorizer as ApiGatewayAuthorizer
 from sentry_sdk.integrations.aws_lambda import AwsLambdaIntegration
 from datetime import datetime, timezone
-import json, traceback, jsonpickle, sentry_sdk, yaml
+import json, traceback, jsonpickle, sentry_sdk, yaml, random, string
 
 __author__ = "bibow"
 
+def generate_random_string(length):
+    all_characters = string.ascii_letters + string.digits
+    random_string = ''.join(random.choice(all_characters) for _ in range(length))
+    return random_string
+
+def runtime_debug(r, t):
+    print("--------- It took %s seconds to execute request %s.".format(datetime.now().timestamp()-t, r))
 
 def is_yaml(content):
     try:
@@ -37,10 +44,13 @@ class Resources(LambdaBase):
 
     def handle(self, event, context):
         try:
-            print(">>> SILVA ENGINE > RESOURCES > HANDLE at ", datetime.now(timezone.utc).isoformat())
+            req = generate_random_string(8)
+            est = datetime.now().timestamp()
+
             ### ! init
             if len(self.settings) < 1:
                 self.init(event=event)
+                runtime_debug(req+":init(1)", est)
 
             ### ! 1. Trigger Cognito hooks.
             if event and event.get("triggerSource") and event.get("userPoolId"):
@@ -67,7 +77,9 @@ class Resources(LambdaBase):
                 )
 
                 if callable(fn):
-                    return fn(event, context)
+                    resp = fn(event, context)
+                    runtime_debug(req+":pre_token_generate(2)", est)
+                    return resp
 
             headers = event.get("headers", {})
             request_context = event.get("requestContext", {})
@@ -127,6 +139,7 @@ class Resources(LambdaBase):
             (setting, function) = LambdaBase.get_function(
                 endpoint_id, funct, api_key=api_key, method=method
             )
+            runtime_debug(req+":get_function(3)", est)
 
             assert (
                 area == function.area
@@ -159,7 +172,9 @@ class Resources(LambdaBase):
 
                 # If auth_required is True, validate authorization.
                 if callable(fn):
-                    return fn(event, context)
+                    resp = fn(event, context)
+                    runtime_debug(req+":authorize(4)", est)
+                    return resp
             elif event.get("body"):
                 fn = Utility.import_dynamically(
                     module_name="silvaengine_authorizer",
@@ -171,6 +186,7 @@ class Resources(LambdaBase):
                 if callable(fn):
                     # If graphql, append the graphql query path to the path.
                     event.update(fn(event, context))
+                    runtime_debug(req+":verify_permission(5)", est)
 
             ### ! 4. Transfer the request to the lower-level logic
             payload = {
@@ -189,6 +205,8 @@ class Resources(LambdaBase):
                     payload,
                     invocation_type="Event",
                 )
+
+                runtime_debug(req+":invoke event(6)", est)
 
                 return {
                     "statusCode": 200,
@@ -234,7 +252,8 @@ class Resources(LambdaBase):
                 body = '{"error": "Unsupported content format"}'
                 headers["Content-Type"] = "application/json"
 
-            print("<<< SILVA ENGINE > RESOURCES > HANDLE at ", datetime.now(timezone.utc).isoformat())
+            
+            runtime_debug(req+":invoke request(7)", est)
             return {
                 "statusCode": status_code,
                 "headers": headers,
@@ -258,7 +277,7 @@ class Resources(LambdaBase):
             if message is None:
                 message = log
 
-            print("<<< SILVA ENGINE > RESOURCES > HANDLE at ", datetime.now(timezone.utc).isoformat())
+            runtime_debug(req+":exception(7)", est)
 
             if str(event.get("type")).strip().lower() == "request":
                 principal = event.get("path")
