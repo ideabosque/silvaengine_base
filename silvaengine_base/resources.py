@@ -249,14 +249,14 @@ class Resources(LambdaBase):
                 "body": result,
             }
 
-            if is_json(result, endpoint_id):
+            if is_json(result):
                 js = int(datetime.now().timestamp() * 1000)
                 response["statusCode"] = 200
             elif type(result) is FunctionError:
                 # If content is neither YAML nor JSON, handle accordingly
                 response["statusCode"] = 500 # Bad Request or consider another appropriate status code
                 body = '{"error": "{}"}'.format(result.args[0])
-            elif is_yaml(result, endpoint_id):
+            elif is_yaml(result):
                 response["headers"]["Content-Type"] = "application/x-yaml"
             else:
                 # If content is neither YAML nor JSON, handle accordingly
