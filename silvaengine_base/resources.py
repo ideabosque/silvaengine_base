@@ -4,7 +4,7 @@ from __future__ import print_function
 from silvaengine_base.lambdabase import LambdaBase
 from silvaengine_utility import Utility, Authorizer as ApiGatewayAuthorizer
 from sentry_sdk.integrations.aws_lambda import AwsLambdaIntegration
-from datetime import datetime, timezone
+from datetime import datetime
 import json, traceback, jsonpickle, sentry_sdk, yaml, random, string
 
 __author__ = "bibow"
@@ -15,7 +15,7 @@ def generate_random_string(length):
     return random_string
 
 def runtime_debug(r, t):
-    print("--------- It took %s seconds to execute request %s.".format(datetime.now().timestamp()-t, r))
+    print("--------- It took {} seconds to execute request `{}`.".format(datetime.now().timestamp()-t, r))
 
 def is_yaml(content):
     try:
@@ -355,8 +355,6 @@ class Resources(LambdaBase):
                         return "{}_{}_{}".format(stage, area, endpoint_id)
 
             # raise Exception("Invalid event request")
-            print("++++++++++++++++++++++++++++++++++++++++++++++")
-            print(event)
         except Exception as e:
             raise e
 
