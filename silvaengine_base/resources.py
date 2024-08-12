@@ -5,7 +5,7 @@ from silvaengine_base.lambdabase import LambdaBase, FunctionError
 from silvaengine_utility import Utility, Authorizer as ApiGatewayAuthorizer
 from sentry_sdk.integrations.aws_lambda import AwsLambdaIntegration
 from datetime import datetime
-import json, traceback, jsonpickle, sentry_sdk, yaml, random, string
+import ujson as json, traceback, jsonpickle, sentry_sdk, yaml, random, string
 
 __author__ = "bibow"
 
@@ -206,8 +206,7 @@ class Resources(LambdaBase):
                 "setting": json.dumps(setting),
                 "params": json.dumps(params),
                 "body": event.get("body"),
-                # "context": jsonpickle.encode(request_context, unpicklable=False),
-                "context": request_context,
+                "context": jsonpickle.encode(request_context, unpicklable=False),
             }
 
             runtime_debug(req+" ------------- build payload (Twice json dump)", js, endpoint_id)
