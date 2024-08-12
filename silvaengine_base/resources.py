@@ -32,7 +32,9 @@ def is_yaml(content):
 
 def is_json(content):
     try:
+        js = int(datetime.now().timestamp() * 1000)
         json.loads(content)
+        runtime_debug("Check if the content is JSON.", js)
         return True
     except ValueError:
         return False
@@ -193,6 +195,7 @@ class Resources(LambdaBase):
                     runtime_debug(req+":verify_permission(5)", est)
 
             ### ! 4. Transfer the request to the lower-level logic
+            js = int(datetime.now().timestamp() * 1000)
             payload = {
                 "MODULENAME": function.config.module_name,
                 "CLASSNAME": function.config.class_name,
@@ -202,6 +205,8 @@ class Resources(LambdaBase):
                 "body": event.get("body"),
                 "context": jsonpickle.encode(request_context, unpicklable=False),
             }
+
+            runtime_debug(req+" ------------- build payload (Twice json dump)", js)
 
             if str(function.config.funct_type).strip().lower() == "event":
                 LambdaBase.invoke(
@@ -305,13 +310,17 @@ class Resources(LambdaBase):
                 if self.settings.get("sentry_enabled", False):
                     sentry_sdk.capture_exception(e)
 
+            js = int(datetime.now().timestamp() * 1000)
+            body = json.dumps({"error": message})
+            runtime_debug(req+" ------------- json dumps body of response", js)
+
             return {
                 "statusCode": int(status_code),
                 "headers": {
                     "Access-Control-Allow-Headers": "Access-Control-Allow-Origin",
                     "Access-Control-Allow-Origin": "*",
                 },
-                "body": json.dumps({"error": message}),
+                "body": body,
             }
 
     # Exec hooks
