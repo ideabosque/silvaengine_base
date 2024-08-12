@@ -251,9 +251,9 @@ class Resources(LambdaBase):
                 js = int(datetime.now().timestamp() * 1000)
                 headers["Content-Type"] = "application/json"
                 try:
-                    response = ujson.loads(result)
+                    response = json.loads(result)
                     status_code = response.pop("status_code", 200)
-                    body = ujson.dumps(response)  # Convert the modified response back to a JSON string
+                    body = json.dumps(response)  # Convert the modified response back to a JSON string
                 except:
                     # If decoding somehow still fails, return an error (this should be rare given the is_json check)
                     status_code = 400  # Bad Request
