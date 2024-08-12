@@ -206,7 +206,8 @@ class Resources(LambdaBase):
                 "setting": json.dumps(setting),
                 "params": json.dumps(params),
                 "body": event.get("body"),
-                "context": jsonpickle.encode(request_context, unpicklable=False),
+                # "context": jsonpickle.encode(request_context, unpicklable=False),
+                "context": request_context,
             }
 
             runtime_debug(req+" ------------- build payload (Twice json dump)", js, endpoint_id)
