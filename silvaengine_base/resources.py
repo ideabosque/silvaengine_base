@@ -14,29 +14,30 @@ def generate_random_string(length):
     random_string = ''.join(random.choice(all_characters) for _ in range(length))
     return random_string
 
-def runtime_debug(r, t):
+def runtime_debug(r, t, s):
     d = int(datetime.now().timestamp() * 1000) - t
 
     # if d > 400:
-    print("--------- It took {} ms to execute request `{}`.".format(d, r))
+    if str(s).strip().lower() == "ss3":
+        print("--------- It took {} ms to execute request `{}`.".format(d, r))
 
 
-def is_yaml(content):
+def is_yaml(content,s):
     try:
         js = int(datetime.now().timestamp() * 1000)
         # Try loading the content as YAML
         yaml.load(content, Loader=yaml.SafeLoader)
-        runtime_debug(" -------------- Check if the content is YAML.", js)
+        runtime_debug(" -------------- Check if the content is YAML.", js,s)
         return True
     except yaml.YAMLError:
         return False
 
 
-def is_json(content):
+def is_json(content,s):
     try:
         js = int(datetime.now().timestamp() * 1000)
         json.loads(content)
-        runtime_debug(" -------------- Check if the content is JSON.", js)
+        runtime_debug(" -------------- Check if the content is JSON.", js,s)
         return True
     except ValueError:
         return False
@@ -208,7 +209,7 @@ class Resources(LambdaBase):
                 "context": jsonpickle.encode(request_context, unpicklable=False),
             }
 
-            runtime_debug(req+" ------------- build payload (Twice json dump)", js)
+            runtime_debug(req+" ------------- build payload (Twice json dump)", js, endpoint_id)
 
             if str(function.config.funct_type).strip().lower() == "event":
                 LambdaBase.invoke(
@@ -241,11 +242,11 @@ class Resources(LambdaBase):
             }
 
             
-            if is_yaml(result):
+            if is_yaml(result, endpoint_id):
                 headers["Content-Type"] = "application/x-yaml"
                 status_code = 200
                 body = result  # Assuming the YAML content is already a string
-            elif is_json(result):
+            elif is_json(result, endpoint_id):
                 js = int(datetime.now().timestamp() * 1000)
                 headers["Content-Type"] = "application/json"
                 try:
@@ -258,7 +259,7 @@ class Resources(LambdaBase):
                     # If decoding somehow still fails, return an error (this should be rare given the is_json check)
                     status_code = 400  # Bad Request
                     body = '{"error": "Failed to decode JSON"}'
-                runtime_debug(req+" ------------- build response (jsonpickle encode & decode)", js)
+                runtime_debug(req+" ------------- build response (jsonpickle encode & decode)", js, endpoint_id)
             else:
                 # If content is neither YAML nor JSON, handle accordingly
                 status_code = (
@@ -319,7 +320,7 @@ class Resources(LambdaBase):
 
             js = int(datetime.now().timestamp() * 1000)
             body = json.dumps({"error": message})
-            runtime_debug(req+" ------------- json dumps body of response", js)
+            runtime_debug(req+" ------------- json dumps body of response", js, endpoint_id)
 
             return {
                 "statusCode": int(status_code),
