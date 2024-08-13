@@ -3,8 +3,9 @@
 __author__ = "bibow"
 
 
-import json, boto3, os, datetime
+import json, boto3, os
 from boto3.dynamodb.conditions import Key
+from datetime import datetime
 from .models import EndpointsModel, ConnectionsModel, FunctionsModel, HooksModel
 
 
