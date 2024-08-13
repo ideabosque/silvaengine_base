@@ -50,7 +50,7 @@ class Resources(LambdaBase):
     def handle(self, event, context):
         try:
             endpoint_id = event.get("pathParameters", {}).get("endpoint_id")
-            proxy = event.get("pathParameters", {}).get("proxy")
+            proxy = event.get("pathParameters", {}).get("proxy","")
             index = proxy.find("/")
             funct = proxy[:index] if index != -1 else proxy
 
@@ -284,8 +284,6 @@ class Resources(LambdaBase):
 
             if message is None:
                 message = log
-
-            est=runtime_debug(endpoint_id=endpoint_id, t=est, mark=f"{funct}:exception(10)")
 
             if str(event.get("type")).strip().lower() == "request":
                 principal = event.get("path")
