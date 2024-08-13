@@ -9,10 +9,6 @@ import json, traceback, jsonpickle, sentry_sdk, yaml, random, string
 
 __author__ = "bibow"
 
-def generate_random_string(length):
-    all_characters = string.ascii_letters + string.digits
-    random_string = ''.join(random.choice(all_characters) for _ in range(length))
-    return random_string
 
 def runtime_debug(endpoint_id, t, mark):
     d=int(datetime.now().timestamp() * 1000) - t
@@ -54,7 +50,6 @@ class Resources(LambdaBase):
             index = proxy.find("/")
             funct = proxy[:index] if index != -1 else proxy
 
-            req = generate_random_string(8)
             est = int(datetime.now().timestamp() * 1000)
 
             ### ! init
