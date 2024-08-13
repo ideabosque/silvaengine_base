@@ -18,9 +18,7 @@ def runtime_debug(mark, t=0):
 
         if d > 0:
             print("********** It took {} ms to execute `LambdaBase.{}`.".format(d, mark))
-    else:
-        print("********** Start execute `LambdaBase.{}` at {}.".format(mark, int(datetime.now().timestamp() * 1000)))
-    
+
     return int(datetime.now().timestamp() * 1000)
 
 class LambdaBase(object):
@@ -49,14 +47,14 @@ class LambdaBase(object):
             InvocationType=invocation_type,
             Payload=json.dumps(payload),
         )
-        ts = runtime_debug("invoke",t=ts)
+        ts = runtime_debug("execute invoke",t=ts)
 
         if "FunctionError" in response.keys():
             log = json.loads(response["Payload"].read())
             raise FunctionError(log)
         if invocation_type == "RequestResponse":
             r= json.loads(response["Payload"].read())
-            ts = runtime_debug("invoke",t=ts)
+            ts = runtime_debug("encode invoke result to json",t=ts)
             return r
 
     @classmethod
