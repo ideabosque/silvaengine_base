@@ -9,10 +9,6 @@ import json, traceback, jsonpickle, sentry_sdk, yaml, random, string
 
 __author__ = "bibow"
 
-def generate_random_string(length):
-    all_characters = string.ascii_letters + string.digits
-    random_string = ''.join(random.choice(all_characters) for _ in range(length))
-    return random_string
 
 def runtime_debug(endpoint_id, t, mark):
     d=int(datetime.now().timestamp() * 1000) - t
@@ -50,11 +46,10 @@ class Resources(LambdaBase):
     def handle(self, event, context):
         try:
             endpoint_id = event.get("pathParameters", {}).get("endpoint_id")
-            proxy = event.get("pathParameters", {}).get("proxy")
+            proxy = event.get("pathParameters", {}).get("proxy","")
             index = proxy.find("/")
             funct = proxy[:index] if index != -1 else proxy
 
-            req = generate_random_string(8)
             est = int(datetime.now().timestamp() * 1000)
 
             ### ! init
@@ -284,8 +279,6 @@ class Resources(LambdaBase):
 
             if message is None:
                 message = log
-
-            est=runtime_debug(endpoint_id=endpoint_id, t=est, mark=f"{funct}:exception(10)")
 
             if str(event.get("type")).strip().lower() == "request":
                 principal = event.get("path")
