@@ -162,6 +162,42 @@ class Tasks(LambdaBase):
                     funct,
                     params=params,
                 )
+            elif event.get("requestContext") and (
+                event["requestContext"].get("connectionId")
+                and event["requestContext"].get("routeKey")
+            ):
+                self.logger.info(event)
+                # Extract connection ID and route key from the event
+                connection_id = event["requestContext"]["connectionId"]
+                route_key = event["requestContext"]["routeKey"]
+
+                # Handle WebSocket connection, disconnection, and streaming logic
+                if route_key == "$connect":
+                    return {"statusCode": 200, "body": "Connected"}
+
+                elif route_key == "$disconnect":
+                    return {"statusCode": 200, "body": "Disconnected"}
+                elif route_key == "stream":
+                    body = Utility.json_loads(event.get("body", "{}"))
+                    self.logger.info(body)
+                    endpoint_id = body.get("endpointId")
+                    funct = body.get("funct")
+                    params = Utility.json_loads(body.get("payload", "{}"))
+                    params["context"] = {"connection_id": connection_id}
+
+                    if not endpoint_id or not funct:
+                        return {
+                            "statusCode": 400,
+                            "body": "Missing required endpoint_id or funct",
+                        }
+
+                    # Call the function to generate the stream and send it to WebSocket
+                    result = Tasks.dispatch(endpoint_id, funct, params)
+
+                    return {"statusCode": 200, "body": result}
+
+                # Return 400 for invalid routes
+                return {"statusCode": 400, "body": "Invalid Route"}
             else:
                 self.logger.info(
                     f"endpoint_id: {event.get('endpoint_id')}, funct: {event.get('funct')}, params: {Utility.json_dumps(event.get('params'))}"
