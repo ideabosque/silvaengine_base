@@ -6,7 +6,7 @@ from setuptools import find_packages, setup
 
 setup(
     name="SilvaEngine-Base",
-    version="0.0.3",
+    version="0.0.4",
     author="Idea Bosque",
     author_email="ideabosque@gmail.com",
     description="SilvaEngine Base",
