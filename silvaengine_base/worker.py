@@ -93,7 +93,11 @@ class Worker(LambdaBase):
             module_name = event.get("MODULENAME")
             class_name = event.get("CLASSNAME")
             funct_name = event.get("funct")
-            settings = json.loads(event.get("setting", "{}"))
+            settings = (
+                json.loads(event.get("setting"))
+                if event.get("setting") is not None
+                else {}
+            )
 
             _class = getattr(__import__(module_name), class_name)
             instance = _class(self.logger, **settings)
