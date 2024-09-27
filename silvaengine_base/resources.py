@@ -69,13 +69,20 @@ class Resources(LambdaBase):
             # Add authorization for websocket event
             #######################################
 
-            est = int(datetime.now().timestamp() * 1000)
-            body = Utility.json_loads(event.get("body", "{}"))
+            body = (
+                Utility.json_loads(event.get("body"))
+                if event.get("body") is not None
+                else {}
+            )
             self.logger.info(f"WebSocket stream received: {body}")
 
             endpoint_id = body.get("endpointId")
             funct = body.get("funct")
-            params = Utility.json_loads(body.get("payload", "{}"))
+            params = (
+                Utility.json_loads(body.get("payload"))
+                if body.get("payload") is not None
+                else {}
+            )
             params["endpoint_id"] = endpoint_id
 
             if not endpoint_id or not funct:
@@ -90,13 +97,15 @@ class Resources(LambdaBase):
             request_context = event.get("requestContext", {})
             api_key = request_context.get("identity", {}).get("apiKey")
             method = self._get_http_method(event)
-            setting, function = LambdaBase.get_function(
-                endpoint_id, funct, api_key=api_key, method=method
+            setting, function = (
+                LambdaBase.get_function(
+                    endpoint_id, funct, api_key=api_key, method=method
+                )
+                if api_key is not None
+                else (LambdaBase.get_function(endpoint_id, funct, method=method))
             )
 
-            return self._invoke_function(
-                event, function, funct, params, setting, est, endpoint_id
-            )
+            return self._invoke_function(event, function, params, setting)
         except Exception as e:
             self.logger.error(f"Error processing WebSocket stream: {str(e)}")
             return {"statusCode": 500, "body": "Internal Server Error"}
