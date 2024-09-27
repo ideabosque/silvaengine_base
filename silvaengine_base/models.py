@@ -1,15 +1,16 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 from __future__ import print_function
-from pynamodb.models import Model
-from pynamodb.attributes import (
-    MapAttribute,
-    ListAttribute,
-    UnicodeAttribute,
-    BooleanAttribute,
-)
+
 import os
 
+from pynamodb.attributes import (
+    BooleanAttribute,
+    ListAttribute,
+    MapAttribute,
+    UnicodeAttribute,
+)
+from pynamodb.models import Model
 
 __author__ = "bibow"
 
@@ -20,7 +21,7 @@ class BaseModel(Model):
         billing_mode = "PAY_PER_REQUEST"
 
 
-class EndpointsModel(BaseModel):
+class EndpointModel(BaseModel):
     class Meta(BaseModel.Meta):
         table_name = "se-endpoints"
 
@@ -34,7 +35,7 @@ class FunctionMap(MapAttribute):
     setting = UnicodeAttribute()
 
 
-class ConnectionsModel(BaseModel):
+class ConnectionModel(BaseModel):
     class Meta(BaseModel.Meta):
         table_name = "se-connections"
 
@@ -63,7 +64,7 @@ class ConfigMap(MapAttribute):
     operations = OperationMap()
 
 
-class FunctionsModel(BaseModel):
+class FunctionModel(BaseModel):
     class Meta(BaseModel.Meta):
         table_name = "se-functions"
 
@@ -73,7 +74,7 @@ class FunctionsModel(BaseModel):
     config = ConfigMap()
 
 
-class HooksModel(BaseModel):
+class HookModel(BaseModel):
     class Meta(BaseModel.Meta):
         table_name = "se-hooks"
 
@@ -84,3 +85,15 @@ class HooksModel(BaseModel):
     is_interruptible = BooleanAttribute(default=False)
     status = BooleanAttribute(default=True)
     description = UnicodeAttribute()
+
+
+# class WSSConnectionModel(BaseModel):
+#     class Meta(BaseModel.Meta):
+#         table_name = "se-wss-connections"
+
+#     user_id = UnicodeAttribute(hash_key=True)
+#     connection_id = UnicodeAttribute(range_key=True)
+#     data = MapAttribute()
+#     status = BooleanAttribute(default=True)
+#     created_at = UTCDateTimeAttribute()
+#     updated_at = UTCDateTimeAttribute()
