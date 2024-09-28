@@ -6,6 +6,7 @@ import json
 import traceback
 from datetime import datetime
 from typing import Any, Dict, Tuple
+import pendulum
 
 import jsonpickle
 import sentry_sdk
@@ -15,6 +16,7 @@ from sentry_sdk.integrations.aws_lambda import AwsLambdaIntegration
 from silvaengine_base.lambdabase import FunctionError, LambdaBase
 from silvaengine_utility import Authorizer as ApiGatewayAuthorizer
 from silvaengine_utility import Utility
+from .models import WSSConnectionModel
 
 __author__ = "bibow"
 
@@ -49,10 +51,41 @@ class Resources(LambdaBase):
         """
         if route_key == "$connect":
             self.logger.info(f"WebSocket connected: {connection_id}")
+
+            endpoint_id = event.get("queryStringParameters", {}).get("endpointId")
+            area = event.get("queryStringParameters", {}).get("area")
+            api_key = event.get("requestContext", {}).get("identity", {}).get("apiKey")
+            api_key = (
+                event.get("queryStringParameters", {}).get("x-api-key")
+                if api_key is None
+                else api_key
+            )
+            WSSConnectionModel(
+                endpoint_id,
+                connection_id,
+                **{
+                    "api_key": api_key,
+                    "area": area,
+                    "updated_at": pendulum.now("UTC"),
+                    "created_at": pendulum.now("UTC"),
+                },
+            ).save()
+
             return {"statusCode": 200, "body": "Connection successful"}
 
         elif route_key == "$disconnect":
             self.logger.info(f"WebSocket disconnected: {connection_id}")
+
+            results = WSSConnectionModel.connect_id_index.query(connection_id, None)
+            if not results:
+                self.logger.error("WebSocket connection not found")
+                return {"statusCode": 404, "body": "WebSocket connection not found"}
+            
+            wss_onnections = [result for result in results]
+            wss_onnections[0].status = "inactive"
+            wss_onnections[0].updated_at = pendulum.now("UTC")
+            wss_onnections[0].save()
+
             return {"statusCode": 200, "body": "Disconnection successful"}
 
         elif route_key == "stream":
@@ -66,8 +99,22 @@ class Resources(LambdaBase):
         Process the 'stream' route for WebSocket events, managing the payload and dispatching tasks.
         """
         try:
-            # Add authorization for websocket event
-            #######################################
+            #########################################
+            # Add authorization for websocket event #
+            #########################################
+
+            connection_id = event.get("requestContext", {}).get("connectionId")
+            request_context = event.get("requestContext", {})
+            api_key = request_context.get("identity", {}).get("apiKey")
+            results = WSSConnectionModel.connect_id_index.query(connection_id, None)
+            if not results:
+                self.logger.error("WebSocket connection not found")
+                return {"statusCode": 404, "body": "WebSocket connection not found"}
+            
+            wss_onnections = [result for result in results]
+            endpoint_id = wss_onnections[0].endpoint_id
+            if api_key is None:
+                api_key = wss_onnections[0].api_key
 
             body = (
                 Utility.json_loads(event.get("body"))
@@ -76,7 +123,6 @@ class Resources(LambdaBase):
             )
             self.logger.info(f"WebSocket stream received: {body}")
 
-            endpoint_id = body.get("endpointId")
             funct = body.get("funct")
             params = (
                 Utility.json_loads(body.get("payload"))
@@ -94,15 +140,9 @@ class Resources(LambdaBase):
                     "body": "Missing required parameters: endpointId or funct",
                 }
 
-            request_context = event.get("requestContext", {})
-            api_key = request_context.get("identity", {}).get("apiKey")
             method = self._get_http_method(event)
-            setting, function = (
-                LambdaBase.get_function(
-                    endpoint_id, funct, api_key=api_key, method=method
-                )
-                if api_key is not None
-                else (LambdaBase.get_function(endpoint_id, funct, method=method))
+            setting, function = LambdaBase.get_function(
+                endpoint_id, funct, api_key=api_key, method=method
             )
 
             return self._invoke_function(event, function, params, setting)
