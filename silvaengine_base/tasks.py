@@ -104,7 +104,7 @@ class Tasks(LambdaBase):
             params = Utility.json_loads(record["body"]).get("params", {})
 
             self.logger.info(
-                f"Endpoint ID: {endpoint_id}, Function: {funct}, Params: {Utility.json_dumps(params)}"
+                f"(SQS) Endpoint ID: {endpoint_id}, Function: {funct}, Params: {Utility.json_dumps(params)}"
             )
             self.dispatch(endpoint_id, funct, params=params)
 
@@ -131,7 +131,7 @@ class Tasks(LambdaBase):
 
         endpoint_id, funct = pieces[0], pieces[1]
         self.logger.info(
-            f"Endpoint ID: {endpoint_id}, Function: {funct}, Params: {Utility.json_dumps(params)}"
+            f"(S3) Endpoint ID: {endpoint_id}, Function: {funct}, Params: {Utility.json_dumps(params)}"
         )
         self.dispatch(endpoint_id, funct, params=params)
 
@@ -145,9 +145,15 @@ class Tasks(LambdaBase):
         dynamodb_stream_config = LambdaBase.get_setting("dynamodb_stream_config")
 
         if not dynamodb_stream_config.get(table_name):
+            self.logger.info(
+                f"(DynamoDB) Endpoint ID: {endpoint_id}, Function: {funct}, Params: {Utility.json_dumps(params)}"
+            )
             self.dispatch(endpoint_id, funct, params=params)
         else:
             for config in dynamodb_stream_config[table_name]:
+                self.logger.info(
+                    f"(DynamoDB) Endpoint ID: {config['endpoint_id']}, Function: {config['funct']}, Params: {Utility.json_dumps(params)}"
+                )
                 self.dispatch(config["endpoint_id"], config["funct"], params=params)
 
     def _handle_bot_event(self, event: Dict[str, Any]) -> None:
@@ -157,6 +163,6 @@ class Tasks(LambdaBase):
         params = event
 
         self.logger.info(
-            f"Endpoint ID: {endpoint_id}, Function: {funct}, Params: {Utility.json_dumps(params)}"
+            f"(Lex Bot) Endpoint ID: {endpoint_id}, Function: {funct}, Params: {Utility.json_dumps(params)}"
         )
         self.dispatch(endpoint_id, funct, params=params)
