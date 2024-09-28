@@ -9,7 +9,9 @@ from pynamodb.attributes import (
     ListAttribute,
     MapAttribute,
     UnicodeAttribute,
+    UTCDateTimeAttribute
 )
+from pynamodb.indexes import AllProjection, GlobalSecondaryIndex
 from pynamodb.models import Model
 
 __author__ = "bibow"
@@ -87,13 +89,30 @@ class HookModel(BaseModel):
     description = UnicodeAttribute()
 
 
-# class WSSConnectionModel(BaseModel):
-#     class Meta(BaseModel.Meta):
-#         table_name = "se-wss-connections"
+class ConnectionIdIndex(GlobalSecondaryIndex):
+    """
+    This class represents a local secondary index
+    """
 
-#     user_id = UnicodeAttribute(hash_key=True)
-#     connection_id = UnicodeAttribute(range_key=True)
-#     data = MapAttribute()
-#     status = BooleanAttribute(default=True)
-#     created_at = UTCDateTimeAttribute()
-#     updated_at = UTCDateTimeAttribute()
+    class Meta:
+        billing_mode = "PAY_PER_REQUEST"
+        # All attributes are projected
+        projection = AllProjection()
+        index_name = "connection_id-index"
+
+    connection_id = UnicodeAttribute(hash_key=True)
+
+
+class WSSConnectionModel(BaseModel):
+    class Meta(BaseModel.Meta):
+        table_name = "se-wss-connections"
+
+    endpoint_id = UnicodeAttribute(hash_key=True)
+    connection_id = UnicodeAttribute(range_key=True)
+    api_key = UnicodeAttribute()
+    area = UnicodeAttribute()
+    data = MapAttribute(default={})
+    status = UnicodeAttribute(default="active")
+    created_at = UTCDateTimeAttribute()
+    updated_at = UTCDateTimeAttribute()
+    connect_id_index = ConnectionIdIndex()
