@@ -142,7 +142,10 @@ class Tasks(LambdaBase):
         params = {"records": event.get("Records", [])}
 
         table_name = self.extract_table_name(event["Records"][0]["eventSourceARN"])
-        dynamodb_stream_config = LambdaBase.get_setting("dynamodb_stream_config")
+        try:
+            dynamodb_stream_config = LambdaBase.get_setting("dynamodb_stream_config")
+        except Exception:
+            dynamodb_stream_config = {}
 
         if not dynamodb_stream_config.get(table_name):
             self.logger.info(
