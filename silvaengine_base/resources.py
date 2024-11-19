@@ -146,7 +146,20 @@ class Resources(LambdaBase):
                 endpoint_id, funct, api_key=api_key, method=method
             )
 
+            import boto3
+
+            apigw_client = boto3.client(
+                "apigatewaymanagementapi",
+                endpoint_url=f"https://{setting['api_id']}.execute-api.{setting['region_name']}.amazonaws.com/{setting['api_stage']}",
+                region_name=setting["region_name"],
+                aws_access_key_id=setting["aws_access_key_id"],
+                aws_secret_access_key=setting["aws_secret_access_key"],
+            )
+            apigw_client.post_to_connection(ConnectionId=connection_id, Data="xxxxxxxx")
             response = self._invoke_function(event, function, params, setting)
+            apigw_client.post_to_connection(
+                ConnectionId=connection_id, Data=Utility.json_dumps(response)
+            )
             self.logger.info(f"WebSocket stream response {connection_id}: {response}")
             return response
         except Exception as e:
