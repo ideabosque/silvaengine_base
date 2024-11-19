@@ -6,9 +6,9 @@ import json
 import traceback
 from datetime import datetime
 from typing import Any, Dict, Tuple
-import pendulum
 
 import jsonpickle
+import pendulum
 import sentry_sdk
 import yaml
 from sentry_sdk.integrations.aws_lambda import AwsLambdaIntegration
@@ -16,6 +16,7 @@ from sentry_sdk.integrations.aws_lambda import AwsLambdaIntegration
 from silvaengine_base.lambdabase import FunctionError, LambdaBase
 from silvaengine_utility import Authorizer as ApiGatewayAuthorizer
 from silvaengine_utility import Utility
+
 from .models import WSSConnectionModel
 
 __author__ = "bibow"
@@ -80,7 +81,7 @@ class Resources(LambdaBase):
             if not results:
                 self.logger.error("WebSocket connection not found")
                 return {"statusCode": 404, "body": "WebSocket connection not found"}
-            
+
             wss_onnections = [result for result in results]
             wss_onnections[0].status = "inactive"
             wss_onnections[0].updated_at = pendulum.now("UTC")
@@ -110,7 +111,7 @@ class Resources(LambdaBase):
             if not results:
                 self.logger.error("WebSocket connection not found")
                 return {"statusCode": 404, "body": "WebSocket connection not found"}
-            
+
             wss_onnections = [result for result in results]
             endpoint_id = wss_onnections[0].endpoint_id
             if api_key is None:
@@ -145,7 +146,9 @@ class Resources(LambdaBase):
                 endpoint_id, funct, api_key=api_key, method=method
             )
 
-            return self._invoke_function(event, function, params, setting)
+            response = self._invoke_function(event, function, params, setting)
+            self.logger.info(f"WebSocket stream response: {response}")
+            return response
         except Exception as e:
             self.logger.error(f"Error processing WebSocket stream: {str(e)}")
             return {"statusCode": 500, "body": "Internal Server Error"}
