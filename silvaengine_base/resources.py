@@ -147,7 +147,7 @@ class Resources(LambdaBase):
             )
 
             response = self._invoke_function(event, function, params, setting)
-            self.logger.info(f"WebSocket stream response: {response}")
+            self.logger.info(f"WebSocket stream response {connection_id}: {response}")
             return response
         except Exception as e:
             self.logger.error(f"Error processing WebSocket stream: {str(e)}")
