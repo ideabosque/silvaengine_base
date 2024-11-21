@@ -30,6 +30,7 @@ class Resources(LambdaBase):
 
     def handle(self, event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         try:
+            print(">>>>>>>>>>>>>>>>>>>> 1111111")
             # Check if the event is from a WebSocket connection
             request_context = event.get("requestContext", {})
             connection_id = request_context.get("connectionId")
@@ -38,6 +39,8 @@ class Resources(LambdaBase):
             #
             api_key, endpoint_id, funct, params = self._extract_event_data(event)
             self._initialize_settings(event)
+
+            print(">>>>>>>>>>>>>>>>>>>>>>>>>> 22222222222222222")
 
             if self._is_cognito_trigger(event):
                 return self._handle_cognito_trigger(event, context)
@@ -60,6 +63,8 @@ class Resources(LambdaBase):
                 )
             )
 
+            print(">>>>>>>>>>>>>>>>>>>>>>>>>> 3333333333333333333")
+
             # Add authorization for http event
             if self._is_request_event(event):
                 # Authorization
@@ -69,6 +74,8 @@ class Resources(LambdaBase):
                 print("Authorization >>>>>>>>>>>>>>>>>>>", r)
                 return r
 
+            print(">>>>>>>>>>>>>>>>>>>>>>>>>> 444444444444444444")
+            print(">>>>>>>>>>>>>>>>>>>>>>>>>> ", connection_id, route_key)
             if connection_id and route_key:
                 self.logger.info(f"WebSocket event received: {event}")
                 return self._handle_websocket_event(event, connection_id, route_key, function=function, setting=setting)
