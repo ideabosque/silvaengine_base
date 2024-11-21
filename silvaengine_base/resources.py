@@ -36,6 +36,8 @@ class Resources(LambdaBase):
             connection_id = request_context.get("connectionId")
             route_key = request_context.get("routeKey")
 
+            print(">>>>>>>>>>>>>>>>>>>>>>>>>> ", connection_id, route_key)
+
             #
             api_key, endpoint_id, funct, params = self._extract_event_data(event)
             self._initialize_settings(event)
