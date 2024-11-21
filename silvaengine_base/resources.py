@@ -35,6 +35,31 @@ class Resources(LambdaBase):
             connection_id = request_context.get("connectionId")
             route_key = request_context.get("routeKey")
 
+            #
+            api_key, endpoint_id, funct, params = self._extract_event_data(event)
+            self._initialize_settings(event)
+
+            if self._is_cognito_trigger(event):
+                return self._handle_cognito_trigger(event, context)
+
+            path_parameters = event.get("pathParameters", {})
+            request_context = event.get("requestContext", {})
+            method = self._get_http_method(event)
+            setting, function = LambdaBase.get_function(
+                endpoint_id, funct, api_key=api_key, method=method
+            )
+
+            self._validate_function_area(params, function)
+            event.update(
+                self._prepare_event(
+                    event.get("headers", {}),
+                    path_parameters.get("area"),
+                    request_context,
+                    function,
+                    endpoint_id,
+                )
+            )
+
             # Add authorization for http event
             if self._is_request_event(event):
                 # Authorization
@@ -42,15 +67,15 @@ class Resources(LambdaBase):
 
             if connection_id and route_key:
                 self.logger.info(f"WebSocket event received: {event}")
-                return self._handle_websocket_event(event, connection_id, route_key)
+                return self._handle_websocket_event(event, connection_id, route_key, setting=setting)
 
             # If it's not a WebSocket event, handle it as a regular API request
-            return self._handle_http_request(event, context)
+            return self._handle_http_request(event, context, params=params, setting=setting)
         except Exception as e:
             return self._handle_exception(e, event)
 
     def _handle_websocket_event(
-        self, event: Dict[str, Any], connection_id: str, route_key: str
+        self, event: Dict[str, Any], connection_id: str, route_key: str, setting: Any
     ) -> Dict[str, Any]:
         """
         Handle WebSocket connection events including connection, disconnection, and streaming.
@@ -95,12 +120,12 @@ class Resources(LambdaBase):
             return {"statusCode": 200, "body": "Disconnection successful"}
 
         elif route_key == "stream":
-            return self._handle_websocket_stream(event)
+            return self._handle_websocket_stream(event, setting)
 
         self.logger.warning(f"Invalid WebSocket route: {route_key}")
         return {"statusCode": 400, "body": "Invalid WebSocket route"}
 
-    def _handle_websocket_stream(self, event: Dict[str, Any]) -> Dict[str, Any]:
+    def _handle_websocket_stream(self, event: Dict[str, Any], setting: Any) -> Dict[str, Any]:
         """
         Process the 'stream' route for WebSocket events, managing the payload and dispatching tasks.
         """
@@ -146,10 +171,10 @@ class Resources(LambdaBase):
                     "body": "Missing required parameters: endpointId or funct",
                 }
 
-            method = self._get_http_method(event)
-            setting, function = LambdaBase.get_function(
-                endpoint_id, funct, api_key=api_key, method=method
-            )
+            # method = self._get_http_method(event)
+            # setting, function = LambdaBase.get_function(
+            #     endpoint_id, funct, api_key=api_key, method=method
+            # )
 
             return self._invoke_function(event, function, params, setting)
         except Exception as e:
@@ -157,35 +182,35 @@ class Resources(LambdaBase):
             return {"statusCode": 500, "body": "Internal Server Error"}
 
     def _handle_http_request(
-        self, event: Dict[str, Any], context: Any
+        self, event: Dict[str, Any], context: Any, params: Any, setting: Any
     ) -> Dict[str, Any]:
         """
         Process regular HTTP API requests when the event is not related to WebSocket.
         """
-        api_key, endpoint_id, funct, params = self._extract_event_data(event)
-        self._initialize_settings(event)
+        # api_key, endpoint_id, funct, params = self._extract_event_data(event)
+        # self._initialize_settings(event)
 
-        if self._is_cognito_trigger(event):
-            return self._handle_cognito_trigger(event, context)
+        # if self._is_cognito_trigger(event):
+        #     return self._handle_cognito_trigger(event, context)
 
-        path_parameters = event.get("pathParameters", {})
-        request_context = event.get("requestContext", {})
-        method = self._get_http_method(event)
-        setting, function = LambdaBase.get_function(
-            endpoint_id, funct, api_key=api_key, method=method
-        )
+        # path_parameters = event.get("pathParameters", {})
+        # request_context = event.get("requestContext", {})
+        # method = self._get_http_method(event)
+        # setting, function = LambdaBase.get_function(
+        #     endpoint_id, funct, api_key=api_key, method=method
+        # )
 
-        self._validate_function_area(params, function)
-        self.logger.info(f"HTTP event received: {event}")
-        event.update(
-            self._prepare_event(
-                event.get("headers", {}),
-                path_parameters.get("area"),
-                request_context,
-                function,
-                endpoint_id,
-            )
-        )
+        # self._validate_function_area(params, function)
+        # self.logger.info(f"HTTP event received: {event}")
+        # event.update(
+        #     self._prepare_event(
+        #         event.get("headers", {}),
+        #         path_parameters.get("area"),
+        #         request_context,
+        #         function,
+        #         endpoint_id,
+        #     )
+        # )
 
         # # Add authorization for http event
         # if self._is_request_event(event):
