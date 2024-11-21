@@ -67,10 +67,10 @@ class Resources(LambdaBase):
 
             if connection_id and route_key:
                 self.logger.info(f"WebSocket event received: {event}")
-                return self._handle_websocket_event(event, connection_id, route_key, setting=setting)
+                return self._handle_websocket_event(event, connection_id, route_key, function=function, setting=setting)
 
             # If it's not a WebSocket event, handle it as a regular API request
-            return self._handle_http_request(event, context, params=params, setting=setting)
+            return self._handle_http_request(event, context, function=function, params=params, setting=setting)
         except Exception as e:
             return self._handle_exception(e, event)
 
@@ -125,7 +125,7 @@ class Resources(LambdaBase):
         self.logger.warning(f"Invalid WebSocket route: {route_key}")
         return {"statusCode": 400, "body": "Invalid WebSocket route"}
 
-    def _handle_websocket_stream(self, event: Dict[str, Any], setting: Any) -> Dict[str, Any]:
+    def _handle_websocket_stream(self, event: Dict[str, Any], function: Any, setting: Any) -> Dict[str, Any]:
         """
         Process the 'stream' route for WebSocket events, managing the payload and dispatching tasks.
         """
@@ -182,7 +182,7 @@ class Resources(LambdaBase):
             return {"statusCode": 500, "body": "Internal Server Error"}
 
     def _handle_http_request(
-        self, event: Dict[str, Any], context: Any, params: Any, setting: Any
+        self, event: Dict[str, Any], context: Any, function: Any, params: Any, setting: Any
     ) -> Dict[str, Any]:
         """
         Process regular HTTP API requests when the event is not related to WebSocket.
