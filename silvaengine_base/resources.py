@@ -84,6 +84,7 @@ class Resources(LambdaBase):
             # If it's not a WebSocket event, handle it as a regular API request
             return self._handle_http_request(event, context, function=function, params=params, setting=setting)
         except Exception as e:
+            print(">>>>>>>>>>>>====",e)
             return self._handle_exception(e, event)
 
     def _handle_websocket_event(
