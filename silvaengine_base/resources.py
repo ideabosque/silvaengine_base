@@ -42,7 +42,7 @@ class Resources(LambdaBase):
             api_key, endpoint_id, funct, params = self._extract_event_data(event)
             self._initialize_settings(event)
 
-            print(">>>>>>>>>>>>>>>>>>>>>>>>>> 22222222222222222")
+            print(">>>>>>>>>>>>>>>>>>>>>>>>>> 22222222222222222", api_key, endpoint_id, funct, params)
 
             if self._is_cognito_trigger(event):
                 return self._handle_cognito_trigger(event, context)
