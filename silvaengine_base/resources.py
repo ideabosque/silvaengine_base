@@ -35,6 +35,11 @@ class Resources(LambdaBase):
             connection_id = request_context.get("connectionId")
             route_key = request_context.get("routeKey")
 
+            # Add authorization for http event
+            if self._is_request_event(event):
+                # Authorization
+                return self._dynamic_authorization(event, context, "authorize")
+
             if connection_id and route_key:
                 self.logger.info(f"WebSocket event received: {event}")
                 return self._handle_websocket_event(event, connection_id, route_key)
@@ -182,17 +187,17 @@ class Resources(LambdaBase):
             )
         )
 
-        # Add authorization for http event
-        if self._is_request_event(event):
-            # Authorization
-            return self._dynamic_authorization(event, context, "authorize")
+        # # Add authorization for http event
+        # if self._is_request_event(event):
+        #     # Authorization
+        #     return self._dynamic_authorization(event, context, "authorize")
         if event.get("body"):
             event.update(
                 self._dynamic_authorization(event, context, "verify_permission")
             )
 
         return self._invoke_function(event, function, params, setting)
-
+    
     def _initialize_settings(self, event: Dict[str, Any]) -> None:
         """Initialize settings and log start time."""
         if not self.settings:
