@@ -46,7 +46,6 @@ class Resources(LambdaBase):
                 return self._handle_cognito_trigger(event, context)
 
             path_parameters = event.get("pathParameters", {})
-            request_context = event.get("requestContext", {})
             method = self._get_http_method(event)
             setting, function = LambdaBase.get_function(
                 endpoint_id, funct, api_key=api_key, method=method
