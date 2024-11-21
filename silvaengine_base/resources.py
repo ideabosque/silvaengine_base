@@ -63,7 +63,11 @@ class Resources(LambdaBase):
             # Add authorization for http event
             if self._is_request_event(event):
                 # Authorization
-                return self._dynamic_authorization(event, context, "authorize")
+                print("Authorization Start >>>>>>>>>>>>>>>>>>>")
+                r = self._dynamic_authorization(event, context, "authorize")
+
+                print("Authorization >>>>>>>>>>>>>>>>>>>", r)
+                return r
 
             if connection_id and route_key:
                 self.logger.info(f"WebSocket event received: {event}")
