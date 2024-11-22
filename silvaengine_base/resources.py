@@ -246,8 +246,10 @@ class Resources(LambdaBase):
         endpoint_id = path_parameters.get("endpoint_id")
         proxy = path_parameters.get("proxy", "")
         query_params = event.get("queryStringParameters", {}) or {}
-
         funct, _, path = proxy.partition("/")
+
+        print(">>>>> QueryString", query_params)
+
         if path:
             query_params["path"] = path
 
