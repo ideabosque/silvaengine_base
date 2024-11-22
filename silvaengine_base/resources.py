@@ -43,6 +43,8 @@ class Resources(LambdaBase):
                 print("Exec cognito trigger")
                 return self._handle_cognito_trigger(event, context)
 
+            print(">>>>>>>>>>>>>>>>>>>", api_key, endpoint_id, funct, params)
+
             path_parameters = event.get("pathParameters", {})
             request_context = event.get("requestContext", {})
             method = self._get_http_method(event)
