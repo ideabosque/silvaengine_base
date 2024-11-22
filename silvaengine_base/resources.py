@@ -240,12 +240,11 @@ class Resources(LambdaBase):
         headers = event.get("headers", {})
         request_context = event.get("requestContext", {})
         path_parameters = event.get("pathParameters", {})
-
-        api_key = request_context.get("identity", {}).get("apiKey")
-        area = path_parameters.get("area")
-        endpoint_id = path_parameters.get("endpoint_id")
-        proxy = path_parameters.get("proxy", "")
         query_params = event.get("queryStringParameters", {}) or {}
+        api_key = request_context.get("identity", {}).get("apiKey")
+        area = path_parameters.get("area", query_params.get("area"))
+        endpoint_id = path_parameters.get("endpoint_id", query_params.get("endpoint_id"))
+        proxy = path_parameters.get("proxy", "")
         funct, _, path = proxy.partition("/")
 
         print(">>>>> QueryString", query_params)
