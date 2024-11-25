@@ -35,8 +35,6 @@ class Resources(LambdaBase):
             connection_id = request_context.get("connectionId")
             route_key = request_context.get("routeKey")
 
-            print(">>>>>>>> openai", event)
-
             if connection_id and route_key:
                 self.logger.info(f"WebSocket event received: {event}")
                 return self._handle_websocket_event(event, connection_id, route_key)
@@ -54,6 +52,7 @@ class Resources(LambdaBase):
         """
         if route_key == "$connect":
             self.logger.info(f"WebSocket connected: {connection_id}")
+            print(">>>>>>>> openai", event)
 
             endpoint_id = event.get("queryStringParameters", {}).get("endpointId")
             area = event.get("queryStringParameters", {}).get("area")
