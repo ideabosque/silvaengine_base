@@ -74,7 +74,9 @@ class Resources(LambdaBase):
             ).save()
 
             # return {"statusCode": 200, "body": "Connection successful"}
-            return self._dynamic_authorization(event, context, "authorize")
+            r = self._dynamic_authorization(event, context, "authorize")
+            print(">>>>>>>>>>>>>>>>>>>>>>>>>", r)
+            return r
 
         elif route_key == "$disconnect":
             self.logger.info(f"WebSocket disconnected: {connection_id}")
