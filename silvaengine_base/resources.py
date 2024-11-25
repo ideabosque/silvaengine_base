@@ -52,7 +52,6 @@ class Resources(LambdaBase):
         """
         if route_key == "$connect":
             self.logger.info(f"WebSocket connected: {connection_id}")
-            print(">>>>>>>> openai", event)
 
             if event.get('requestContext',{}).get('authorizer') is not None:
                 return {"statusCode": 200, "body": "Connection successful"}
@@ -79,8 +78,6 @@ class Resources(LambdaBase):
                 },
             ).save()
 
-
-            print(">>>>>>>>>>>>>>>>>>>>>>>>> openai",type(policy), policy)
             return policy
 
         elif route_key == "$disconnect":
