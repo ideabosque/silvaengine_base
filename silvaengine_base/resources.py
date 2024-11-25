@@ -62,21 +62,22 @@ class Resources(LambdaBase):
                 if api_key is None
                 else api_key
             )
+            policy = self._dynamic_authorization(event, context, "authorize")
             WSSConnectionModel(
                 endpoint_id,
                 connection_id,
                 **{
                     "api_key": api_key,
                     "area": area,
+                    "data": policy.get("context"),
                     "updated_at": pendulum.now("UTC"),
                     "created_at": pendulum.now("UTC"),
                 },
             ).save()
 
             # return {"statusCode": 200, "body": "Connection successful"}
-            r = self._dynamic_authorization(event, context, "authorize")
-            print(">>>>>>>>>>>>>>>>>>>>>>>>> openai", r)
-            return r
+            print(">>>>>>>>>>>>>>>>>>>>>>>>> openai",policy)
+            return policy
 
         elif route_key == "$disconnect":
             self.logger.info(f"WebSocket disconnected: {connection_id}")
@@ -296,18 +297,21 @@ class Resources(LambdaBase):
         self, event: Dict[str, Any], context: Any, action: str
     ) -> Any:
         """Dynamically handle authorization and permission checks."""
-        fn = Utility.import_dynamically(
-            module_name="silvaengine_authorizer",
-            function_name=action,
-            class_name="Authorizer",
-            constructor_parameters={"logger": self.logger},
-        )
+        try:
+            fn = Utility.import_dynamically(
+                module_name="silvaengine_authorizer",
+                function_name=action,
+                class_name="Authorizer",
+                constructor_parameters={"logger": self.logger},
+            )
 
-        if callable(fn):
-            if action == "authorize":
-                return fn(event, context)
-            elif action == "verify_permission":
-                return fn(event, context)
+            if callable(fn):
+                if action == "authorize":
+                    return fn(event, context)
+                elif action == "verify_permission":
+                    return fn(event, context)
+        except Exception as e:
+            raise e
 
     def _invoke_function(
         self,
