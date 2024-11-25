@@ -75,7 +75,7 @@ class Resources(LambdaBase):
 
             # return {"statusCode": 200, "body": "Connection successful"}
             r = self._dynamic_authorization(event, context, "authorize")
-            print(">>>>>>>>>>>>>>>>>>>>>>>>>", r)
+            print(">>>>>>>>>>>>>>>>>>>>>>>>> openai", r)
             return r
 
         elif route_key == "$disconnect":
