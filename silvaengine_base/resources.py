@@ -37,7 +37,7 @@ class Resources(LambdaBase):
 
             if connection_id and route_key:
                 self.logger.info(f"WebSocket event received: {event}")
-                return self._handle_websocket_event(event, connection_id, route_key)
+                return self._handle_websocket_event(context, event, connection_id, route_key)
 
             # If it's not a WebSocket event, handle it as a regular API request
             return self._handle_http_request(event, context)
@@ -45,7 +45,7 @@ class Resources(LambdaBase):
             return self._handle_exception(e, event)
 
     def _handle_websocket_event(
-        self, event: Dict[str, Any], connection_id: str, route_key: str
+        self, context: Any, event: Dict[str, Any], connection_id: str, route_key: str
     ) -> Dict[str, Any]:
         """
         Handle WebSocket connection events including connection, disconnection, and streaming.
@@ -73,7 +73,8 @@ class Resources(LambdaBase):
                 },
             ).save()
 
-            return {"statusCode": 200, "body": "Connection successful"}
+            # return {"statusCode": 200, "body": "Connection successful"}
+            return self._dynamic_authorization(event, context, "authorize")
 
         elif route_key == "$disconnect":
             self.logger.info(f"WebSocket disconnected: {connection_id}")
