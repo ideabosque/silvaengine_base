@@ -35,7 +35,7 @@ class Resources(LambdaBase):
             connection_id = request_context.get("connectionId")
             route_key = request_context.get("routeKey")
 
-            print(">>>>>>>>", connection_id, route_key)
+            print(">>>>>>>> openai", event)
 
             if connection_id and route_key:
                 self.logger.info(f"WebSocket event received: {event}")
