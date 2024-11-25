@@ -63,6 +63,8 @@ class Resources(LambdaBase):
                 else api_key
             )
             policy = self._dynamic_authorization(event, context, "authorize")
+            policy.set()
+
             WSSConnectionModel(
                 endpoint_id,
                 connection_id,
@@ -76,7 +78,7 @@ class Resources(LambdaBase):
             ).save()
 
             # return {"statusCode": 200, "body": "Connection successful"}
-            print(">>>>>>>>>>>>>>>>>>>>>>>>> openai",policy)
+            print(">>>>>>>>>>>>>>>>>>>>>>>>> openai",type(policy), policy)
             return policy
 
         elif route_key == "$disconnect":
