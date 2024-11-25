@@ -54,6 +54,9 @@ class Resources(LambdaBase):
             self.logger.info(f"WebSocket connected: {connection_id}")
             print(">>>>>>>> openai", event)
 
+            if event.get('requestContext',{}).get('authorizer') is not None:
+                return {"statusCode": 200, "body": "Connection successful"}
+
             endpoint_id = event.get("queryStringParameters", {}).get("endpointId")
             area = event.get("queryStringParameters", {}).get("area")
             api_key = event.get("requestContext", {}).get("identity", {}).get("apiKey")
@@ -76,7 +79,7 @@ class Resources(LambdaBase):
                 },
             ).save()
 
-            # return {"statusCode": 200, "body": "Connection successful"}
+
             print(">>>>>>>>>>>>>>>>>>>>>>>>> openai",type(policy), policy)
             return policy
 
