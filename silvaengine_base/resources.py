@@ -63,7 +63,6 @@ class Resources(LambdaBase):
                 else api_key
             )
             policy = self._dynamic_authorization(event, context, "authorize")
-            policy.set()
 
             WSSConnectionModel(
                 endpoint_id,
