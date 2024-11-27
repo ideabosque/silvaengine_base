@@ -37,7 +37,9 @@ class Resources(LambdaBase):
 
             if connection_id and route_key:
                 self.logger.info(f"WebSocket event received: {event}")
-                return self._handle_websocket_event(context, event, connection_id, route_key)
+                return self._handle_websocket_event(
+                    context, event, connection_id, route_key
+                )
 
             # If it's not a WebSocket event, handle it as a regular API request
             return self._handle_http_request(event, context)
@@ -53,7 +55,7 @@ class Resources(LambdaBase):
         if route_key == "$connect":
             self.logger.info(f"WebSocket connected: {connection_id}")
 
-            if event.get('requestContext',{}).get('authorizer') is not None:
+            if event.get("requestContext", {}).get("authorizer") is not None:
                 return {"statusCode": 200, "body": "Connection successful"}
 
             endpoint_id = event.get("queryStringParameters", {}).get("endpointId")
@@ -92,6 +94,10 @@ class Resources(LambdaBase):
             wss_onnections[0].status = "inactive"
             wss_onnections[0].updated_at = pendulum.now("UTC")
             wss_onnections[0].save()
+
+            self._delete_expired_connections(
+                wss_onnections[0].endpoint_id, wss_onnections[0].data.get("email")
+            )
 
             return {"statusCode": 200, "body": "Disconnection successful"}
 
@@ -198,6 +204,30 @@ class Resources(LambdaBase):
             )
 
         return self._invoke_function(event, function, params, setting)
+
+    def _delete_expired_connections(self, endpoint_id, email):
+        # Calculate the cutoff time using pendulum
+        cutoff_time = pendulum.now("UTC").subtract(days=1)
+
+        filter_condition = WSSConnectionModel.updated_at < cutoff_time
+        if email is not None:
+            filter_condition &= WSSConnectionModel.data.email == email
+        else:
+            filter_condition &= WSSConnectionModel.data.email.does_not_exist()
+
+        # Query connections with filters
+        connections = WSSConnectionModel.query(
+            endpoint_id,
+            None,  # Range key condition
+            filter_condition=filter_condition,
+        )
+
+        # Iterate through and delete matching connections
+        for connection in connections:
+            print(
+                f"Deleting connection: endpoint_id={connection.endpoint_id}, connection_id={connection.connection_id}"
+            )
+            connection.delete()
 
     def _initialize_settings(self, event: Dict[str, Any]) -> None:
         """Initialize settings and log start time."""
