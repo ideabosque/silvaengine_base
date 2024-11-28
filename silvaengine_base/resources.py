@@ -209,10 +209,12 @@ class Resources(LambdaBase):
         # Calculate the cutoff time using pendulum
         cutoff_time = pendulum.now("UTC").subtract(days=1)
 
-        filter_condition = WSSConnectionModel.updated_at < cutoff_time
+        filter_condition = None
         if email is None:
             return
 
+        filter_condition &= WSSConnectionModel.updated_at < cutoff_time
+        filter_condition &= WSSConnectionModel.data.email.exists
         filter_condition &= WSSConnectionModel.data.email == email
 
         # Query connections with filters
