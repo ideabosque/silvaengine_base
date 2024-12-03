@@ -74,7 +74,7 @@ class Resources(LambdaBase):
                 **{
                     "api_key": api_key,
                     "area": area,
-                    "data": policy.get("context"),
+                    "data": policy.get("context",{}),
                     "updated_at": pendulum.now("UTC"),
                     "created_at": pendulum.now("UTC"),
                 },
