@@ -86,18 +86,16 @@ class Resources(LambdaBase):
             self.logger.info(f"WebSocket disconnected: {connection_id}")
 
             results = WSSConnectionModel.connect_id_index.query(connection_id, None)
+
             if not results:
-                self.logger.error("WebSocket connection not found")
-                return {"statusCode": 404, "body": "WebSocket connection not found"}
+                wss_onnections = [result for result in results]
+                wss_onnections[0].status = "inactive"
+                wss_onnections[0].updated_at = pendulum.now("UTC")
+                wss_onnections[0].save()
 
-            wss_onnections = [result for result in results]
-            wss_onnections[0].status = "inactive"
-            wss_onnections[0].updated_at = pendulum.now("UTC")
-            wss_onnections[0].save()
-
-            self._delete_expired_connections(
-                wss_onnections[0].endpoint_id, wss_onnections[0].data.get("email")
-            )
+                self._delete_expired_connections(
+                    wss_onnections[0].endpoint_id, wss_onnections[0].data.get("email")
+                )
 
             return {"statusCode": 200, "body": "Disconnection successful"}
 
