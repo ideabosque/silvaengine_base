@@ -55,35 +55,36 @@ class Resources(LambdaBase):
         if route_key == "$connect":
             self.logger.info(f"WebSocket connected: {connection_id}")
 
-            if event.get("requestContext", {}).get("authorizer") is not None:
-                return {"statusCode": 200, "body": "Connection successful"}
+            # if event.get("requestContext", {}).get("authorizer") is not None:
+            #     return {"statusCode": 200, "body": "Connection successful"}
+            result = {"statusCode": 200, "body": "Connection successful"}
+
+            if self._is_request_event(event):
+                result = self._dynamic_authorization(event, context, "authorize")
 
             endpoint_id = event.get("queryStringParameters", {}).get("endpointId")
-            area = event.get("queryStringParameters", {}).get("area")
+            area = event.get("queryStringParameters", {}).get("area", "")
             api_key = event.get("requestContext", {}).get("identity", {}).get("apiKey")
             api_key = (
                 event.get("queryStringParameters", {}).get("x-api-key")
                 if api_key is None
                 else api_key
             )
-            policy = {"statusCode": 200, "body": "Connected successful"}
+            
+            if api_key is not None and endpoint_id is not None:
+                WSSConnectionModel(
+                    endpoint_id,
+                    connection_id,
+                    **{
+                        "api_key": api_key,
+                        "area": area,
+                        "data": result.get("context",{}),
+                        "updated_at": pendulum.now("UTC"),
+                        "created_at": pendulum.now("UTC"),
+                    },
+                ).save()
 
-            if self._is_request_event(event):
-                policy = self._dynamic_authorization(event, context, "authorize")
-
-            WSSConnectionModel(
-                endpoint_id,
-                connection_id,
-                **{
-                    "api_key": api_key,
-                    "area": area,
-                    "data": policy.get("context",{}),
-                    "updated_at": pendulum.now("UTC"),
-                    "created_at": pendulum.now("UTC"),
-                },
-            ).save()
-
-            return policy
+            return result
 
         elif route_key == "$disconnect":
             self.logger.info(f"WebSocket disconnected: {connection_id}")
