@@ -74,11 +74,15 @@ class Resources(LambdaBase):
                 **{
                     "api_key": api_key,
                     "area": area,
-                    "data": policy.get("context",{}),
+                    "data": policy.get("context", {}),
                     "updated_at": pendulum.now("UTC"),
                     "created_at": pendulum.now("UTC"),
                 },
             ).save()
+
+            self._delete_expired_connections(
+                endpoint_id, policy.get("context", {}).get("email")
+            )
 
             return policy
 
@@ -86,16 +90,12 @@ class Resources(LambdaBase):
             self.logger.info(f"WebSocket disconnected: {connection_id}")
 
             results = WSSConnectionModel.connect_id_index.query(connection_id, None)
+            wss_onnections = [result for result in results]
 
-            if not results:
-                wss_onnections = [result for result in results]
+            if len(wss_onnections) > 0:
                 wss_onnections[0].status = "inactive"
                 wss_onnections[0].updated_at = pendulum.now("UTC")
                 wss_onnections[0].save()
-
-                self._delete_expired_connections(
-                    wss_onnections[0].endpoint_id, wss_onnections[0].data.get("email")
-                )
 
             return {"statusCode": 200, "body": "Disconnection successful"}
 
@@ -207,13 +207,10 @@ class Resources(LambdaBase):
         # Calculate the cutoff time using pendulum
         cutoff_time = pendulum.now("UTC").subtract(days=1)
 
-        filter_condition = None
-        if email is None:
-            return
-
-        filter_condition &= WSSConnectionModel.updated_at < cutoff_time
-        filter_condition &= WSSConnectionModel.data.email.exists
-        filter_condition &= WSSConnectionModel.data.email == email
+        filter_condition = WSSConnectionModel.updated_at < cutoff_time
+        if email is not None:
+            filter_condition &= WSSConnectionModel.data.email.exists
+            filter_condition &= WSSConnectionModel.data.email == email
 
         # Query connections with filters
         connections = WSSConnectionModel.query(
