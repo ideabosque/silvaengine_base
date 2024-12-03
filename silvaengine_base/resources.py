@@ -80,6 +80,11 @@ class Resources(LambdaBase):
                     },
                 ).save()
 
+                self._delete_expired_connections(
+                    endpoint_id,
+                    event.get("requestContext", {}).get("authorizer", {}).get("email"),
+                )
+
             return {"statusCode": 200, "body": "Connection successful"}
 
         elif route_key == "$disconnect":
