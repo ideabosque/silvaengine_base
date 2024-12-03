@@ -66,7 +66,10 @@ class Resources(LambdaBase):
                 if api_key is None
                 else api_key
             )
-            policy = self._dynamic_authorization(event, context, "authorize")
+            policy = {"statusCode": 200, "body": "Connected successful"}
+
+            if self._is_request_event(event):
+                policy = self._dynamic_authorization(event, context, "authorize")
 
             WSSConnectionModel(
                 endpoint_id,
