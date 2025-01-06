@@ -240,7 +240,7 @@ class Resources(LambdaBase):
         request_context = event.get("requestContext", {})
         path_parameters = event.get("pathParameters", {})
 
-        api_key = request_context.get("identity", {}).get("apiKey")
+        api_key = request_context.get("identity", {}).get("apiKey", "#####")
         area = path_parameters.get("area")
         endpoint_id = path_parameters.get("endpoint_id")
         proxy = path_parameters.get("proxy", "")
