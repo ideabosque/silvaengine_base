@@ -360,7 +360,7 @@ class Resources(LambdaBase):
             "context": jsonpickle.encode(
                 event.get("requestContext"), unpicklable=False
             ),
-            "event": jsonpickle.encode(event, unpicklable=False)
+            "aws_event": jsonpickle.encode(event, unpicklable=False)
         }
 
         if function.config.funct_type.strip().lower() == "event":
