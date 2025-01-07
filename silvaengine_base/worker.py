@@ -75,7 +75,7 @@ class Worker(LambdaBase):
             params = event.get("params")
             body = event.get("body")
             context = event.get("context")
-
+            parent_event = event.get("event")
             params = dict(
                 (k, v)
                 for k, v in dict(
@@ -85,6 +85,11 @@ class Worker(LambdaBase):
                         {}
                         if context is None
                         else {"context": json.loads(context, parse_float=Decimal)}
+                    ),
+                    **(
+                        {}
+                        if parent_event is None
+                        else {"event": json.loads(parent_event, parse_float=Decimal)}
                     ),
                 ).items()
                 if v is not None and v != ""
