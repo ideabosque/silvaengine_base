@@ -75,7 +75,7 @@ class Worker(LambdaBase):
             params = event.get("params")
             body = event.get("body")
             context = event.get("context")
-            parent_event = event.get("event")
+            aws_event = event.get("aws_event")
             params = dict(
                 (k, v)
                 for k, v in dict(
@@ -88,8 +88,8 @@ class Worker(LambdaBase):
                     ),
                     **(
                         {}
-                        if parent_event is None
-                        else {"event": json.loads(parent_event, parse_float=Decimal)}
+                        if aws_event is None
+                        else {"aws_event": json.loads(aws_event, parse_float=Decimal)}
                     ),
                 ).items()
                 if v is not None and v != ""
