@@ -76,6 +76,7 @@ class Worker(LambdaBase):
             body = event.get("body")
             context = event.get("context")
             aws_event = event.get("aws_event")
+            aws_context = event.get("aws_context")
             params = dict(
                 (k, v)
                 for k, v in dict(
@@ -90,6 +91,13 @@ class Worker(LambdaBase):
                         {}
                         if aws_event is None
                         else {"aws_event": json.loads(aws_event, parse_float=Decimal)}
+                    ),
+                    **(
+                        {}
+                        if aws_context is None
+                        else {
+                            "aws_context": json.loads(aws_context, parse_float=Decimal)
+                        }
                     ),
                 ).items()
                 if v is not None and v != ""
