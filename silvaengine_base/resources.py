@@ -3,6 +3,7 @@
 from __future__ import print_function
 
 import json
+import os
 import traceback
 from datetime import datetime
 from typing import Any, Dict, Tuple
@@ -21,6 +22,8 @@ from .models import WSSConnectionModel
 
 __author__ = "bibow"
 
+FULL_EVENT_AREAS = os.environ.get("FULL_EVENT_AREAS", "").split(",")
+
 
 class Resources(LambdaBase):
     settings: Dict[str, Any] = {}
@@ -38,7 +41,7 @@ class Resources(LambdaBase):
             if connection_id and route_key:
                 self.logger.info(f"WebSocket event received: {event}")
                 return self._handle_websocket_event(
-                    context, event, connection_id, route_key
+                    event, context, connection_id, route_key
                 )
 
             # If it's not a WebSocket event, handle it as a regular API request
@@ -47,7 +50,7 @@ class Resources(LambdaBase):
             return self._handle_exception(e, event)
 
     def _handle_websocket_event(
-        self, context: Any, event: Dict[str, Any], connection_id: str, route_key: str
+        self, event: Dict[str, Any], context: Any, connection_id: str, route_key: str
     ) -> Dict[str, Any]:
         """
         Handle WebSocket connection events including connection, disconnection, and streaming.
@@ -101,12 +104,14 @@ class Resources(LambdaBase):
             return {"statusCode": 200, "body": "Disconnection successful"}
 
         elif route_key == "stream":
-            return self._handle_websocket_stream(event)
+            return self._handle_websocket_stream(event, context)
 
         self.logger.warning(f"Invalid WebSocket route: {route_key}")
         return {"statusCode": 400, "body": "Invalid WebSocket route"}
 
-    def _handle_websocket_stream(self, event: Dict[str, Any]) -> Dict[str, Any]:
+    def _handle_websocket_stream(
+        self, event: Dict[str, Any], context: Any
+    ) -> Dict[str, Any]:
         """
         Process the 'stream' route for WebSocket events, managing the payload and dispatching tasks.
         """
@@ -157,7 +162,7 @@ class Resources(LambdaBase):
                 endpoint_id, funct, api_key=api_key, method=method
             )
 
-            return self._invoke_function(event, function, params, setting)
+            return self._invoke_function(event, context, function, params, setting)
         except Exception as e:
             self.logger.error(f"Error processing WebSocket stream: {str(e)}")
             return {"statusCode": 500, "body": "Internal Server Error"}
@@ -202,7 +207,7 @@ class Resources(LambdaBase):
                 self._dynamic_authorization(event, context, "verify_permission")
             )
 
-        return self._invoke_function(event, function, params, setting)
+        return self._invoke_function(event, context, function, params, setting)
 
     def _delete_expired_connections(self, endpoint_id, email):
         # Calculate the cutoff time using pendulum
@@ -345,6 +350,7 @@ class Resources(LambdaBase):
     def _invoke_function(
         self,
         event: Dict[str, Any],
+        context: Any,
         function: Any,
         params: Dict[str, Any],
         setting: Dict[str, Any],
@@ -356,12 +362,36 @@ class Resources(LambdaBase):
             "funct": function.function,
             "setting": json.dumps(setting),
             "params": json.dumps(params),
-            "body": event.get("body"),
-            "context": jsonpickle.encode(
-                event.get("requestContext"), unpicklable=False
-            ),
-            "aws_event": jsonpickle.encode(event, unpicklable=False)
         }
+        if params.get("area") in FULL_EVENT_AREAS:
+            payload.update(
+                {
+                    "aws_event": jsonpickle.encode(event, unpicklable=False),
+                    "aws_context": jsonpickle.encode(
+                        {
+                            "function_name": context.function_name,
+                            "function_version": context.function_version,
+                            "invoked_function_arn": context.invoked_function_arn,
+                            "memory_limit_in_mb": context.memory_limit_in_mb,
+                            "aws_request_id": context.aws_request_id,
+                            "log_group_name": context.log_group_name,
+                            "log_stream_name": context.log_stream_name,
+                            "client_context": getattr(context, "client_context", None),
+                            "identity": getattr(context, "identity", None),
+                        },
+                        unpicklable=False,
+                    ),
+                }
+            )
+        else:
+            payload.update(
+                {
+                    "body": event.get("body"),
+                    "context": jsonpickle.encode(
+                        event.get("requestContext"), unpicklable=False
+                    ),
+                }
+            )
 
         if function.config.funct_type.strip().lower() == "event":
             LambdaBase.invoke(function.aws_lambda_arn, payload, invocation_type="Event")
