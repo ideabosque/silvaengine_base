@@ -213,20 +213,21 @@ class Resources(LambdaBase):
         # Calculate the cutoff time using pendulum
         cutoff_time = pendulum.now("UTC").subtract(days=1)
 
-        filter_condition = WSSConnectionModel.updated_at < cutoff_time
-        if email is not None:
-            filter_condition &= WSSConnectionModel.data.email.exists
-            filter_condition &= WSSConnectionModel.data.email == email
-
         # Query connections with filters
         connections = WSSConnectionModel.query(
             endpoint_id,
             None,  # Range key condition
-            filter_condition=filter_condition,
+            filter_condition=WSSConnectionModel.updated_at < cutoff_time,
         )
 
         # Iterate through and delete matching connections
         for connection in connections:
+            if (
+                email is not None
+                and connection.data.__dict__["attribute_values"].get("email") != email
+            ):
+                pass
+
             print(
                 f"Deleting connection: endpoint_id={connection.endpoint_id}, connection_id={connection.connection_id}"
             )
