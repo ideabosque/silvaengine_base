@@ -10,9 +10,7 @@ from typing import Any, Dict, Tuple
 
 import jsonpickle
 import pendulum
-import sentry_sdk
 import yaml
-from sentry_sdk.integrations.aws_lambda import AwsLambdaIntegration
 
 from silvaengine_base.lambdabase import FunctionError, LambdaBase
 from silvaengine_utility import Authorizer as ApiGatewayAuthorizer
@@ -451,11 +449,6 @@ class Resources(LambdaBase):
         if self._is_request_event(event):
             return self._handle_authorizer_failure(event, message)
 
-        if str(status_code).startswith("5") and self.settings.get(
-            "sentry_enabled", False
-        ):
-            sentry_sdk.capture_exception(exception)
-
         return self._generate_error_response(status_code, message)
 
     def _handle_authorizer_failure(
@@ -523,13 +516,5 @@ class Resources(LambdaBase):
             raise Exception(f"Invalid event request: {e}")
 
     def init(self, event: Dict[str, Any]) -> None:
-        """Load settings from configuration data and initialize Sentry if enabled."""
+        """Load settings from configuration data."""
         self.settings = LambdaBase.get_setting(self.get_setting_index(event))
-        if self.settings.get("sentry_enabled", False):
-            sentry_sdk.init(
-                dsn=self.settings.get("sentry_dsn"),
-                integrations=[AwsLambdaIntegration()],
-                traces_sample_rate=float(
-                    self.settings.get("sentry_traces_sample_rate", 1.0)
-                ),
-            )
