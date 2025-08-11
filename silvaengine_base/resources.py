@@ -419,6 +419,11 @@ class Resources(LambdaBase):
         """Process the result and format the response."""
         response = self._generate_response(200, result)
         if self._is_json(result):
+            if result.find("statusCode") != -1:
+                resuponse = Utility.json_loads(result)
+                if str(resuponse["statusCode"]).startswith("30"):
+                    return resuponse
+
             response["statusCode"] = 200
         elif isinstance(result, FunctionError):
             response.update(
