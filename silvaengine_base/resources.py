@@ -36,14 +36,23 @@ class Resources(LambdaBase):
             route_key = request_context.get("routeKey")
 
             if connection_id and route_key:
-                self.logger.info(f"WebSocket event received: {event}")
+                self.logger.info(
+                    f"WebSocket event received: connectionId={connection_id}, routeKey={route_key}"
+                )
                 return self._handle_websocket_event(
                     event, context, connection_id, route_key
                 )
 
             # If it's not a WebSocket event, handle it as a regular API request
             return self._handle_http_request(event, context)
+        except (KeyError, TypeError, ValueError) as e:
+            self.logger.error(f"Invalid event format: {str(e)}")
+            return self._handle_exception(e, event)
+        except FunctionError as e:
+            self.logger.error(f"Function execution error: {str(e)}")
+            return self._handle_exception(e, event)
         except Exception as e:
+            self.logger.error(f"Unexpected error in handle: {str(e)}")
             return self._handle_exception(e, event)
 
     def _handle_websocket_event(
@@ -135,7 +144,9 @@ class Resources(LambdaBase):
                 if event.get("body") is not None
                 else {}
             )
-            self.logger.info(f"WebSocket stream received: {body}")
+            self.logger.info(
+                f"WebSocket stream received: funct={body.get('funct')}, endpoint_id={endpoint_id}"
+            )
 
             funct = body.get("funct")
             params = (
@@ -184,7 +195,9 @@ class Resources(LambdaBase):
         )
 
         self._validate_function_area(params, function)
-        self.logger.info(f"HTTP event received: {event}")
+        self.logger.info(
+            f"HTTP event received: method={method}, endpoint_id={endpoint_id}, funct={funct}"
+        )
         event.update(
             self._prepare_event(
                 event.get("headers", {}),
@@ -321,7 +334,7 @@ class Resources(LambdaBase):
         )
 
         return {
-            "fnConfigurations": Utility.json_loads(Utility.json_dumps(function)),
+            "fnConfigurations": Utility.json_normalize(function),
             "requestContext": request_context,
         }
 
@@ -354,6 +367,7 @@ class Resources(LambdaBase):
         setting: Dict[str, Any],
     ) -> Dict[str, Any]:
         """Invoke the appropriate function based on event data."""
+        # Base payload - always required
         payload = {
             "MODULENAME": function.config.module_name,
             "CLASSNAME": function.config.class_name,
@@ -361,27 +375,31 @@ class Resources(LambdaBase):
             "setting": Utility.json_dumps(setting),
             "params": Utility.json_dumps(params),
         }
-        if params.get("area") in FULL_EVENT_AREAS:
+
+        # Only include full event data if area requires it (lazy evaluation)
+        area = params.get("area")
+        if area and area in FULL_EVENT_AREAS:
+            # Lazy creation of expensive context object
+            aws_context = {
+                "function_name": context.function_name,
+                "function_version": context.function_version,
+                "invoked_function_arn": context.invoked_function_arn,
+                "memory_limit_in_mb": context.memory_limit_in_mb,
+                "aws_request_id": context.aws_request_id,
+                "log_group_name": context.log_group_name,
+                "log_stream_name": context.log_stream_name,
+                "client_context": getattr(context, "client_context", None),
+                "identity": getattr(context, "identity", None),
+            }
+
             payload.update(
                 {
                     "aws_event": jsonpickle.encode(event, unpicklable=False),
-                    "aws_context": jsonpickle.encode(
-                        {
-                            "function_name": context.function_name,
-                            "function_version": context.function_version,
-                            "invoked_function_arn": context.invoked_function_arn,
-                            "memory_limit_in_mb": context.memory_limit_in_mb,
-                            "aws_request_id": context.aws_request_id,
-                            "log_group_name": context.log_group_name,
-                            "log_stream_name": context.log_stream_name,
-                            "client_context": getattr(context, "client_context", None),
-                            "identity": getattr(context, "identity", None),
-                        },
-                        unpicklable=False,
-                    ),
+                    "aws_context": jsonpickle.encode(aws_context, unpicklable=False),
                 }
             )
         else:
+            # Minimal payload for non-full event areas
             payload.update(
                 {
                     "body": event.get("body"),
@@ -417,23 +435,45 @@ class Resources(LambdaBase):
     def _process_response(self, result: Any) -> Dict[str, Any]:
         """Process the result and format the response."""
         response = self._generate_response(200, result)
-        if self._is_json(result):
-            if result.find("statusCode") != -1:
-                resuponse = Utility.json_loads(result)
-                if str(resuponse["statusCode"]).startswith("30"):
-                    return resuponse
 
-            response["statusCode"] = 200
-        elif isinstance(result, FunctionError):
+        # Handle FunctionError first (most specific)
+        if isinstance(result, FunctionError):
             response.update(
                 {"statusCode": 500, "body": f'{{"error": "{result.args[0]}"}}'}
             )
-        elif self._is_yaml(result):
+            return response
+
+        # Try JSON parsing once
+        try:
+            parsed_result = Utility.json_loads(result)
+            # Check if it's a response object with statusCode
+            if isinstance(parsed_result, dict) and "statusCode" in parsed_result:
+
+                status_code = str(parsed_result["statusCode"])
+                if status_code.startswith("30"):
+                    return parsed_result
+
+            response["statusCode"] = 200
+            return response
+
+        except (ValueError, TypeError):
+            # Not JSON, try YAML
+            pass
+
+        # Try YAML parsing once
+        try:
+            yaml.load(result, Loader=yaml.SafeLoader)
             response["headers"]["Content-Type"] = "application/x-yaml"
-        else:
-            response.update(
-                {"statusCode": 400, "body": '{"error": "Unsupported content format"}'}
-            )
+            return response
+
+        except yaml.YAMLError:
+            # Not YAML either
+            pass
+
+        # Unsupported format
+        response.update(
+            {"statusCode": 400, "body": '{"error": "Unsupported content format"}'}
+        )
         return response
 
     def _handle_exception(
@@ -486,24 +526,6 @@ class Resources(LambdaBase):
     def _is_request_event(self, event: Dict[str, Any]) -> bool:
         """Check if the event is a request event."""
         return bool(str(event.get("type")).strip().lower() == "request")
-
-    @staticmethod
-    def _is_json(content: Any) -> bool:
-        """Check if the content is valid JSON."""
-        try:
-            Utility.json_loads(content)
-            return True
-        except ValueError:
-            return False
-
-    @staticmethod
-    def _is_yaml(content: Any) -> bool:
-        """Check if the content is valid YAML."""
-        try:
-            yaml.load(content, Loader=yaml.SafeLoader)
-            return True
-        except yaml.YAMLError:
-            return False
 
     def get_setting_index(self, event: Dict[str, Any]) -> str:
         """Get the appropriate setting index based on the event data."""
