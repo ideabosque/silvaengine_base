@@ -5,7 +5,7 @@ from __future__ import print_function
 import os
 import traceback
 from datetime import datetime
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 import jsonpickle
 import pendulum
@@ -13,7 +13,7 @@ import yaml
 
 from silvaengine_base.lambdabase import FunctionError, LambdaBase
 from silvaengine_utility import Authorizer as ApiGatewayAuthorizer
-from silvaengine_utility import Utility
+from silvaengine_utility import Utility, method_cache
 
 from .models import WSSConnectionModel
 
@@ -184,6 +184,11 @@ class Resources(LambdaBase):
         api_key, endpoint_id, funct, params = self._extract_event_data(event)
         self._initialize_settings(event)
 
+        # Handle cache management operations before function lookup
+        cache_operation = params.get("_cache_operation")
+        if cache_operation:
+            return self._handle_cache_management(cache_operation, params)
+
         if self._is_cognito_trigger(event):
             return self._handle_cognito_trigger(event, context)
 
@@ -266,6 +271,11 @@ class Resources(LambdaBase):
         if path:
             query_params["path"] = path
 
+        # Check for cache management operations
+        if funct in ["cache_clear", "cache_stats"]:
+            # Set a flag for cache management
+            query_params["_cache_operation"] = funct
+
         params = {**query_params, "endpoint_id": endpoint_id, "area": area}
 
         proxy_index = str(self.settings.get("api_unified_call_index", "")).strip()
@@ -341,7 +351,7 @@ class Resources(LambdaBase):
     def _dynamic_authorization(
         self, event: Dict[str, Any], context: Any, action: str
     ) -> Any:
-        """Execute authorization function with normalized event data."""
+        """Execute authorization function with caching and normalized event data."""
         # Normalize event data to convert ConfigMap objects to dictionaries
         normalized_event = Utility.json_normalize(event)
 
@@ -411,9 +421,11 @@ class Resources(LambdaBase):
             )
 
         if function.config.funct_type.strip().lower() == "event":
+            # Event invocations are fire-and-forget, don't cache
             LambdaBase.invoke(function.aws_lambda_arn, payload, invocation_type="Event")
             return self._generate_response(200, "")
 
+        # Direct Lambda invocation for RequestResponse calls
         result = LambdaBase.invoke(
             function.aws_lambda_arn,
             payload,
@@ -432,6 +444,46 @@ class Resources(LambdaBase):
             },
             "body": body,
         }
+
+    def _handle_cache_management(
+        self, operation: str, params: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Handle cache management operations (clear, stats)."""
+        try:
+            from silvaengine_utility import HybridCacheEngine
+
+            # Get cache name from params, default to "method"
+            cache_name = params.get("cache_name", "method")
+            cache_engine = HybridCacheEngine(cache_name)
+
+            if operation == "cache_clear":
+                # Clear all or specific cache entries
+                cache_key_pattern = params.get("cache_key", "*")
+                cache_engine.clear(cache_key_pattern)
+                result = {
+                    "success": True,
+                    "message": f"Cache cleared for pattern: {cache_key_pattern}",
+                    "cache_name": cache_name,
+                }
+            elif operation == "cache_stats":
+                # Get cache statistics
+                result = cache_engine.stats()
+                result["success"] = True
+            else:
+                result = {
+                    "success": False,
+                    "error": f"Unknown cache operation: {operation}",
+                }
+
+            return self._generate_response(200, Utility.json_dumps(result))
+
+        except Exception as e:
+            self.logger.error(f"Cache management error: {str(e)}")
+            error_result = {
+                "success": False,
+                "error": f"Cache management failed: {str(e)}",
+            }
+            return self._generate_response(500, Utility.json_dumps(error_result))
 
     def _process_response(self, result: Any) -> Dict[str, Any]:
         """Process the result and format the response."""
@@ -528,11 +580,23 @@ class Resources(LambdaBase):
         """Check if the event is a request event."""
         return bool(str(event.get("type")).strip().lower() == "request")
 
+    @method_cache(ttl=1800, cache_name="settings")
+    def get_cached_settings(self, setting_index: str) -> Dict[str, Any]:
+        """Cache expensive settings lookup."""
+        return LambdaBase.get_setting(setting_index)
+
+    @method_cache(ttl=600, cache_name="database")
+    def get_websocket_connection(self, connection_id: str) -> Optional[Any]:
+        """Cache WebSocket connection lookups."""
+        results = WSSConnectionModel.connect_id_index.query(connection_id, None)
+        connections = list(results)
+        return connections[0] if connections else None
+
     def get_setting_index(self, event: Dict[str, Any]) -> str:
         """Get the appropriate setting index based on the event data."""
         try:
             if event.get("triggerSource") and event.get("userPoolId"):
-                settings = LambdaBase.get_setting("general")
+                settings = self.get_cached_settings("general")
                 return settings.get(event.get("userPoolId"))
             elif event.get("requestContext") and event.get("pathParameters"):
                 request_context, path_parameters = event.get(
@@ -543,5 +607,6 @@ class Resources(LambdaBase):
             raise Exception(f"Invalid event request: {e}")
 
     def init(self, event: Dict[str, Any]) -> None:
-        """Load settings from configuration data."""
-        self.settings = LambdaBase.get_setting(self.get_setting_index(event))
+        """Load settings from configuration data with caching."""
+        setting_index = self.get_setting_index(event)
+        self.settings = self.get_cached_settings(setting_index)
