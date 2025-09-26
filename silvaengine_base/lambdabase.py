@@ -2,13 +2,16 @@
 # -*- coding: utf-8 -*-
 __author__ = "bibow"
 
-import json
-import boto3
 import os
-from boto3.dynamodb.conditions import Key
 from datetime import datetime
-from .models import EndpointModel, ConnectionModel, FunctionModel, HookModel
-from typing import Any, Dict, Tuple, List
+from typing import Any, Dict, List, Tuple
+
+import boto3
+from boto3.dynamodb.conditions import Key
+
+from silvaengine_utility import Utility
+
+from .models import ConnectionModel, EndpointModel, FunctionModel, HookModel
 
 
 class FunctionError(Exception):
@@ -66,16 +69,16 @@ class LambdaBase:
         response = cls.aws_lambda.invoke(
             FunctionName=function_name,
             InvocationType=invocation_type,
-            Payload=json.dumps(payload),
+            Payload=Utility.json_dumps(payload),
         )
         ts = runtime_debug("execute invoke", start_time=ts)
 
         if "FunctionError" in response:
-            log = json.loads(response["Payload"].read())
+            log = Utility.json_loads(response["Payload"].read())
             raise FunctionError(log)
 
         if invocation_type == "RequestResponse":
-            result = json.loads(response["Payload"].read())
+            result = Utility.json_loads(response["Payload"].read())
             runtime_debug("encode invoke result to json", start_time=ts)
             return result
 
@@ -135,9 +138,7 @@ class LambdaBase:
                 f"Cannot find the function({funct}) with endpoint_id({endpoint_id}) and api_key({api_key})."
             )
 
-        function = FunctionModel.get(
-            functions[0].aws_lambda_arn, functions[0].function
-        )
+        function = FunctionModel.get(functions[0].aws_lambda_arn, functions[0].function)
         runtime_debug("get_function: get function", start_time=ts)
 
         if function is None:

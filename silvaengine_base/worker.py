@@ -6,6 +6,8 @@ import json
 from decimal import Decimal
 from typing import Any, Dict, Optional
 
+from silvaengine_utility import Utility
+
 from .lambdabase import LambdaBase
 
 
@@ -38,7 +40,7 @@ class Worker(LambdaBase):
             class_name = event.get("CLASSNAME")
             funct_name = event.get("funct")
             settings = (
-                json.loads(event.get("setting"))
+                Utility.json_loads(event.get("setting"))
                 if event.get("setting") is not None
                 else {}
             )
@@ -80,23 +82,39 @@ class Worker(LambdaBase):
             params = dict(
                 (k, v)
                 for k, v in dict(
-                    ({} if params is None else json.loads(params, parse_float=Decimal)),
-                    **({} if body is None else json.loads(body, parse_float=Decimal)),
+                    (
+                        {}
+                        if params is None
+                        else Utility.json_loads(params, parse_float=Decimal)
+                    ),
+                    **(
+                        {}
+                        if body is None
+                        else Utility.json_loads(body, parse_float=Decimal)
+                    ),
                     **(
                         {}
                         if context is None
-                        else {"context": json.loads(context, parse_float=Decimal)}
+                        else {
+                            "context": Utility.json_loads(context, parse_float=Decimal)
+                        }
                     ),
                     **(
                         {}
                         if aws_event is None
-                        else {"aws_event": json.loads(aws_event, parse_float=Decimal)}
+                        else {
+                            "aws_event": Utility.json_loads(
+                                aws_event, parse_float=Decimal
+                            )
+                        }
                     ),
                     **(
                         {}
                         if aws_context is None
                         else {
-                            "aws_context": json.loads(aws_context, parse_float=Decimal)
+                            "aws_context": Utility.json_loads(
+                                aws_context, parse_float=Decimal
+                            )
                         }
                     ),
                 ).items()

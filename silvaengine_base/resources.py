@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 
-import json
 import os
 import traceback
 from datetime import datetime
@@ -359,8 +358,8 @@ class Resources(LambdaBase):
             "MODULENAME": function.config.module_name,
             "CLASSNAME": function.config.class_name,
             "funct": function.function,
-            "setting": json.dumps(setting),
-            "params": json.dumps(params),
+            "setting": Utility.json_dumps(setting),
+            "params": Utility.json_dumps(params),
         }
         if params.get("area") in FULL_EVENT_AREAS:
             payload.update(
@@ -481,7 +480,7 @@ class Resources(LambdaBase):
                 "Access-Control-Allow-Headers": "Access-Control-Allow-Origin",
                 "Access-Control-Allow-Origin": "*",
             },
-            "body": json.dumps({"error": message}),
+            "body": Utility.json_dumps({"error": message}),
         }
 
     def _is_request_event(self, event: Dict[str, Any]) -> bool:
@@ -492,7 +491,7 @@ class Resources(LambdaBase):
     def _is_json(content: Any) -> bool:
         """Check if the content is valid JSON."""
         try:
-            json.loads(content)
+            Utility.json_loads(content)
             return True
         except ValueError:
             return False
