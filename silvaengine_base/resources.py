@@ -341,22 +341,23 @@ class Resources(LambdaBase):
     def _dynamic_authorization(
         self, event: Dict[str, Any], context: Any, action: str
     ) -> Any:
-        """Dynamically handle authorization and permission checks."""
-        try:
-            fn = Utility.import_dynamically(
-                module_name="silvaengine_authorizer",
-                function_name=action,
-                class_name="Authorizer",
-                constructor_parameters={"logger": self.logger},
-            )
+        """Execute authorization function with normalized event data."""
+        # Normalize event data to convert ConfigMap objects to dictionaries
+        normalized_event = Utility.json_normalize(event)
 
-            if callable(fn):
-                if action == "authorize":
-                    return fn(event, context)
-                elif action == "verify_permission":
-                    return fn(event, context)
-        except Exception as e:
-            raise e
+        # Import and execute the authorization function
+        auth_function = Utility.import_dynamically(
+            module_name="silvaengine_authorizer",
+            function_name=action,
+            class_name="Authorizer",
+            constructor_parameters={"logger": self.logger},
+        )
+
+        return (
+            auth_function(normalized_event, context)
+            if callable(auth_function) and action in ["authorize", "verify_permission"]
+            else None
+        )
 
     def _invoke_function(
         self,
