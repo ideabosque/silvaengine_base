@@ -85,18 +85,18 @@ class Worker(LambdaBase):
                     (
                         {}
                         if params is None
-                        else Utility.json_loads(params, parse_float=Decimal)
+                        else Utility.json_loads(params)
                     ),
                     **(
                         {}
                         if body is None
-                        else Utility.json_loads(body, parse_float=Decimal)
+                        else Utility.json_loads(body)
                     ),
                     **(
                         {}
                         if context is None
                         else {
-                            "context": Utility.json_loads(context, parse_float=Decimal)
+                            "context": Utility.json_loads(context)
                         }
                     ),
                     **(
@@ -104,7 +104,7 @@ class Worker(LambdaBase):
                         if aws_event is None
                         else {
                             "aws_event": Utility.json_loads(
-                                aws_event, parse_float=Decimal
+                                aws_event
                             )
                         }
                     ),
@@ -113,7 +113,7 @@ class Worker(LambdaBase):
                         if aws_context is None
                         else {
                             "aws_context": Utility.json_loads(
-                                aws_context, parse_float=Decimal
+                                aws_context
                             )
                         }
                     ),
