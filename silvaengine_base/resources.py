@@ -191,6 +191,7 @@ class Resources(LambdaBase):
                 endpoint_id,
             )
         )
+        self.logger.info(f"HTTP event prepared: {event}")
 
         # # Add authorization for http event
         # if self._is_request_event(event):
