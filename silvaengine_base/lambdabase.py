@@ -5,31 +5,17 @@ __author__ = "bibow"
 import json
 import boto3
 import os
+import time
+import threading
 from boto3.dynamodb.conditions import Key
 from datetime import datetime
 from .models import EndpointModel, ConnectionModel, FunctionModel, HookModel
-from typing import Any, Dict, Tuple, List
+from typing import Any, Dict, Tuple, List, Optional
 
 
 class FunctionError(Exception):
     """Custom Exception to handle function errors."""
-
     pass
-
-
-def runtime_debug(mark: str, start_time: int = 0) -> int:
-    """
-    Measure and log the execution time of a marked code block.
-    :param mark: A marker to label the code block.
-    :param start_time: The start time to measure the execution time.
-    :return: The current timestamp in milliseconds.
-    """
-    current_time = int(datetime.now().timestamp() * 1000)
-    if start_time > 0:
-        duration = current_time - start_time
-        if duration > 0:
-            print(f"********** It took {duration} ms to execute `LambdaBase.{mark}`.")
-    return current_time
 
 
 class LambdaBase:
@@ -62,22 +48,41 @@ class LambdaBase:
         :param invocation_type: Invocation type, default is "Event".
         :return: The response of the invoked Lambda function.
         """
-        ts = runtime_debug("invoke")
-        response = cls.aws_lambda.invoke(
-            FunctionName=function_name,
-            InvocationType=invocation_type,
-            Payload=json.dumps(payload),
-        )
-        ts = runtime_debug("execute invoke", start_time=ts)
+        if not function_name:
+            raise ValueError("Function name is required")
+        
+        valid_invocation_types = {"Event", "RequestResponse", "DryRun"}
+        if invocation_type not in valid_invocation_types:
+            raise ValueError(f"Invalid invocation_type: {invocation_type}")
+        
+        try:
+            payload_str = json.dumps(payload, separators=(',', ':'))
+            
+            response = cls.aws_lambda.invoke(
+                FunctionName=function_name,
+                InvocationType=invocation_type,
+                Payload=payload_str,
+            )
 
-        if "FunctionError" in response:
-            log = json.loads(response["Payload"].read())
-            raise FunctionError(log)
+            if "FunctionError" in response:
+                try:
+                    payload_content = response["Payload"].read()
+                    log = json.loads(payload_content) if payload_content else {}
+                except json.JSONDecodeError:
+                    log = {"error": "Invalid JSON response from Lambda function"}
+                raise FunctionError(log)
 
-        if invocation_type == "RequestResponse":
-            result = json.loads(response["Payload"].read())
-            runtime_debug("encode invoke result to json", start_time=ts)
-            return result
+            if invocation_type == "RequestResponse":
+                try:
+                    payload_content = response["Payload"].read()
+                    result = json.loads(payload_content) if payload_content else {}
+                except json.JSONDecodeError:
+                    result = {}
+                return result
+        except Exception as e:
+            if isinstance(e, FunctionError):
+                raise
+            raise FunctionError(f"Failed to invoke Lambda function: {str(e)}")
 
     @classmethod
     def get_hooks(cls, api_id: str) -> List[Dict[str, Any]]:
@@ -91,70 +96,130 @@ class LambdaBase:
             for item in HookModel.query(api_id, None, HookModel.status.is_(True))
         ]
 
+    _setting_cache = {}
+    _setting_cache_lock = threading.Lock()
+    
     @classmethod
     def get_setting(cls, setting_id: str) -> Dict[str, Any]:
         """
-        Fetch a setting from DynamoDB based on the setting ID.
+        Fetch a setting from DynamoDB based on the setting ID with caching.
         :param setting_id: The ID of the setting.
         :return: A dictionary of settings.
         """
         if not setting_id:
             return {}
 
-        response = cls.dynamodb.Table("se-configdata").query(
-            KeyConditionExpression=Key("setting_id").eq(setting_id)
-        )
-        if response["Count"] == 0:
-            raise ValueError(f"Cannot find values with the setting_id ({setting_id}).")
+        cache_key = f"setting_{setting_id}"
+        cache_ttl = 300
+        
+        with cls._setting_cache_lock:
+            if cache_key in cls._setting_cache:
+                cached_data = cls._setting_cache[cache_key]
+                if time.time() - cached_data["timestamp"] < cache_ttl:
+                    return cached_data["data"]
+        
+        try:
+            response = cls.dynamodb.Table("se-configdata").query(
+                KeyConditionExpression=Key("setting_id").eq(setting_id)
+            )
+            
+            if response["Count"] == 0:
+                raise ValueError(f"Cannot find values with the setting_id ({setting_id}).")
+            
+            setting_data = {item["variable"]: item["value"] for item in response["Items"]}
+            
+            with cls._setting_cache_lock:
+                cls._setting_cache[cache_key] = {
+                    "data": setting_data,
+                    "timestamp": time.time()
+                }
+            
+            return setting_data
+        except Exception as e:
+            if isinstance(e, ValueError):
+                raise
+            raise ValueError(f"Failed to get setting {setting_id}: {str(e)}")
 
-        return {item["variable"]: item["value"] for item in response["Items"]}
-
+    _function_cache = {}
+    _function_cache_lock = threading.Lock()
+    
     @classmethod
     def get_function(
         cls, endpoint_id: str, funct: str, api_key: str = "#####", method: str = None
     ) -> Tuple[Dict[str, Any], FunctionModel]:
         """
-        Fetch the function configuration for a given endpoint.
+        Fetch the function configuration for a given endpoint with caching.
         :param endpoint_id: ID of the endpoint.
         :param funct: Name of the function to retrieve.
         :param api_key: The API key, default is "#####".
         :param method: The HTTP method if applicable.
         :return: A tuple containing the merged settings and the function object.
         """
-        ts = runtime_debug("get_function")
-        endpoint = EndpointModel.get(endpoint_id) if endpoint_id != "0" else None
-        endpoint_id = endpoint_id if (endpoint and endpoint.special_connection) else "1"
-        runtime_debug("get_function: get endpoint", start_time=ts)
+        if not funct:
+            raise ValueError("Function name is required")
+        
+        cache_key = f"function_{endpoint_id}_{funct}_{api_key}_{method or ''}"
+        cache_ttl = 300
+        
+        with cls._function_cache_lock:
+            if cache_key in cls._function_cache:
+                cached_data = cls._function_cache[cache_key]
+                if time.time() - cached_data["timestamp"] < cache_ttl:
+                    return cached_data["setting"], cached_data["function"]
+        
+        try:
+            effective_endpoint_id = endpoint_id
+            if endpoint_id != "0":
+                try:
+                    endpoint = EndpointModel.get(endpoint_id)
+                    if not endpoint.special_connection:
+                        effective_endpoint_id = "1"
+                except Exception:
+                    effective_endpoint_id = "1"
+            else:
+                effective_endpoint_id = "1"
 
-        connection = ConnectionModel.get(endpoint_id, api_key)
-        functions = [f for f in connection.functions if f.function == funct]
-        runtime_debug("get_function: get connection", start_time=ts)
+            connection = ConnectionModel.get(effective_endpoint_id, api_key)
+            
+            functions = next((f for f in connection.functions if f.function == funct), None)
 
-        if not functions:
-            raise ValueError(
-                f"Cannot find the function({funct}) with endpoint_id({endpoint_id}) and api_key({api_key})."
+            if not functions:
+                raise ValueError(
+                    f"Cannot find the function({funct}) with endpoint_id({effective_endpoint_id}) and api_key({api_key})."
+                )
+
+            function = FunctionModel.get(
+                functions.aws_lambda_arn, functions.function
             )
 
-        function = FunctionModel.get(
-            functions[0].aws_lambda_arn, functions[0].function
-        )
-        runtime_debug("get_function: get function", start_time=ts)
+            if function is None:
+                raise ValueError(
+                    "Cannot locate the function!! Please check the path and parameters."
+                )
 
-        if function is None:
-            raise ValueError(
-                "Cannot locate the function!! Please check the path and parameters."
-            )
+            if method and method not in function.config.methods:
+                raise ValueError(
+                    f"The function({funct}) doesn't support the method({method})."
+                )
 
-        # Merge settings from connection and function, connection settings override function settings
-        setting = {
-            **cls.get_setting(function.config.setting),
-            **(cls.get_setting(functions[0].setting) if functions[0].setting else {}),
-        }
-        runtime_debug("get_function: merge setting", start_time=ts)
-
-        if method and method not in function.config.methods:
-            raise ValueError(
-                f"The function({funct}) doesn't support the method({method})."
-            )
-
-        return setting, function
+            # Merge settings from connection and function, connection settings override function settings
+            function_setting = cls.get_setting(function.config.setting) if function.config.setting else {}
+            connection_setting = cls.get_setting(functions.setting) if functions.setting else {}
+            
+            setting = {
+                **function_setting,
+                **connection_setting,
+            }
+            
+            with cls._function_cache_lock:
+                cls._function_cache[cache_key] = {
+                    "setting": setting,
+                    "function": function,
+                    "timestamp": time.time()
+                }
+            
+            return setting, function
+        except Exception as e:
+            if isinstance(e, ValueError):
+                raise
+            raise ValueError(f"Failed to get function {funct}: {str(e)}")

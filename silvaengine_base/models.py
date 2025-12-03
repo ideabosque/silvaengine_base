@@ -111,7 +111,7 @@ class WSSConnectionModel(BaseModel):
     connection_id = UnicodeAttribute(range_key=True)
     api_key = UnicodeAttribute()
     area = UnicodeAttribute()
-    data = MapAttribute(default={})
+    data = MapAttribute(default=dict)
     status = UnicodeAttribute(default="active")
     created_at = UTCDateTimeAttribute()
     updated_at = UTCDateTimeAttribute()
