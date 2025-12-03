@@ -43,6 +43,10 @@ class Worker(LambdaBase):
                 else {}
             )
 
+            self.logger.info(
+                f"Module name : {module_name}, Class name : {class_name}, Function name : {funct_name}"
+            )
+
             _class = getattr(__import__(module_name), class_name)
             instance = _class(self.logger, **settings)
             funct = getattr(instance, funct_name)
