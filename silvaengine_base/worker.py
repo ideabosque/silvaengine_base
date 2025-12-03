@@ -43,6 +43,7 @@ class Worker(LambdaBase):
                 else {}
             )
 
+            self.logger.info(f"Event : {event}")
             self.logger.info(
                 f"Module name : {module_name}, Class name : {class_name}, Function name : {funct_name}"
             )
