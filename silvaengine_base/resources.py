@@ -317,6 +317,9 @@ class Resources(LambdaBase):
         return {
             "fnConfigurations": Utility.json_loads(Utility.json_dumps(function)),
             "requestContext": request_context,
+            "module": function.config.module_name,
+            "class": function.config.class_name,
+            "function": function.function,
         }
 
     def _dynamic_authorization(
@@ -383,6 +386,12 @@ class Resources(LambdaBase):
         #         ),
         #         }
         #     )
+        event.update(
+            {
+                "setting": json.dumps(setting),
+                "params": json.dumps(params),
+            }
+        )
 
         result = Utility.invoke_lambda_on_local(
             self.logger, setting, context.function_name
