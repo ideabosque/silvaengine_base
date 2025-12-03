@@ -387,6 +387,8 @@ class Resources(LambdaBase):
         result = Utility.invoke_lambda_on_local(
             self.logger, setting, context.function_name
         )
+
+        self.logger.info(f"Invoked function {context.function_name} with result: {result}")
         # if function.config.funct_type.strip().lower() == "event":
         #     LambdaBase.invoke(function.aws_lambda_arn, payload, invocation_type="Event")
         #     return self._generate_response(200, "")
