@@ -27,7 +27,7 @@ class Resources(LambdaBase):
     def __init__(self, logger: Any) -> None:
         self.logger = logger
 
-    def handle(self, event: Dict[str, Any], context: Any) -> Dict[str, Any]:
+    def handle(self, event: Dict[str, Any], context: Any) -> Any:
         self.logger.info(f"Event received: {event}")
         try:
             # Check if the event is from a WebSocket connection
