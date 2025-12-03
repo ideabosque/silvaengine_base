@@ -8,15 +8,11 @@ import traceback
 from datetime import datetime
 from typing import Any, Dict, Tuple
 
-import jsonpickle
 import pendulum
-import sentry_sdk
-import yaml
-from sentry_sdk.integrations.aws_lambda import AwsLambdaIntegration
-
-from silvaengine_base.lambdabase import FunctionError, LambdaBase
 from silvaengine_utility import Authorizer as ApiGatewayAuthorizer
 from silvaengine_utility import Utility
+
+from silvaengine_base.lambdabase import FunctionError, LambdaBase
 
 from .models import WSSConnectionModel
 
@@ -116,10 +112,6 @@ class Resources(LambdaBase):
         Process the 'stream' route for WebSocket events, managing the payload and dispatching tasks.
         """
         try:
-            #########################################
-            # Add authorization for websocket event #
-            #########################################
-
             connection_id = event.get("requestContext", {}).get("connectionId")
             request_context = event.get("requestContext", {})
             api_key = request_context.get("identity", {}).get("apiKey")
@@ -174,10 +166,12 @@ class Resources(LambdaBase):
         Process regular HTTP API requests when the event is not related to WebSocket.
         """
         api_key, endpoint_id, funct, params = self._extract_event_data(event)
-        self._initialize_settings(event)
 
-        if self._is_cognito_trigger(event):
-            return self._handle_cognito_trigger(event, context)
+        if not self.settings:
+            self._initialize(event)
+
+        # if self._is_cognito_trigger(event):
+        #     return self._handle_cognito_trigger(event, context)
 
         path_parameters = event.get("pathParameters", {})
         request_context = event.get("requestContext", {})
@@ -198,14 +192,14 @@ class Resources(LambdaBase):
             )
         )
 
-        # Add authorization for http event
-        if self._is_request_event(event):
-            # Authorization
-            return self._dynamic_authorization(event, context, "authorize")
-        if event.get("body"):
-            event.update(
-                self._dynamic_authorization(event, context, "verify_permission")
-            )
+        # # Add authorization for http event
+        # if self._is_request_event(event):
+        #     # Authorization
+        #     return self._dynamic_authorization(event, context, "authorize")
+        # if event.get("body"):
+        #     event.update(
+        #         self._dynamic_authorization(event, context, "verify_permission")
+        #     )
 
         return self._invoke_function(event, context, function, params, setting)
 
@@ -233,47 +227,44 @@ class Resources(LambdaBase):
             )
             connection.delete()
 
-    def _initialize_settings(self, event: Dict[str, Any]) -> None:
-        """Initialize settings and log start time."""
-        if not self.settings:
-            self.init(event)
-
     def _extract_event_data(
         self, event: Dict[str, Any]
     ) -> Tuple[str, str, str, Dict[str, Any]]:
         """Extract and organize event-related data."""
-        headers = event.get("headers", {})
-        request_context = event.get("requestContext", {})
-        path_parameters = event.get("pathParameters", {})
+        if not isinstance(event, dict):
+            raise ValueError("Event must be a dictionary")
 
-        api_key = request_context.get("identity", {}).get("apiKey", "#####")
+        # headers = event.get("headers", {}) or {}
+        request_context = event.get("requestContext", {}) or {}
+        path_parameters = event.get("pathParameters", {}) or {}
+        identity = request_context.get("identity", {}) or {}
+        api_key = identity.get("apiKey", "#####")
         area = path_parameters.get("area")
-        endpoint_id = path_parameters.get("endpoint_id")
+        endpoint_id = path_parameters.get("endpoint_id", "")
         proxy = path_parameters.get("proxy", "")
-        query_params = event.get("queryStringParameters", {}) or {}
+        query_params = event.get("queryStringParameters")
 
-        funct, _, path = proxy.partition("/")
-        if path:
+        if query_params is None:
+            query_params = {}
+
+        func = proxy.split("/")[0] if proxy else ""
+
+        if "/" in proxy:
+            path = proxy.split("/", 1)[1]
             query_params["path"] = path
 
-        params = {**query_params, "endpoint_id": endpoint_id, "area": area}
+        params = {k: v for k, v in query_params.items()}
+        params["endpoint_id"] = endpoint_id
+        params["area"] = area
+        # proxy_index = self.settings.get("api_unified_call_index", "")
 
-        proxy_index = str(self.settings.get("api_unified_call_index", "")).strip()
-        funct = headers.get(proxy_index, funct).strip()
+        # if proxy_index:
+        #     proxy_index = str(proxy_index).strip()
+        #     header_funct = headers.get(proxy_index, "")
+        #     if header_funct:
+        #         func = header_funct.strip()
 
-        return api_key, endpoint_id, funct, params
-
-    def _runtime_debug(self, endpoint_id: str, start_time: int, mark: str) -> int:
-        """Log the execution time for debugging."""
-        duration = int(datetime.now().timestamp() * 1000) - start_time
-
-        if not endpoint_id:
-            print(f"Warning: `endpoint_id` is missing when executing `{mark}`.")
-
-        if endpoint_id and endpoint_id.strip().lower() == "ss3" and duration > 0:
-            print(f"--------- It took {duration} ms to execute request `{mark}`.")
-
-        return int(datetime.now().timestamp() * 1000)
+        return api_key, endpoint_id, func, params
 
     def _is_cognito_trigger(self, event: Dict[str, Any]) -> bool:
         """Check if the event is a Cognito trigger."""
@@ -302,9 +293,9 @@ class Resources(LambdaBase):
     def _validate_function_area(self, params: Dict[str, Any], function: Any) -> None:
         """Validate if the area matches the function configuration."""
         area = params.get("area")
-        assert (
-            area == function.area
-        ), f"Area ({area}) does not match the function ({function.area})."
+        assert area == function.area, (
+            f"Area ({area}) does not match the function ({function.area})."
+        )
 
     def _prepare_event(
         self,
@@ -357,52 +348,54 @@ class Resources(LambdaBase):
         setting: Dict[str, Any],
     ) -> Dict[str, Any]:
         """Invoke the appropriate function based on event data."""
-        payload = {
-            "MODULENAME": function.config.module_name,
-            "CLASSNAME": function.config.class_name,
-            "funct": function.function,
-            "setting": json.dumps(setting),
-            "params": json.dumps(params),
-        }
-        if params.get("area") in FULL_EVENT_AREAS:
-            payload.update(
-                {
-                    "aws_event": jsonpickle.encode(event, unpicklable=False),
-                    "aws_context": jsonpickle.encode(
-                        {
-                            "function_name": context.function_name,
-                            "function_version": context.function_version,
-                            "invoked_function_arn": context.invoked_function_arn,
-                            "memory_limit_in_mb": context.memory_limit_in_mb,
-                            "aws_request_id": context.aws_request_id,
-                            "log_group_name": context.log_group_name,
-                            "log_stream_name": context.log_stream_name,
-                            "client_context": getattr(context, "client_context", None),
-                            "identity": getattr(context, "identity", None),
-                        },
-                        unpicklable=False,
-                    ),
-                }
-            )
-        else:
-            payload.update(
-                {
-                    "body": event.get("body"),
-                    "context": jsonpickle.encode(
-                        event.get("requestContext"), unpicklable=False
-                    ),
-                }
-            )
+        # payload = {
+        #     "MODULENAME": function.config.module_name,
+        #     "CLASSNAME": function.config.class_name,
+        #     "funct": function.function,
+        #     "setting": json.dumps(setting),
+        #     "params": json.dumps(params),
+        # }
+        # if params.get("area") in FULL_EVENT_AREAS:
+        #     payload.update(
+        #         {
+        #             "aws_event": json.dumps(event),
+        #             "aws_context": json.dumps(
+        #                 {
+        #                     "function_name": context.function_name,
+        #                     "function_version": context.function_version,
+        #                     "invoked_function_arn": context.invoked_function_arn,
+        #                     "memory_limit_in_mb": context.memory_limit_in_mb,
+        #                     "aws_request_id": context.aws_request_id,
+        #                     "log_group_name": context.log_group_name,
+        #                     "log_stream_name": context.log_stream_name,
+        #                     "client_context": getattr(context, "client_context", None),
+        #                     "identity": getattr(context, "identity", None),
+        #                 }
+        #             ),
+        #         }
+        #     )
+        # else:
+        #     payload.update(
+        #         {
+        #             "body": event.get("body"),
+        #             "context": json.dumps(
+        #             event.get("requestContext")
+        #         ),
+        #         }
+        #     )
 
-        if function.config.funct_type.strip().lower() == "event":
-            LambdaBase.invoke(function.aws_lambda_arn, payload, invocation_type="Event")
-            return self._generate_response(200, "")
-
-        result = LambdaBase.invoke(
-            function.aws_lambda_arn,
-            payload,
-            invocation_type=function.config.funct_type.strip(),
+        result = Utility.invoke_lambda_on_local(
+            self.logger, setting, context.function_name
         )
+        # if function.config.funct_type.strip().lower() == "event":
+        #     LambdaBase.invoke(function.aws_lambda_arn, payload, invocation_type="Event")
+        #     return self._generate_response(200, "")
+
+        # result = LambdaBase.invoke(
+        #     function.aws_lambda_arn,
+        #     payload,
+        #     invocation_type=function.config.funct_type.strip(),
+        # )
         return self._process_response(result)
 
     def _generate_response(self, status_code: int, body: str) -> Dict[str, Any]:
@@ -419,20 +412,10 @@ class Resources(LambdaBase):
 
     def _process_response(self, result: Any) -> Dict[str, Any]:
         """Process the result and format the response."""
-        response = self._generate_response(200, result)
-        if self._is_json(result):
-            response["statusCode"] = 200
-        elif isinstance(result, FunctionError):
-            response.update(
-                {"statusCode": 500, "body": f'{{"error": "{result.args[0]}"}}'}
-            )
-        elif self._is_yaml(result):
-            response["headers"]["Content-Type"] = "application/x-yaml"
-        else:
-            response.update(
-                {"statusCode": 400, "body": '{"error": "Unsupported content format"}'}
-            )
-        return response
+        if isinstance(result, FunctionError):
+            return self._generate_response(500, f'{{"error": "{result.args[0]}"}}')
+
+        return self._generate_response(200, result)
 
     def _handle_exception(
         self, exception: Exception, event: Dict[str, Any]
@@ -451,19 +434,15 @@ class Resources(LambdaBase):
         if self._is_request_event(event):
             return self._handle_authorizer_failure(event, message)
 
-        if str(status_code).startswith("5") and self.settings.get(
-            "sentry_enabled", False
-        ):
-            sentry_sdk.capture_exception(exception)
-
         return self._generate_error_response(status_code, message)
 
     def _handle_authorizer_failure(
         self, event: Dict[str, Any], message: str
     ) -> Dict[str, Any]:
         """Handle API Gateway authorizer failure."""
-        arn, request_context = event.get("methodArn", ""), event.get(
-            "requestContext", {}
+        arn, request_context = (
+            event.get("methodArn", ""),
+            event.get("requestContext", {}),
         )
         return ApiGatewayAuthorizer(
             principal=event.get("path"),
@@ -490,46 +469,21 @@ class Resources(LambdaBase):
         """Check if the event is a request event."""
         return bool(str(event.get("type")).strip().lower() == "request")
 
-    @staticmethod
-    def _is_json(content: Any) -> bool:
-        """Check if the content is valid JSON."""
-        try:
-            json.loads(content)
-            return True
-        except ValueError:
-            return False
-
-    @staticmethod
-    def _is_yaml(content: Any) -> bool:
-        """Check if the content is valid YAML."""
-        try:
-            yaml.load(content, Loader=yaml.SafeLoader)
-            return True
-        except yaml.YAMLError:
-            return False
-
-    def get_setting_index(self, event: Dict[str, Any]) -> str:
+    def _get_setting_index(self, event: Dict[str, Any]) -> str:
         """Get the appropriate setting index based on the event data."""
         try:
             if event.get("triggerSource") and event.get("userPoolId"):
                 settings = LambdaBase.get_setting("general")
-                return settings.get(event.get("userPoolId"))
+                return settings.get(event.get("userPoolId", ""), "")
             elif event.get("requestContext") and event.get("pathParameters"):
-                request_context, path_parameters = event.get(
-                    "requestContext", {}
-                ), event.get("pathParameters", {})
+                request_context, path_parameters = (
+                    event.get("requestContext", {}),
+                    event.get("pathParameters", {}),
+                )
                 return f"{request_context.get('stage', 'beta')}_{path_parameters.get('area')}_{path_parameters.get('endpoint_id')}"
         except Exception as e:
             raise Exception(f"Invalid event request: {e}")
 
-    def init(self, event: Dict[str, Any]) -> None:
-        """Load settings from configuration data and initialize Sentry if enabled."""
-        self.settings = LambdaBase.get_setting(self.get_setting_index(event))
-        if self.settings.get("sentry_enabled", False):
-            sentry_sdk.init(
-                dsn=self.settings.get("sentry_dsn"),
-                integrations=[AwsLambdaIntegration()],
-                traces_sample_rate=float(
-                    self.settings.get("sentry_traces_sample_rate", 1.0)
-                ),
-            )
+    def _initialize(self, event: Dict[str, Any]) -> None:
+        """Load settings from configuration data."""
+        self.settings = LambdaBase.get_setting(self._get_setting_index(event))
