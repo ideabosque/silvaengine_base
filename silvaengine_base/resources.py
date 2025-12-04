@@ -407,7 +407,7 @@ class Resources(LambdaBase):
             logger=self.logger,
             funct=function.function,
             setting=setting,
-            **params,
+            **body,
         )
 
         self.logger.info(f"Invoked function {context.function_name} with result: {result}")
