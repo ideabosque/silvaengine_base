@@ -449,6 +449,8 @@ class Resources(LambdaBase):
 
         r = Utility.json_loads(result)
 
+        self.logger.info(f"Process response {r.get("status_code", 200)} with data {r.get("data", {})}")
+
         return self._generate_response(r.get("status_code", 200), r.get("data", {}))
 
     def _handle_exception(
