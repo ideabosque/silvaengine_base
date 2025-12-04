@@ -45,6 +45,7 @@ class Resources(LambdaBase):
             self.logger.info(f"HTTP response: {r}")
             return r
         except Exception as e:
+            self.logger.error(str(e))
             self.logger.error(traceback.format_exc())
             return self._handle_exception(e, event)
 
