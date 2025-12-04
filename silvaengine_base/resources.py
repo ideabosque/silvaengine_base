@@ -388,6 +388,10 @@ class Resources(LambdaBase):
 
         
         # invoke_funct_on_local(logger, funct, funct_on_local, setting, **params)
+        self.logger.info(f"Invoking function {context.function_name} with params: {params}")
+        self.logger.info(f"Invoking function {payload}")
+        self.logger.info(f"Invoking function {setting}")
+
         result = Utility.invoke_funct_on_local(
             self.logger, context.function_name,  payload, setting,  params
         )
