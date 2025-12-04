@@ -41,8 +41,11 @@ class Resources(LambdaBase):
                 )
 
             # If it's not a WebSocket event, handle it as a regular API request
-            return self._handle_http_request(event, context)
+            r = self._handle_http_request(event, context)
+            self.logger.info(f"HTTP response: {r}")
+            return r
         except Exception as e:
+            self.logger.error(traceback.format_exc())
             return self._handle_exception(e, event)
 
     def _handle_websocket_event(
@@ -353,8 +356,8 @@ class Resources(LambdaBase):
             "module_name": function.config.module_name,
             "class_name": function.config.class_name,
             "function_name": function.function,
+            "params": params,
             # "setting": json.dumps(setting),
-            # "params": json.dumps(params),
         }
 
         if params.get("area") in FULL_EVENT_AREAS:
