@@ -352,40 +352,40 @@ class Resources(LambdaBase):
         setting: Dict[str, Any],
     ) -> Dict[str, Any]:
         """Invoke the appropriate function based on event data."""
-        payload = {
-            "module_name": function.config.module_name,
-            "class_name": function.config.class_name,
-            "function_name": function.function,
-            "params": params,
-            # "setting": json.dumps(setting),
-        }
+        # payload = {
+        #     "module_name": function.config.module_name,
+        #     "class_name": function.config.class_name,
+        #     "function_name": function.function,
+        #     "params": params,
+        #     # "setting": json.dumps(setting),
+        # }
 
-        if params.get("area") in FULL_EVENT_AREAS:
-            payload.update(
-                {
-                    "aws_event": json.dumps(event),
-                    "aws_context": json.dumps(
-                        {
-                            "function_name": context.function_name,
-                            "function_version": context.function_version,
-                            "invoked_function_arn": context.invoked_function_arn,
-                            "memory_limit_in_mb": context.memory_limit_in_mb,
-                            "aws_request_id": context.aws_request_id,
-                            "log_group_name": context.log_group_name,
-                            "log_stream_name": context.log_stream_name,
-                            "client_context": getattr(context, "client_context", None),
-                            "identity": getattr(context, "identity", None),
-                        }
-                    ),
-                }
-            )
-        else:
-            payload.update(
-                {
-                    "body": event.get("body"),
-                    "context": json.dumps(event.get("requestContext")),
-                }
-            )
+        # if params.get("area") in FULL_EVENT_AREAS:
+        #     payload.update(
+        #         {
+        #             "aws_event": json.dumps(event),
+        #             "aws_context": json.dumps(
+        #                 {
+        #                     "function_name": context.function_name,
+        #                     "function_version": context.function_version,
+        #                     "invoked_function_arn": context.invoked_function_arn,
+        #                     "memory_limit_in_mb": context.memory_limit_in_mb,
+        #                     "aws_request_id": context.aws_request_id,
+        #                     "log_group_name": context.log_group_name,
+        #                     "log_stream_name": context.log_stream_name,
+        #                     "client_context": getattr(context, "client_context", None),
+        #                     "identity": getattr(context, "identity", None),
+        #                 }
+        #             ),
+        #         }
+        #     )
+        # else:
+        #     payload.update(
+        #         {
+        #             "body": event.get("body"),
+        #             "context": json.dumps(event.get("requestContext")),
+        #         }
+        #     )
 
         # invoke_funct_on_local(
         #     logger,
@@ -393,15 +393,15 @@ class Resources(LambdaBase):
         #     funct,
         #     **params,
         # )
-        setting.update({
-            "functs_on_local": {
-                function.function: payload,
-            },
-        })
+        # setting.update({
+        #     "functs_on_local": {
+        #         function.function: payload,
+        #     },
+        # })
         # self.logger.info(f"Invoking function {function.function} with params: {params}")
-        body = Utility.json_loads(event.get("body"))
-        self.logger.info(f"Invoking function >>>>>> {body}")
-        self.logger.info(f"Invoking function >>>>>> type is {type(body)}")
+        payload = Utility.json_loads(event.get("body"))
+        # self.logger.info(f"Invoking function >>>>>> {payload}")
+        # self.logger.info(f"Invoking function >>>>>> type is {type(payload)}")
         # self.logger.info(f"Invoking function {setting}")
 
         result = Utility.import_dynamically(
@@ -409,7 +409,7 @@ class Resources(LambdaBase):
             function_name=function.function,
             class_name=function.config.class_name,
             constructor_parameters={"logger": self.logger, **setting},
-        )(**body)
+        )(**payload)
 
         # result = Utility.invoke_funct_on_local(
         #     logger=self.logger,
@@ -418,7 +418,7 @@ class Resources(LambdaBase):
         #     **body,
         # )
 
-        self.logger.info(f"Invoked function {context.function_name} with result: {result}")
+        self.logger.info(f"Invoked function {function.function} with result: {result}")
         # if function.config.funct_type.strip().lower() == "event":
         #     LambdaBase.invoke(function.aws_lambda_arn, payload, invocation_type="Event")
         #     return self._generate_response(200, "")
