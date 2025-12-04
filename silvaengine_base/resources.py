@@ -398,7 +398,9 @@ class Resources(LambdaBase):
             },
         })
         # self.logger.info(f"Invoking function {function.function} with params: {params}")
-        self.logger.info(f"Invoking function {event.get("body")}, type is {type(event.get("body"))}")
+        body = event.get("body")
+        self.logger.info(f"Invoking function >>>>>> {body}")
+        self.logger.info(f"Invoking function >>>>>> type is {type(body)}")
         # self.logger.info(f"Invoking function {setting}")
 
         result = Utility.invoke_funct_on_local(
