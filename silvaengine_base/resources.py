@@ -453,7 +453,7 @@ class Resources(LambdaBase):
         # self.logger.info(f"Process response {r.get("status_code", 200)} with data {r.get("data")}")
 
 
-        return self._generate_response(r.get("status_code", 200), r.get("data", {}))
+        return self._generate_response(r["status_code"], r["data"])
 
     def _handle_exception(
         self, exception: Exception, event: Dict[str, Any]
