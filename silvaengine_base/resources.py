@@ -386,8 +386,17 @@ class Resources(LambdaBase):
                 }
             )
 
-        
-        # invoke_funct_on_local(logger, funct, funct_on_local, setting, **params)
+        # invoke_funct_on_local(
+        #     logger,
+        #     setting,
+        #     funct,
+        #     **params,
+        # )
+        setting.update({
+            "funct_on_local": {
+                function.function: payload,
+            },
+        })
         self.logger.info(f"Invoking function {function.function} with params: {params}")
         self.logger.info(f"Invoking function {payload}")
         self.logger.info(f"Invoking function {setting}")
@@ -395,7 +404,6 @@ class Resources(LambdaBase):
         result = Utility.invoke_funct_on_local(
             logger=self.logger,
             funct=function.function,
-            funct_on_local=payload,
             setting=setting,
             **params,
         )
