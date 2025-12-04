@@ -393,7 +393,7 @@ class Resources(LambdaBase):
         #     **params,
         # )
         setting.update({
-            "funct_on_local": {
+            "functs_on_local": {
                 function.function: payload,
             },
         })
