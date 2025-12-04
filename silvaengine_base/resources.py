@@ -397,9 +397,9 @@ class Resources(LambdaBase):
                 function.function: payload,
             },
         })
-        self.logger.info(f"Invoking function {function.function} with params: {params}")
-        self.logger.info(f"Invoking function {payload}")
-        self.logger.info(f"Invoking function {setting}")
+        # self.logger.info(f"Invoking function {function.function} with params: {params}")
+        self.logger.info(f"Invoking function {event.get("body")}, type is {type(event.get("body"))}")
+        # self.logger.info(f"Invoking function {setting}")
 
         result = Utility.invoke_funct_on_local(
             logger=self.logger,
