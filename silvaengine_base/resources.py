@@ -404,12 +404,19 @@ class Resources(LambdaBase):
         self.logger.info(f"Invoking function >>>>>> type is {type(body)}")
         # self.logger.info(f"Invoking function {setting}")
 
-        result = Utility.invoke_funct_on_local(
-            logger=self.logger,
-            funct=function.function,
-            setting=setting,
-            **body,
-        )
+        result = Utility.import_dynamically(
+            module_name=function.config.module_name,
+            function_name=function.function,
+            class_name=function.config.class_name,
+            constructor_parameters={"logger": self.logger, **setting},
+        )(**body)
+
+        # result = Utility.invoke_funct_on_local(
+        #     logger=self.logger,
+        #     funct=function.function,
+        #     setting=setting,
+        #     **body,
+        # )
 
         self.logger.info(f"Invoked function {context.function_name} with result: {result}")
         # if function.config.funct_type.strip().lower() == "event":
