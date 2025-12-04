@@ -364,12 +364,13 @@ class Resources(LambdaBase):
     ) -> Dict[str, Any]:
         """Invoke the appropriate function based on event data."""
         payload = {
-            "MODULENAME": function.config.module_name,
-            "CLASSNAME": function.config.class_name,
+            "module_name": function.config.module_name,
+            "class_name": function.config.class_name,
             "funct": function.function,
             "setting": json.dumps(setting),
             "params": json.dumps(params),
         }
+
         if params.get("area") in FULL_EVENT_AREAS:
             payload.update(
                 {
@@ -400,7 +401,7 @@ class Resources(LambdaBase):
             )
 
         result = Utility.invoke_funct_on_local(
-            self.logger, setting, context.function_name, **payload
+            self.logger, context.function_name, setting,  **payload
         )
 
         self.logger.info(f"Invoked function {context.function_name} with result: {result}")
