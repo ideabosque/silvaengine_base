@@ -393,7 +393,11 @@ class Resources(LambdaBase):
         self.logger.info(f"Invoking function {setting}")
 
         result = Utility.invoke_funct_on_local(
-            self.logger, function.function,  payload, setting,  **params
+            logger=self.logger,
+            funct=function.function,
+            funct_on_local=payload,
+            setting=setting,
+            **params,
         )
 
         self.logger.info(f"Invoked function {context.function_name} with result: {result}")
