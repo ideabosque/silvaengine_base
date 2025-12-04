@@ -28,7 +28,6 @@ class Resources(LambdaBase):
         self.logger = logger
 
     def handle(self, event: Dict[str, Any], context: Any) -> Any:
-        self.logger.info(f"Event received: {event}")
         try:
             # Check if the event is from a WebSocket connection
             request_context = event.get("requestContext", {})
@@ -192,17 +191,6 @@ class Resources(LambdaBase):
                 endpoint_id,
             )
         )
-        self.logger.info(f">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
-        self.logger.info(f">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
-        self.logger.info(f">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
-        self.logger.info(f">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
-        self.logger.info(f">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
-        self.logger.info(f"HTTP event prepared: {event}")
-        self.logger.info(f"<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
-        self.logger.info(f"<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
-        self.logger.info(f"<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
-        self.logger.info(f"<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
-        self.logger.info(f"<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
 
         # # Add authorization for http event
         # if self._is_request_event(event):
@@ -366,7 +354,7 @@ class Resources(LambdaBase):
         payload = {
             "module_name": function.config.module_name,
             "class_name": function.config.class_name,
-            "funct": function.function,
+            "function_name": function.function,
             # "setting": json.dumps(setting),
             # "params": json.dumps(params),
         }
@@ -394,14 +382,14 @@ class Resources(LambdaBase):
             payload.update(
                 {
                     "body": event.get("body"),
-                    "context": json.dumps(
-                    event.get("requestContext")
-                ),
+                    "context": json.dumps(event.get("requestContext")),
                 }
             )
 
+        
+        # invoke_funct_on_local(logger, funct, funct_on_local, setting, **params)
         result = Utility.invoke_funct_on_local(
-            self.logger, context.function_name,  payload, setting,  **params
+            self.logger, context.function_name,  payload, setting,  params
         )
 
         self.logger.info(f"Invoked function {context.function_name} with result: {result}")
