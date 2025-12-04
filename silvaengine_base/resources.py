@@ -447,7 +447,7 @@ class Resources(LambdaBase):
         if isinstance(result, FunctionError):
             return self._generate_response(500, f'{{"error": "{result.args[0]}"}}')
 
-        return self._generate_response(200, json.dumps(result))
+        return self._generate_response(200, result)
 
     def _handle_exception(
         self, exception: Exception, event: Dict[str, Any]
