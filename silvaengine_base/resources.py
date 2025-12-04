@@ -398,7 +398,7 @@ class Resources(LambdaBase):
             },
         })
         # self.logger.info(f"Invoking function {function.function} with params: {params}")
-        body = event.get("body")
+        body = Utility.json_loads(event.get("body"))
         self.logger.info(f"Invoking function >>>>>> {body}")
         self.logger.info(f"Invoking function >>>>>> type is {type(body)}")
         # self.logger.info(f"Invoking function {setting}")
