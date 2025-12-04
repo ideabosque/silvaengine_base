@@ -428,7 +428,6 @@ class Resources(LambdaBase):
         #     payload,
         #     invocation_type=function.config.funct_type.strip(),
         # )
-        self.logger.info(Utility.json_loads(result))
         return self._process_response(result)
 
     def _generate_response(self, status_code: int, body: str) -> Dict[str, Any]:
@@ -448,7 +447,9 @@ class Resources(LambdaBase):
         if isinstance(result, FunctionError):
             return self._generate_response(500, f'{{"error": "{result.args[0]}"}}')
 
-        return self._generate_response(200, result)
+        r = Utility.json_loads(result)
+
+        return self._generate_response(r.get("status_code", 200), r.get("data", {}))
 
     def _handle_exception(
         self, exception: Exception, event: Dict[str, Any]
