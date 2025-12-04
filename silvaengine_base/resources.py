@@ -428,8 +428,7 @@ class Resources(LambdaBase):
         #     payload,
         #     invocation_type=function.config.funct_type.strip(),
         # )
-        # return self._process_response(result)
-        return Utility.json_loads(result)
+        return self._process_response(result)
 
     def _generate_response(self, status_code: int, body: str) -> Dict[str, Any]:
         """Generate a standard HTTP response."""
