@@ -367,8 +367,8 @@ class Resources(LambdaBase):
             "module_name": function.config.module_name,
             "class_name": function.config.class_name,
             "funct": function.function,
-            "setting": json.dumps(setting),
-            "params": json.dumps(params),
+            # "setting": json.dumps(setting),
+            # "params": json.dumps(params),
         }
 
         if params.get("area") in FULL_EVENT_AREAS:
@@ -401,7 +401,7 @@ class Resources(LambdaBase):
             )
 
         result = Utility.invoke_funct_on_local(
-            self.logger, context.function_name, setting,  **payload
+            self.logger, context.function_name,  payload, setting,  **params
         )
 
         self.logger.info(f"Invoked function {context.function_name} with result: {result}")
