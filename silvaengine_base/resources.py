@@ -455,7 +455,7 @@ class Resources(LambdaBase):
         self.logger.info(result.get("status_code", 200))
         self.logger.info(result.get("data", {}))
 
-        return self._generate_response(result["status_code"], r["data"])
+        return self._generate_response(result["status_code"], result.get("data", {}))
 
     def _handle_exception(
         self, exception: Exception, event: Dict[str, Any]
