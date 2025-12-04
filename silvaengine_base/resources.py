@@ -130,7 +130,6 @@ class Resources(LambdaBase):
                 if event.get("body") is not None
                 else {}
             )
-            self.logger.info(f"WebSocket stream received: {body}")
 
             funct = body.get("funct")
             params = (
@@ -181,7 +180,6 @@ class Resources(LambdaBase):
         )
 
         self._validate_function_area(params, function)
-        self.logger.info(f"HTTP event received: {event}")
         event.update(
             self._prepare_event(
                 event.get("headers", {}),
