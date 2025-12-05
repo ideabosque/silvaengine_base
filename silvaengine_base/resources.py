@@ -193,10 +193,8 @@ class Resources(LambdaBase):
         # Add authorization for http event
         auth_required = bool(function and function.config and function.config.auth_required)
 
-        if self._is_authorization_event(event):
-            if auth_required:
-                return self._handle_authorize(event, context, "authorize")
-            raise Exception("authorizer function is required")
+        if self._is_authorization_event(event) and auth_required:
+            return self._handle_authorize(event, context, "authorize")
         
         if event.get("body") and auth_required:
             event.update(
