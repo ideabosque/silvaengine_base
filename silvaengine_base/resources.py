@@ -385,7 +385,7 @@ class Resources(LambdaBase):
         if self._is_request_event(event):
             return self._handle_authorizer_failure(event, str(message))
 
-        return self._generate_response(status_code, str(message))
+        return self._generate_response(status_code, f"{{\"message\": \"{str(message)}\"}}")
     
     def _generate_response(self, status_code: int, body: str) -> Dict[str, Any]:
         """Generate a standard HTTP response."""
