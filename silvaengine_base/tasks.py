@@ -5,12 +5,9 @@ __author__ = "bibow"
 import os
 import traceback
 import urllib.parse
-from typing import Any, Dict, Optional
-
 import boto3
-
+from typing import Any, Dict, Optional
 from silvaengine_utility import Utility
-
 from .lambdabase import LambdaBase
 
 
@@ -34,8 +31,6 @@ class Tasks(LambdaBase):
         cls, endpoint_id: str, funct: str, params: Optional[Dict[str, Any]] = None
     ) -> Any:
         """Dispatch a task to the appropriate AWS Lambda function."""
-        print("-" * 50 + " START " + "-" * 50)
-        print(f"Endpoint ID: {endpoint_id}, Function: {funct}")
         setting, function = cls.get_function(endpoint_id, funct)
         payload = {
             "MODULENAME": function.config.module_name,
@@ -44,16 +39,10 @@ class Tasks(LambdaBase):
             "setting": Utility.json_dumps(setting),
             "params": Utility.json_dumps(params),
         }
-        print(
-            f"Function ARN: {function.aws_lambda_arn}, Type: {function.config.funct_type}, Payload: {payload}"
-        )
-        print("-" * 50 + " END " + "-" * 50)
-
-        result = cls.invoke(
+        
+        return cls.invoke(
             function.aws_lambda_arn, payload, invocation_type=function.config.funct_type
         )
-        print(">>>>>>>>>>> TASK EXECUTE RESULT::::", result)
-        return result
 
     def handle(self, event: Dict[str, Any], context: Any) -> None:
         """Main handler function for SQS, S3, and DynamoDB events."""
