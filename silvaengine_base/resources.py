@@ -193,8 +193,10 @@ class Resources(LambdaBase):
         # Add authorization for http event
         auth_required = bool(function and function.config and function.config.auth_required)
 
-        if self._is_authorization_event(event) and auth_required:
-            return self._handle_authorize(event, context, "authorize")
+        if self._is_authorization_event(event):
+            if auth_required:
+                return self._handle_authorize(event, context, "authorize")
+            return ApiGatewayAuthorizer(event).authorize(is_allow=True)
         
         if event.get("body") and auth_required:
             event.update(
@@ -384,18 +386,7 @@ class Resources(LambdaBase):
         self, event: Dict[str, Any], message: str
     ) -> Dict[str, Any]:
         """Handle API Gateway authorizer failure."""
-        arn, request_context = (
-            event.get("methodArn", ""),
-            event.get("requestContext", {}),
-        )
-
-        return ApiGatewayAuthorizer(
-            principal=event.get("path"),
-            aws_account_id=request_context.get("accountId"),
-            api_id=request_context.get("apiId"),
-            region=arn.split(":")[3],
-            stage=request_context.get("stage"),
-        ).authorize(is_allow=False, context={"error_message": message})
+        return ApiGatewayAuthorizer(event).authorize(is_allow=False, context={"error_message": message})
 
     def _is_authorization_event(self, event: Dict[str, Any]) -> bool:
         """Check if the event is a request event."""
