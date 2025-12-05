@@ -37,7 +37,6 @@ class Resources(LambdaBase):
             # If it's not a WebSocket event, handle it as a regular API request
             return self._handle_http_request(event, context)
         except Exception as e:
-            # self.logger.error(traceback.format_exc())
             return self._handle_exception(e, event)
 
     def _handle_websocket_event(
@@ -221,7 +220,7 @@ class Resources(LambdaBase):
         """Extract and organize event-related data."""
         try:
             if not isinstance(event, dict):
-                raise ValueError("Event must be a dictionary")
+                raise Exception("Event must be a dictionary")
 
             # headers = event.get("headers", {}) or {}
             request_context = event.get("requestContext", {}) or {}
@@ -231,17 +230,17 @@ class Resources(LambdaBase):
             area = path_parameters.get("area")
 
             if not area:
-                raise ValueError("`area` is required in path parameters")
+                raise Exception("`area` is required in path parameters")
 
             endpoint_id = path_parameters.get("endpoint_id", "")
 
             if not endpoint_id:
-                raise ValueError("`endpoint_id` is required in path parameters")
+                raise Exception("`endpoint_id` is required in path parameters")
 
             proxy = path_parameters.get("proxy", "")
 
             if not proxy:
-                raise ValueError("`proxy` is required in path parameters")
+                raise Exception("`proxy` is required in path parameters")
 
             query_params = event.get("queryStringParameters")
 
@@ -251,7 +250,7 @@ class Resources(LambdaBase):
             function_name = proxy.split("/")[0] if proxy else ""
 
             if not function_name:
-                raise ValueError("missing `function_name` in request")
+                raise Exception("missing `function_name` in request")
 
             if "/" in proxy:
                 path = proxy.split("/", 1)[1]
@@ -262,7 +261,7 @@ class Resources(LambdaBase):
             params["area"] = area
 
             return api_key, endpoint_id, function_name, params
-        except ValueError as e:
+        except Exception as e:
             raise e
 
     def _handle_cognito_trigger(self, event: Dict[str, Any], context: Any) -> Any:
@@ -383,17 +382,8 @@ class Resources(LambdaBase):
 
         if self._is_request_event(event):
             return self._handle_authorizer_failure(event, str(message))
-        
-        return {
-            "statusCode": status_code,
-            "headers": {
-                "Access-Control-Allow-Headers": "Access-Control-Allow-Origin",
-                "Access-Control-Allow-Origin": "*",
-                "Content-Type": "application/json",
-            },
-            "body": {"message": str(message)},
-        }
-        # return self._generate_response(status_code, {"message": str(message)})
+
+        return self._generate_response(status_code, str(message))
     
     def _generate_response(self, status_code: int, body: str) -> Dict[str, Any]:
         """Generate a standard HTTP response."""
