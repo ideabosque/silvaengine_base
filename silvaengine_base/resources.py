@@ -66,7 +66,7 @@ class Resources(LambdaBase):
                         "updated_at": pendulum.now("UTC"),
                         "created_at": pendulum.now("UTC"),
                     },
-                ).save()
+                )
 
                 LambdaBase.remove_expired_connections(
                     endpoint_id,
