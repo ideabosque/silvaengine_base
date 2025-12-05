@@ -101,7 +101,6 @@ class ConnectionIdIndex(GlobalSecondaryIndex):
 
     class Meta:
         billing_mode = "PAY_PER_REQUEST"
-        # All attributes are projected
         projection = AllProjection()
         index_name = "connection_id-index"
 
@@ -116,7 +115,7 @@ class WSSConnectionModel(BaseModel):
     connection_id = UnicodeAttribute(range_key=True)
     api_key = UnicodeAttribute()
     area = UnicodeAttribute()
-    data = MapAttribute(default={})
+    data = MapAttribute(default=dict)
     status = UnicodeAttribute(default="active")
     created_at = UTCDateTimeAttribute()
     updated_at = UTCDateTimeAttribute()
