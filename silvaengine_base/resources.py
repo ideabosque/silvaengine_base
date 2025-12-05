@@ -281,6 +281,7 @@ class Resources(LambdaBase):
                 constructor_parameters={"logger": self.logger, **self.settings},
             )(event, context)
         except Exception as e:
+            self.logger.error(f"Error in _handle_cognito_trigger: {e}")
             raise e
 
     def _get_http_method(self, event: Dict[str, Any]) -> str:
@@ -383,7 +384,7 @@ class Resources(LambdaBase):
         if self._is_request_event(event):
             return self._handle_authorizer_failure(event, str(message))
 
-        return self._generate_response(200, str(message))
+        return self._generate_response(status_code, str(message))
     
     def _generate_response(self, status_code: int, body: str) -> Dict[str, Any]:
         """Generate a standard HTTP response."""
