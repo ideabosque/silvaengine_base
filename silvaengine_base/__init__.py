@@ -7,3 +7,4 @@ __all__ = ["resources", "tasks", "lambdabase"]
 from .lambdabase import LambdaBase
 from .resources import Resources
 from .tasks import Tasks
+from .models import *
