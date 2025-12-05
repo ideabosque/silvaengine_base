@@ -434,8 +434,9 @@ class Resources(LambdaBase):
                     event.get("pathParameters", {}),
                 )
                 return f"{request_context.get('stage', 'beta')}_{path_parameters.get('area')}_{path_parameters.get('endpoint_id')}"
+            raise ValueError("Invalid event request")
         except Exception as e:
-            raise Exception(f"Invalid event request: {e}")
+            raise e
 
     def _initialize(self, event: Dict[str, Any]) -> None:
         """Load settings from configuration data."""
