@@ -369,6 +369,7 @@ class Resources(LambdaBase):
                 status_code = exception.args[1]
 
         if self._is_authorization_event(event):
+            raise Exception(message, status_code)
             return ApiGatewayAuthorizer(event).authorize(is_allow=False, context={"errorMessage": str(message)})
 
         return self._generate_response(status_code, str(message))
