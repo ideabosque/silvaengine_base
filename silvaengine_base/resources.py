@@ -195,7 +195,10 @@ class Resources(LambdaBase):
 
         if self._is_authorization_event(event):
             if auth_required:
-                return self._handle_authorize(event, context, "authorize")
+                try:
+                    return self._handle_authorize(event, context, "authorize")
+                except Exception as e:
+                    return ApiGatewayAuthorizer(event).authorize(is_allow=False, context={"error_message": str(e)})
             return ApiGatewayAuthorizer(event).authorize(is_allow=True)
         
         if event.get("body") and auth_required:
@@ -366,7 +369,13 @@ class Resources(LambdaBase):
                 status_code = exception.args[1]
 
         if self._is_authorization_event(event):
-            return self._handle_authorizer_failure(event, str(message))
+            # api_key, endpoint_id, function_name, params = self._extract_event_data(event)
+            # _, function = SilvaEngineDynamoDBBase.get_function(
+            #     endpoint_id, function_name, api_key=api_key, method=self._get_http_method(event)
+            # )
+
+            # if function and function.config and function.config.auth_required:
+            return ApiGatewayAuthorizer(event).authorize(is_allow=False, context={"error_message": str(message)})
 
         return self._generate_response(status_code, str(message))
     
@@ -381,12 +390,6 @@ class Resources(LambdaBase):
             },
             "body": body
         }
-
-    def _handle_authorizer_failure(
-        self, event: Dict[str, Any], message: str
-    ) -> Dict[str, Any]:
-        """Handle API Gateway authorizer failure."""
-        return ApiGatewayAuthorizer(event).authorize(is_allow=False, context={"error_message": message})
 
     def _is_authorization_event(self, event: Dict[str, Any]) -> bool:
         """Check if the event is a request event."""
