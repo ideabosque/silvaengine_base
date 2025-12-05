@@ -161,7 +161,7 @@ class Resources(LambdaBase):
         """
         Process regular HTTP API requests when the event is not related to WebSocket.
         """
-        api_key, endpoint_id, funct, params = self._extract_event_data(event)
+        api_key, endpoint_id, function_name, params = self._extract_event_data(event)
 
         if not self.settings:
             self._initialize(event)
@@ -173,7 +173,7 @@ class Resources(LambdaBase):
         request_context = event.get("requestContext", {})
         method = self._get_http_method(event)
         setting, function = SilvaEngineDynamoDBBase.get_function(
-            endpoint_id, funct, api_key=api_key, method=method
+            endpoint_id, function_name, api_key=api_key, method=method
         )
 
         self._validate_function_area(params, function)
@@ -187,14 +187,15 @@ class Resources(LambdaBase):
             )
         )
 
-        # # Add authorization for http event
-        # if self._is_request_event(event):
-        #     # Authorization
-        #     return self._handle_authorize(event, context, "authorize")
-        # if event.get("body"):
-        #     event.update(
-        #         self._handle_authorize(event, context, "verify_permission")
-        #     )
+        # Add authorization for http event
+        if function and function.config and function.config.auth_required:
+            if self._is_request_event(event):
+                return self._handle_authorize(event, context, "authorize")
+            
+            if event.get("body"):
+                event.update(
+                    self._handle_authorize(event, context, "verify_permission")
+                )
 
         return self._invoke_function(event, context, function, params, setting)
 
