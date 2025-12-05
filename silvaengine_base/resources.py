@@ -37,8 +37,12 @@ class Resources(LambdaBase):
             # If it's not a WebSocket event, handle it as a regular API request
             return self._handle_http_request(event, context)
         except Exception as e:
-            self.logger.error(traceback.format_exc())
-            return self._handle_exception(e, event)
+            # self.logger.error(traceback.format_exc())
+            r = self._handle_exception(e, event)
+
+            self.logger.error(f"Exception handled: {str(e)}")
+
+            return r
 
     def _handle_websocket_event(
         self, event: Dict[str, Any], context: Any, connection_id: str, route_key: str
@@ -381,7 +385,6 @@ class Resources(LambdaBase):
             if len(exception.args) > 1 and isinstance(exception.args[1], int):
                 status_code = exception.args[1]
 
-        self.logger.info(f"status_code: {status_code}, message: {message}")
         if self._is_request_event(event):
             return self._handle_authorizer_failure(event, str(message))
 
