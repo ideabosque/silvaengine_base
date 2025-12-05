@@ -105,54 +105,50 @@ class Resources(LambdaBase):
         """
         Process the 'stream' route for WebSocket events, managing the payload and dispatching tasks.
         """
-        try:
-            connection_id = event.get("requestContext", {}).get("connectionId")
-            request_context = event.get("requestContext", {})
-            api_key = request_context.get("identity", {}).get("apiKey")
-            results = SilvaEngineDynamoDBBase.get_wss_connections_by_id(connection_id)
+        connection_id = event.get("requestContext", {}).get("connectionId")
+        request_context = event.get("requestContext", {})
+        api_key = request_context.get("identity", {}).get("apiKey")
+        results = SilvaEngineDynamoDBBase.get_wss_connections_by_id(connection_id)
 
-            if not results:
-                self.logger.error("WebSocket connection not found")
-                return {"statusCode": 404, "body": "WebSocket connection not found"}
+        if not results:
+            self.logger.error("WebSocket connection not found")
+            return {"statusCode": 404, "body": "WebSocket connection not found"}
 
-            wss_onnections = [result for result in results]
-            endpoint_id = wss_onnections[0].endpoint_id
+        wss_onnections = [result for result in results]
+        endpoint_id = wss_onnections[0].endpoint_id
 
-            if api_key is None:
-                api_key = wss_onnections[0].api_key
+        if api_key is None:
+            api_key = wss_onnections[0].api_key
 
-            body = (
-                Utility.json_loads(event.get("body"))
-                if event.get("body") is not None
-                else {}
+        body = (
+            Utility.json_loads(event.get("body"))
+            if event.get("body") is not None
+            else {}
+        )
+
+        funct = body.get("funct")
+        params = (
+            Utility.json_loads(body.get("payload"))
+            if body.get("payload") is not None
+            else {}
+        )
+        params["endpoint_id"] = endpoint_id
+
+        if not endpoint_id or not funct:
+            self.logger.error(
+                "Missing 'endpointId' or 'funct' in the stream payload"
             )
+            return {
+                "statusCode": 400,
+                "body": "Missing required parameters: endpointId or funct",
+            }
 
-            funct = body.get("funct")
-            params = (
-                Utility.json_loads(body.get("payload"))
-                if body.get("payload") is not None
-                else {}
-            )
-            params["endpoint_id"] = endpoint_id
+        method = self._get_http_method(event)
+        setting, function = SilvaEngineDynamoDBBase.get_function(
+            endpoint_id, funct, api_key=api_key, method=method
+        )
 
-            if not endpoint_id or not funct:
-                self.logger.error(
-                    "Missing 'endpointId' or 'funct' in the stream payload"
-                )
-                return {
-                    "statusCode": 400,
-                    "body": "Missing required parameters: endpointId or funct",
-                }
-
-            method = self._get_http_method(event)
-            setting, function = SilvaEngineDynamoDBBase.get_function(
-                endpoint_id, funct, api_key=api_key, method=method
-            )
-
-            return self._invoke_function(event, context, function, params, setting)
-        except Exception as e:
-            self.logger.error(f"Error processing WebSocket stream: {str(e)}")
-            return {"statusCode": 500, "body": "Internal Server Error"}
+        return self._invoke_function(event, context, function, params, setting)
 
     def _handle_http_request(
         self, event: Dict[str, Any], context: Any
@@ -160,53 +156,50 @@ class Resources(LambdaBase):
         """
         Process regular HTTP API requests when the event is not related to WebSocket.
         """
-        try:
-            if not self.settings:
-                self._initialize(event)
+        if not self.settings:
+            self._initialize(event)
 
-            if self._is_cognito_trigger(event):
-                return self._handle_cognito_trigger(event, context)
+        if self._is_cognito_trigger(event):
+            return self._handle_cognito_trigger(event, context)
+        
+        api_key, endpoint_id, function_name, params = self._extract_event_data(event)
+
+        self.logger.info(f">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+        self.logger.info(f"HTTP request api key: {api_key}")
+        self.logger.info(f"HTTP request endpoint id: {endpoint_id}")
+        self.logger.info(f"HTTP request function name: {function_name}")
+        self.logger.info(f"HTTP request params: {params}")
+        self.logger.info(f"<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
+
+        path_parameters = event.get("pathParameters", {})
+        request_context = event.get("requestContext", {})
+        method = self._get_http_method(event)
+        setting, function = SilvaEngineDynamoDBBase.get_function(
+            endpoint_id, function_name, api_key=api_key, method=method
+        )
+
+        self._validate_function_area(params, function)
+        event.update(
+            self._prepare_event(
+                event.get("headers", {}),
+                path_parameters.get("area"),
+                request_context,
+                function,
+                endpoint_id,
+            )
+        )
+
+        # Add authorization for http event
+        if function and function.config and function.config.auth_required:
+            if self._is_request_event(event):
+                return self._handle_authorize(event, context, "authorize")
             
-            api_key, endpoint_id, function_name, params = self._extract_event_data(event)
-
-            self.logger.info(f">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
-            self.logger.info(f"HTTP request api key: {api_key}")
-            self.logger.info(f"HTTP request endpoint id: {endpoint_id}")
-            self.logger.info(f"HTTP request function name: {function_name}")
-            self.logger.info(f"HTTP request params: {params}")
-            self.logger.info(f"<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
-
-            path_parameters = event.get("pathParameters", {})
-            request_context = event.get("requestContext", {})
-            method = self._get_http_method(event)
-            setting, function = SilvaEngineDynamoDBBase.get_function(
-                endpoint_id, function_name, api_key=api_key, method=method
-            )
-
-            self._validate_function_area(params, function)
-            event.update(
-                self._prepare_event(
-                    event.get("headers", {}),
-                    path_parameters.get("area"),
-                    request_context,
-                    function,
-                    endpoint_id,
+            if event.get("body"):
+                event.update(
+                    self._handle_authorize(event, context, "verify_permission")
                 )
-            )
 
-            # Add authorization for http event
-            if function and function.config and function.config.auth_required:
-                if self._is_request_event(event):
-                    return self._handle_authorize(event, context, "authorize")
-                
-                if event.get("body"):
-                    event.update(
-                        self._handle_authorize(event, context, "verify_permission")
-                    )
-
-            return self._invoke_function(event, context, function, params, setting)
-        except Exception as e:
-            raise e
+        return self._invoke_function(event, context, function, params, setting)
 
     def _remove_expired_connections(self, endpoint_id, email):
         # Remove inactive connections with filters
@@ -218,71 +211,64 @@ class Resources(LambdaBase):
         self, event: Dict[str, Any]
     ) -> Tuple[str, str, str, Dict[str, Any]]:
         """Extract and organize event-related data."""
-        try:
-            if not isinstance(event, dict):
-                raise ValueError("Event must be a dictionary")
+        if not isinstance(event, dict):
+            raise ValueError("Event must be a dictionary")
 
-            # headers = event.get("headers", {}) or {}
-            request_context = event.get("requestContext", {}) or {}
-            path_parameters = event.get("pathParameters", {}) or {}
-            identity = request_context.get("identity", {}) or {}
-            api_key = identity.get("apiKey", "#####")
-            area = path_parameters.get("area")
+        # headers = event.get("headers", {}) or {}
+        request_context = event.get("requestContext", {}) or {}
+        path_parameters = event.get("pathParameters", {}) or {}
+        identity = request_context.get("identity", {}) or {}
+        api_key = identity.get("apiKey", "#####")
+        area = path_parameters.get("area")
 
-            if not area:
-                raise ValueError("`area` is required in path parameters")
+        if not area:
+            raise ValueError("`area` is required in path parameters")
 
-            endpoint_id = path_parameters.get("endpoint_id", "")
+        endpoint_id = path_parameters.get("endpoint_id", "")
 
-            if not endpoint_id:
-                raise ValueError("`endpoint_id` is required in path parameters")
+        if not endpoint_id:
+            raise ValueError("`endpoint_id` is required in path parameters")
 
-            proxy = path_parameters.get("proxy", "")
+        proxy = path_parameters.get("proxy", "")
 
-            if not proxy:
-                raise ValueError("`proxy` is required in path parameters")
+        if not proxy:
+            raise ValueError("`proxy` is required in path parameters")
 
-            query_params = event.get("queryStringParameters")
+        query_params = event.get("queryStringParameters")
 
-            if query_params is None:
-                query_params = {}
+        if query_params is None:
+            query_params = {}
 
-            function_name = proxy.split("/")[0] if proxy else ""
+        function_name = proxy.split("/")[0] if proxy else ""
 
-            if not function_name:
-                raise ValueError("missing `function_name` in request")
+        if not function_name:
+            raise ValueError("missing `function_name` in request")
 
-            if "/" in proxy:
-                path = proxy.split("/", 1)[1]
-                query_params["path"] = path
+        if "/" in proxy:
+            path = proxy.split("/", 1)[1]
+            query_params["path"] = path
 
-            params = {k: v for k, v in query_params.items()}
-            params["endpoint_id"] = endpoint_id
-            params["area"] = area
+        params = {k: v for k, v in query_params.items()}
+        params["endpoint_id"] = endpoint_id
+        params["area"] = area
 
-            return api_key, endpoint_id, function_name, params
-        except ValueError as e:
-            raise e
+        return api_key, endpoint_id, function_name, params
 
     def _handle_cognito_trigger(self, event: Dict[str, Any], context: Any) -> Any:
         """Handle Cognito triggers."""
-        try:
-            if not self.settings:
-                self._initialize(event)
+        if not self.settings:
+            self._initialize(event)
 
-            return Utility.import_dynamically(
-                module_name=self.settings.get(
-                    "cognito_hooks_module_name", "event_triggers"
-                ),
-                function_name=self.settings.get(
-                    "cognito_hooks_function_name", "pre_token_generate"
-                ),
-                class_name=self.settings.get("cognito_hooks_class_name", "Cognito"),
-                constructor_parameters={"logger": self.logger, **self.settings},
-            )(event, context)
-        except Exception as e:
-            self.logger.error(f"Error in _handle_cognito_trigger: {e}")
-            raise e
+        return Utility.import_dynamically(
+            module_name=self.settings.get(
+                "cognito_hooks_module_name", "event_triggers"
+            ),
+            function_name=self.settings.get(
+                "cognito_hooks_function_name", "pre_token_generate"
+            ),
+            class_name=self.settings.get("cognito_hooks_class_name", "Cognito"),
+            constructor_parameters={"logger": self.logger, **self.settings},
+        )(event, context)
 
     def _get_http_method(self, event: Dict[str, Any]) -> str:
         """Get the HTTP method from the event."""
@@ -326,21 +312,18 @@ class Resources(LambdaBase):
         self, event: Dict[str, Any], context: Any, action: str
     ) -> Any:
         """Dynamically handle authorization and permission checks."""
-        try:
-            fn = Utility.import_dynamically(
-                module_name="silvaengine_authorizer",
-                function_name=action,
-                class_name="Authorizer",
-                constructor_parameters={"logger": self.logger},
-            )
+        fn = Utility.import_dynamically(
+            module_name="silvaengine_authorizer",
+            function_name=action,
+            class_name="Authorizer",
+            constructor_parameters={"logger": self.logger},
+        )
 
-            if callable(fn):
-                if action == "authorize":
-                    return fn(event, context)
-                elif action == "verify_permission":
-                    return fn(event, context)
-        except Exception as e:
-            raise e
+        if callable(fn):
+            if action == "authorize":
+                return fn(event, context)
+            elif action == "verify_permission":
+                return fn(event, context)
 
     def _invoke_function(
         self,
@@ -351,21 +334,18 @@ class Resources(LambdaBase):
         setting: Dict[str, Any],
     ) -> Dict[str, Any]:
         """Invoke the appropriate function based on event data."""
-        try:
-            if str(event.get("requestContext")).strip().upper() == "POST":
-                params.update(Utility.json_loads(event.get("requestContext")))
+        if str(event.get("requestContext")).strip().upper() == "POST":
+            params.update(Utility.json_loads(event.get("requestContext")))
 
-            if event.get("body"):
-                params.update(Utility.json_loads(event.get("body")))
+        if event.get("body"):
+            params.update(Utility.json_loads(event.get("body")))
 
-            return Utility.import_dynamically(
-                module_name=function.config.module_name,
-                function_name=function.function,
-                class_name=function.config.class_name,
-                constructor_parameters={"logger": self.logger, **setting},
-            )(**params)
-        except Exception as e:
-            raise e
+        return Utility.import_dynamically(
+            module_name=function.config.module_name,
+            function_name=function.function,
+            class_name=function.config.class_name,
+            constructor_parameters={"logger": self.logger, **setting},
+        )(**params)
 
     def _handle_exception(
         self, exception: Exception, event: Dict[str, Any]
@@ -406,6 +386,7 @@ class Resources(LambdaBase):
             event.get("methodArn", ""),
             event.get("requestContext", {}),
         )
+
         return ApiGatewayAuthorizer(
             principal=event.get("path"),
             aws_account_id=request_context.get("accountId"),
@@ -424,23 +405,17 @@ class Resources(LambdaBase):
     
     def _get_setting_index(self, event: Dict[str, Any]) -> str:
         """Get the appropriate setting index based on the event data."""
-        try:
-            if self._is_cognito_trigger(event):
-                settings = SilvaEngineDynamoDBBase.get_setting("general")
-                return settings.get(event.get("userPoolId", ""), "")
-            elif event.get("requestContext") and event.get("pathParameters"):
-                request_context, path_parameters = (
-                    event.get("requestContext", {}),
-                    event.get("pathParameters", {}),
-                )
-                return f"{request_context.get('stage', 'beta')}_{path_parameters.get('area')}_{path_parameters.get('endpoint_id')}"
-            raise ValueError("Invalid event request")
-        except Exception as e:
-            raise e
+        if self._is_cognito_trigger(event):
+            settings = SilvaEngineDynamoDBBase.get_setting("general")
+            return settings.get(event.get("userPoolId", ""), "")
+        elif event.get("requestContext") and event.get("pathParameters"):
+            request_context, path_parameters = (
+                event.get("requestContext", {}),
+                event.get("pathParameters", {}),
+            )
+            return f"{request_context.get('stage', 'beta')}_{path_parameters.get('area')}_{path_parameters.get('endpoint_id')}"
+        raise ValueError("Invalid event request")
 
     def _initialize(self, event: Dict[str, Any]) -> None:
         """Load settings from configuration data."""
-        try:
-            self.settings = SilvaEngineDynamoDBBase.get_setting(self._get_setting_index(event))
-        except Exception as e:
-            raise e
+        self.settings = SilvaEngineDynamoDBBase.get_setting(self._get_setting_index(event))
