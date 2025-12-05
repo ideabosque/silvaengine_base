@@ -40,7 +40,7 @@ class Resources(LambdaBase):
             # self.logger.error(traceback.format_exc())
             r = self._handle_exception(e, event)
 
-            self.logger.error(f"Exception handled: {str(e)}")
+            self.logger.error(f"Exception handled: {r}")
 
             return r
 
