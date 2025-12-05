@@ -38,11 +38,7 @@ class Resources(LambdaBase):
             return self._handle_http_request(event, context)
         except Exception as e:
             # self.logger.error(traceback.format_exc())
-            r = self._handle_exception(e, event)
-
-            self.logger.error(f"Exception handled: {r}")
-
-            return r
+            return self._handle_exception(e, event)
 
     def _handle_websocket_event(
         self, event: Dict[str, Any], context: Any, connection_id: str, route_key: str
@@ -387,8 +383,17 @@ class Resources(LambdaBase):
 
         if self._is_request_event(event):
             return self._handle_authorizer_failure(event, str(message))
-
-        return self._generate_response(status_code, f"{{\"message\": \"{str(message)}\"}}")
+        
+        return {
+            "statusCode": status_code,
+            "headers": {
+                "Access-Control-Allow-Headers": "Access-Control-Allow-Origin",
+                "Access-Control-Allow-Origin": "*",
+                "Content-Type": "application/json",
+            },
+            "body": {"message": str(message)},
+        }
+        # return self._generate_response(status_code, {"message": str(message)})
     
     def _generate_response(self, status_code: int, body: str) -> Dict[str, Any]:
         """Generate a standard HTTP response."""
