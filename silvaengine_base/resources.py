@@ -23,7 +23,6 @@ class Resources(LambdaBase):
 
     def handle(self, event: Dict[str, Any], context: Any) -> Any:
         try:
-            self.logger.info(f">>>>>>>> Event received: {event}")
             # Check if the event is from a WebSocket connection
             request_context = event.get("requestContext", {})
             connection_id = request_context.get("connectionId")
@@ -164,14 +163,6 @@ class Resources(LambdaBase):
             return self._handle_cognito_trigger(event, context)
         
         api_key, endpoint_id, function_name, params = self._extract_event_data(event)
-
-        self.logger.info(f">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
-        self.logger.info(f"HTTP request api key: {api_key}")
-        self.logger.info(f"HTTP request endpoint id: {endpoint_id}")
-        self.logger.info(f"HTTP request function name: {function_name}")
-        self.logger.info(f"HTTP request params: {params}")
-        self.logger.info(f"<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
-
         path_parameters = event.get("pathParameters", {})
         request_context = event.get("requestContext", {})
         method = self._get_http_method(event)
@@ -198,7 +189,8 @@ class Resources(LambdaBase):
                 try:
                     return self._handle_authorize(event, context, "authorize")
                 except Exception as e:
-                    return ApiGatewayAuthorizer(event).authorize(is_allow=False, context={"errorMessage": str(e)})
+                    raise e
+
             return ApiGatewayAuthorizer(event).authorize(is_allow=True)
         
         if event.get("body") and auth_required:
