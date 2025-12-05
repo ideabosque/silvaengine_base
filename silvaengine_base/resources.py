@@ -23,6 +23,7 @@ class Resources(LambdaBase):
 
     def handle(self, event: Dict[str, Any], context: Any) -> Any:
         try:
+            self.logger.info(f">>>>>>>> Event received: {event}")
             # Check if the event is from a WebSocket connection
             request_context = event.get("requestContext", {})
             connection_id = request_context.get("connectionId")
