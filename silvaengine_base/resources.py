@@ -161,6 +161,12 @@ class Resources(LambdaBase):
         """
         Process regular HTTP API requests when the event is not related to WebSocket.
         """
+        if not self.settings:
+            self._initialize(event)
+
+        if self._is_cognito_trigger(event):
+            return self._handle_cognito_trigger(event, context)
+        
         api_key, endpoint_id, function_name, params = self._extract_event_data(event)
 
         self.logger.info(f">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
@@ -169,12 +175,6 @@ class Resources(LambdaBase):
         self.logger.info(f"HTTP request function name: {function_name}")
         self.logger.info(f"HTTP request params: {params}")
         self.logger.info(f"<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
-
-        if not self.settings:
-            self._initialize(event)
-
-        if self._is_cognito_trigger(event):
-            return self._handle_cognito_trigger(event, context)
 
         path_parameters = event.get("pathParameters", {})
         request_context = event.get("requestContext", {})
@@ -225,14 +225,29 @@ class Resources(LambdaBase):
         identity = request_context.get("identity", {}) or {}
         api_key = identity.get("apiKey", "#####")
         area = path_parameters.get("area")
+
+        if not area:
+            raise ValueError("`area` is required in path parameters")
+
         endpoint_id = path_parameters.get("endpoint_id", "")
+
+        if not endpoint_id:
+            raise ValueError("`endpoint_id` is required in path parameters")
+
         proxy = path_parameters.get("proxy", "")
+
+        if not proxy:
+            raise ValueError("`proxy` is required in path parameters")
+
         query_params = event.get("queryStringParameters")
 
         if query_params is None:
             query_params = {}
 
-        func = proxy.split("/")[0] if proxy else ""
+        function_name = proxy.split("/")[0] if proxy else ""
+
+        if not function_name:
+            raise ValueError("missing `function_name` in request")
 
         if "/" in proxy:
             path = proxy.split("/", 1)[1]
@@ -242,7 +257,7 @@ class Resources(LambdaBase):
         params["endpoint_id"] = endpoint_id
         params["area"] = area
 
-        return api_key, endpoint_id, func, params
+        return api_key, endpoint_id, function_name, params
 
     def _handle_cognito_trigger(self, event: Dict[str, Any], context: Any) -> Any:
         """Handle Cognito triggers."""
