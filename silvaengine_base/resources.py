@@ -439,4 +439,7 @@ class Resources(LambdaBase):
 
     def _initialize(self, event: Dict[str, Any]) -> None:
         """Load settings from configuration data."""
-        self.settings = SilvaEngineDynamoDBBase.get_setting(self._get_setting_index(event))
+        try:
+            self.settings = SilvaEngineDynamoDBBase.get_setting(self._get_setting_index(event))
+        except Exception as e:
+            raise e
