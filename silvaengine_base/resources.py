@@ -399,13 +399,12 @@ class Resources(LambdaBase):
         #     },
         # })
         # self.logger.info(f"Invoking function {function.function} with params: {params}")
-        payload = {
-            "params": params,
-            "context": event.get("requestContext"),
-        }
+
+        if event.get("requestContext") == "POST":
+            params.update(Utility.json_loads(event.get("requestContext")))
 
         if event.get("body"):
-            payload.update(Utility.json_loads(event.get("body")))
+            params.update(Utility.json_loads(event.get("body")))
         # self.logger.info(f"Invoking function >>>>>> {payload}")
         # self.logger.info(f"Invoking function >>>>>> type is {type(payload)}")
         # self.logger.info(f"Invoking function {setting}")
@@ -415,7 +414,7 @@ class Resources(LambdaBase):
             function_name=function.function,
             class_name=function.config.class_name,
             constructor_parameters={"logger": self.logger, **setting},
-        )(**payload)
+        )(**params)
 
         # result = Utility.invoke_funct_on_local(
         #     logger=self.logger,
