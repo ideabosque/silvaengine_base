@@ -45,7 +45,6 @@ class Resources(LambdaBase):
             self.logger.info(f"HTTP response: {r}")
             return r
         except Exception as e:
-            self.logger.error(str(e))
             self.logger.error(traceback.format_exc())
             return self._handle_exception(e, event)
 
@@ -400,7 +399,11 @@ class Resources(LambdaBase):
         #     },
         # })
         # self.logger.info(f"Invoking function {function.function} with params: {params}")
-        payload = Utility.json_loads(event.get("body"))
+        payload = {
+            "params": params,
+            "body": event.get("body"),
+            "context": json.dumps(event.get("requestContext")),
+        }
         # self.logger.info(f"Invoking function >>>>>> {payload}")
         # self.logger.info(f"Invoking function >>>>>> type is {type(payload)}")
         # self.logger.info(f"Invoking function {setting}")
