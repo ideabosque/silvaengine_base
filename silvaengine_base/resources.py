@@ -220,7 +220,7 @@ class Resources(LambdaBase):
         """Extract and organize event-related data."""
         try:
             if not isinstance(event, dict):
-                raise Exception("Event must be a dictionary")
+                raise ValueError("Event must be a dictionary")
 
             # headers = event.get("headers", {}) or {}
             request_context = event.get("requestContext", {}) or {}
@@ -230,17 +230,17 @@ class Resources(LambdaBase):
             area = path_parameters.get("area")
 
             if not area:
-                raise Exception("`area` is required in path parameters")
+                raise ValueError("`area` is required in path parameters")
 
             endpoint_id = path_parameters.get("endpoint_id", "")
 
             if not endpoint_id:
-                raise Exception("`endpoint_id` is required in path parameters")
+                raise ValueError("`endpoint_id` is required in path parameters")
 
             proxy = path_parameters.get("proxy", "")
 
             if not proxy:
-                raise Exception("`proxy` is required in path parameters")
+                raise ValueError("`proxy` is required in path parameters")
 
             query_params = event.get("queryStringParameters")
 
@@ -250,7 +250,7 @@ class Resources(LambdaBase):
             function_name = proxy.split("/")[0] if proxy else ""
 
             if not function_name:
-                raise Exception("missing `function_name` in request")
+                raise ValueError("missing `function_name` in request")
 
             if "/" in proxy:
                 path = proxy.split("/", 1)[1]
@@ -261,7 +261,7 @@ class Resources(LambdaBase):
             params["area"] = area
 
             return api_key, endpoint_id, function_name, params
-        except Exception as e:
+        except ValueError as e:
             raise e
 
     def _handle_cognito_trigger(self, event: Dict[str, Any], context: Any) -> Any:
@@ -394,7 +394,7 @@ class Resources(LambdaBase):
                 "Access-Control-Allow-Origin": "*",
                 "Content-Type": "application/json",
             },
-            "body": body,
+            "body": Utility.json_dumps({"error": body}),
         }
 
     def _handle_authorizer_failure(
