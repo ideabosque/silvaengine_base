@@ -265,7 +265,7 @@ class Resources(LambdaBase):
             return api_key, endpoint_id, function_name, params
         except ValueError as e:
             self.logger.error(f"Error extracting event data: {str(e)}")
-            raise e
+            raise Exception(e)
 
     def _handle_cognito_trigger(self, event: Dict[str, Any], context: Any) -> Any:
         """Handle Cognito triggers."""
