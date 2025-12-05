@@ -1,19 +1,14 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 from __future__ import print_function
-
-import os
-import traceback
-import pendulum
 from .lambdabase import LambdaBase
 from typing import Any, Dict, Tuple
 from silvaengine_utility import Utility, Authorizer as ApiGatewayAuthorizer
-from silvaengine_dynamodb_base import SilvaEngineDynamoDBBase
+import os, traceback, pendulum
 
 __author__ = "bibow"
 
 FULL_EVENT_AREAS = os.environ.get("FULL_EVENT_AREAS", "").split(",")
-
 
 class Resources(LambdaBase):
     settings: Dict[str, Any] = {}
@@ -61,7 +56,7 @@ class Resources(LambdaBase):
             )
 
             if api_key is not None and endpoint_id is not None:
-                SilvaEngineDynamoDBBase.save_wss_connection(
+                LambdaBase.save_wss_connection(
                     endpoint_id,
                     connection_id,
                     **{
@@ -73,7 +68,7 @@ class Resources(LambdaBase):
                     },
                 ).save()
 
-                self._remove_expired_connections(
+                LambdaBase.remove_expired_connections(
                     endpoint_id,
                     event.get("requestContext", {}).get("authorizer", {}).get("email"),
                 )
@@ -83,7 +78,7 @@ class Resources(LambdaBase):
         elif route_key == "$disconnect":
             self.logger.info(f"WebSocket disconnected: {connection_id}")
 
-            results = SilvaEngineDynamoDBBase.get_wss_connections_by_id(connection_id)
+            results = LambdaBase.get_wss_connections(connection_id)
             wss_onnections = [result for result in results]
 
             if len(wss_onnections) > 0:
@@ -108,7 +103,7 @@ class Resources(LambdaBase):
         connection_id = event.get("requestContext", {}).get("connectionId")
         request_context = event.get("requestContext", {})
         api_key = request_context.get("identity", {}).get("apiKey")
-        results = SilvaEngineDynamoDBBase.get_wss_connections_by_id(connection_id)
+        results = LambdaBase.get_wss_connections(connection_id)
 
         if not results:
             self.logger.error("WebSocket connection not found")
@@ -144,7 +139,7 @@ class Resources(LambdaBase):
             }
 
         method = self._get_http_method(event)
-        setting, function = SilvaEngineDynamoDBBase.get_function(
+        setting, function = LambdaBase.get_function(
             endpoint_id, funct, api_key=api_key, method=method
         )
 
@@ -166,7 +161,7 @@ class Resources(LambdaBase):
         path_parameters = event.get("pathParameters", {})
         request_context = event.get("requestContext", {})
         method = self._get_http_method(event)
-        setting, function = SilvaEngineDynamoDBBase.get_function(
+        setting, function = LambdaBase.get_function(
             endpoint_id, function_name, api_key=api_key, method=method
         )
 
@@ -187,7 +182,11 @@ class Resources(LambdaBase):
         if self._is_authorization_event(event):
             if auth_required:
                 try:
-                    return self._handle_authorize(event, context, "authorize")
+                    return self._handle_authorize(
+                        event, 
+                        context, 
+                        self.settings.get("authorizer_authorize_function_name", "authorize")
+                    )
                 except Exception as e:
                     raise e
 
@@ -195,16 +194,14 @@ class Resources(LambdaBase):
         
         if event.get("body") and auth_required:
             event.update(
-                self._handle_authorize(event, context, "verify_permission")
+                self._handle_authorize(
+                    event, 
+                    context, 
+                    self.settings.get("authorizer_verify_permission_function_name", "verify_permission")
+                )
             )
 
         return self._invoke_function(event, context, function, params, setting)
-
-    def _remove_expired_connections(self, endpoint_id, email):
-        # Remove inactive connections with filters
-        SilvaEngineDynamoDBBase.delete_inactive_wss_connections(
-            endpoint_id, pendulum.now("UTC").subtract(days=1), email
-        )
 
     def _extract_event_data(
         self, event: Dict[str, Any]
@@ -259,12 +256,8 @@ class Resources(LambdaBase):
             self._initialize(event)
 
         return Utility.import_dynamically(
-            module_name=self.settings.get(
-                "cognito_hooks_module_name", "event_triggers"
-            ),
-            function_name=self.settings.get(
-                "cognito_hooks_function_name", "pre_token_generate"
-            ),
+            module_name=self.settings.get("cognito_hooks_module_name", "event_triggers"),
+            function_name=self.settings.get("cognito_hooks_function_name", "pre_token_generate"),
             class_name=self.settings.get("cognito_hooks_class_name", "Cognito"),
             constructor_parameters={"logger": self.logger, **self.settings},
         )(event, context)
@@ -307,21 +300,19 @@ class Resources(LambdaBase):
             "function": function.function,
         }
 
-    def _handle_authorize(
-        self, event: Dict[str, Any], context: Any, action: str
-    ) -> Any:
+    def _handle_authorize(self, event: Dict[str, Any], context: Any, action: str) -> Any:
         """Dynamically handle authorization and permission checks."""
         fn = Utility.import_dynamically(
-            module_name="silvaengine_authorizer",
+            module_name=self.settings.get("authorizer_module_name", "silvaengine_authorizer"),
             function_name=action,
-            class_name="Authorizer",
+            class_name=self.settings.get("authorizer_class_name", "Authorizer"),
             constructor_parameters={"logger": self.logger},
         )
 
         if callable(fn):
-            if action == "authorize":
+            if action == self.settings.get("authorizer_authorize_function_name", "authorize"):
                 return fn(event, context)
-            elif action == "verify_permission":
+            elif action == self.settings.get("authorizer_verify_permission_function_name", "verify_permission"):
                 return fn(event, context)
 
     def _invoke_function(
@@ -388,7 +379,7 @@ class Resources(LambdaBase):
     def _get_setting_index(self, event: Dict[str, Any]) -> str:
         """Get the appropriate setting index based on the event data."""
         if self._is_cognito_trigger(event):
-            settings = SilvaEngineDynamoDBBase.get_setting("general")
+            settings = LambdaBase.get_setting("general")
             return settings.get(event.get("userPoolId", ""), "")
         elif event.get("requestContext") and event.get("pathParameters"):
             request_context, path_parameters = (
@@ -400,4 +391,4 @@ class Resources(LambdaBase):
 
     def _initialize(self, event: Dict[str, Any]) -> None:
         """Load settings from configuration data."""
-        self.settings = SilvaEngineDynamoDBBase.get_setting(self._get_setting_index(event))
+        self.settings = LambdaBase.get_setting(self._get_setting_index(event))
