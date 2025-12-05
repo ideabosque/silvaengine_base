@@ -163,6 +163,13 @@ class Resources(LambdaBase):
         """
         api_key, endpoint_id, function_name, params = self._extract_event_data(event)
 
+        self.logger.info(f">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+        self.logger.info(f"HTTP request api key: {api_key}")
+        self.logger.info(f"HTTP request endpoint id: {endpoint_id}")
+        self.logger.info(f"HTTP request function name: {function_name}")
+        self.logger.info(f"HTTP request params: {params}")
+        self.logger.info(f"<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
+
         if not self.settings:
             self._initialize(event)
 
@@ -388,7 +395,7 @@ class Resources(LambdaBase):
     def _get_setting_index(self, event: Dict[str, Any]) -> str:
         """Get the appropriate setting index based on the event data."""
         try:
-            if event.get("triggerSource") and event.get("userPoolId"):
+            if self._is_cognito_trigger(event):
                 settings = SilvaEngineDynamoDBBase.get_setting("general")
                 return settings.get(event.get("userPoolId", ""), "")
             elif event.get("requestContext") and event.get("pathParameters"):
