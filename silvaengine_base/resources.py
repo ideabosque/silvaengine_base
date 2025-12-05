@@ -49,7 +49,7 @@ class Resources(LambdaBase):
         if route_key == "$connect":
             self.logger.info(f"WebSocket connected: {connection_id}")
 
-            if self._is_request_event(event):
+            if self._is_authorization_event(event):
                 return self._handle_authorize(event, context, "authorize")
 
             endpoint_id = event.get("queryStringParameters", {}).get("endpointId")
@@ -191,14 +191,17 @@ class Resources(LambdaBase):
         )
 
         # Add authorization for http event
-        if function and function.config and function.config.auth_required:
-            if self._is_request_event(event):
+        auth_required = bool(function and function.config and function.config.auth_required)
+
+        if self._is_authorization_event(event):
+            if auth_required:
                 return self._handle_authorize(event, context, "authorize")
-            
-            if event.get("body"):
-                event.update(
-                    self._handle_authorize(event, context, "verify_permission")
-                )
+            raise Exception("authorizer function is required")
+        
+        if event.get("body") and auth_required:
+            event.update(
+                self._handle_authorize(event, context, "verify_permission")
+            )
 
         return self._invoke_function(event, context, function, params, setting)
 
@@ -362,7 +365,7 @@ class Resources(LambdaBase):
             if len(exception.args) > 1 and isinstance(exception.args[1], int):
                 status_code = exception.args[1]
 
-        if self._is_request_event(event):
+        if self._is_authorization_event(event):
             return self._handle_authorizer_failure(event, str(message))
 
         return self._generate_response(status_code, str(message))
@@ -396,9 +399,9 @@ class Resources(LambdaBase):
             stage=request_context.get("stage"),
         ).authorize(is_allow=False, context={"error_message": message})
 
-    def _is_request_event(self, event: Dict[str, Any]) -> bool:
+    def _is_authorization_event(self, event: Dict[str, Any]) -> bool:
         """Check if the event is a request event."""
-        return bool(str(event.get("type")).strip().lower() == "request")
+        return bool(str(event.get("type")).strip().upper() in ["REQUEST", "TOKEN"])
 
     def _is_cognito_trigger(self, event: Dict[str, Any]) -> bool:
         """Check if the event is a Cognito trigger."""
