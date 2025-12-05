@@ -128,35 +128,54 @@ class LambdaBase:
         :param method: The HTTP method if applicable.
         :return: A tuple containing the merged settings and the function object.
         """
-        endpoint = EndpointModel.get(endpoint_id) if endpoint_id != "0" else None
-        endpoint_id = endpoint_id if (endpoint and endpoint.special_connection) else "1"
-        connection = ConnectionModel.get(endpoint_id, api_key)
-        functions = [f for f in connection.functions if f.function == function_name]
+        try:
+            effective_endpoint_id = endpoint_id
+            if endpoint_id != "0":
+                try:
+                    endpoint = EndpointModel.get(endpoint_id)
+                    if not endpoint.special_connection:
+                        effective_endpoint_id = "1"
+                except Exception:
+                    effective_endpoint_id = "1"
+            else:
+                effective_endpoint_id = "1"
 
-        if not functions:
-            raise ValueError(
-                f"Cannot find the function({function_name}) with endpoint_id({endpoint_id}) and api_key({api_key})."
+            connection = ConnectionModel.get(effective_endpoint_id, api_key)
+            
+            functions = next((f for f in connection.functions if f.function == function_name), None)
+
+            if not functions:
+                raise ValueError(
+                    f"Cannot find the function({function_name}) with endpoint_id({effective_endpoint_id}) and api_key({api_key})."
+                )
+
+            function = FunctionModel.get(
+                functions.aws_lambda_arn, functions.function
             )
 
-        function = FunctionModel.get(functions[0].aws_lambda_arn, functions[0].function)
+            if function is None:
+                raise ValueError(
+                    "Cannot locate the function!! Please check the path and parameters."
+                )
 
-        if function is None:
-            raise ValueError(
-                "Cannot locate the function!! Please check the path and parameters."
-            )
+            if method and method not in function.config.methods:
+                raise ValueError(
+                    f"The function({function_name}) doesn't support the method({method})."
+                )
 
-        # Merge settings from connection and function, connection settings override function settings
-        setting = {
-            **cls.get_setting(function.config.setting),
-            **(cls.get_setting(function.setting) if function.setting else {}),
-        }
-
-        if method and method not in function.config.methods:
-            raise ValueError(
-                f"The function({function_name}) doesn't support the method({method})."
-            )
-
-        return setting, function
+            # Merge settings from connection and function, connection settings override function settings
+            function_setting = cls.get_setting(function.config.setting) if function.config.setting else {}
+            connection_setting = cls.get_setting(functions.setting) if functions.setting else {}
+            setting = {
+                **function_setting,
+                **connection_setting,
+            }
+            
+            return setting, function
+        except Exception as e:
+            if isinstance(e, ValueError):
+                raise
+            raise ValueError(f"Failed to get function {function_name}: {str(e)}")
 
     @classmethod
     def save_wss_connection(cls, endpoint_id: str, connection_id: str, api_key: str, area: str, data: Dict[str, Any]) -> Dict[str, Any]:
