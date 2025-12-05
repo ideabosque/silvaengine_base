@@ -405,7 +405,7 @@ class Resources(LambdaBase):
         }
 
         if event.get("body"):
-            payload.update(event.get("body"))
+            payload.update(Utility.json_loads(event.get("body")))
         # self.logger.info(f"Invoking function >>>>>> {payload}")
         # self.logger.info(f"Invoking function >>>>>> type is {type(payload)}")
         # self.logger.info(f"Invoking function {setting}")
