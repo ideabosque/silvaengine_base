@@ -394,7 +394,10 @@ class Resources(LambdaBase):
                 "Access-Control-Allow-Origin": "*",
                 "Content-Type": "application/json",
             },
-            "body": Utility.json_dumps({"error": body}),
+            "body": {
+                "error": body,
+                "message": "Internal Server Error",
+            },
         }
 
     def _handle_authorizer_failure(
