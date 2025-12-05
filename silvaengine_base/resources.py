@@ -161,50 +161,54 @@ class Resources(LambdaBase):
         """
         Process regular HTTP API requests when the event is not related to WebSocket.
         """
-        if not self.settings:
-            self._initialize(event)
+        try:
+            if not self.settings:
+                self._initialize(event)
 
-        if self._is_cognito_trigger(event):
-            return self._handle_cognito_trigger(event, context)
-        
-        api_key, endpoint_id, function_name, params = self._extract_event_data(event)
-
-        self.logger.info(f">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
-        self.logger.info(f"HTTP request api key: {api_key}")
-        self.logger.info(f"HTTP request endpoint id: {endpoint_id}")
-        self.logger.info(f"HTTP request function name: {function_name}")
-        self.logger.info(f"HTTP request params: {params}")
-        self.logger.info(f"<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
-
-        path_parameters = event.get("pathParameters", {})
-        request_context = event.get("requestContext", {})
-        method = self._get_http_method(event)
-        setting, function = SilvaEngineDynamoDBBase.get_function(
-            endpoint_id, function_name, api_key=api_key, method=method
-        )
-
-        self._validate_function_area(params, function)
-        event.update(
-            self._prepare_event(
-                event.get("headers", {}),
-                path_parameters.get("area"),
-                request_context,
-                function,
-                endpoint_id,
-            )
-        )
-
-        # Add authorization for http event
-        if function and function.config and function.config.auth_required:
-            if self._is_request_event(event):
-                return self._handle_authorize(event, context, "authorize")
+            if self._is_cognito_trigger(event):
+                return self._handle_cognito_trigger(event, context)
             
-            if event.get("body"):
-                event.update(
-                    self._handle_authorize(event, context, "verify_permission")
-                )
+            api_key, endpoint_id, function_name, params = self._extract_event_data(event)
 
-        return self._invoke_function(event, context, function, params, setting)
+            self.logger.info(f">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+            self.logger.info(f"HTTP request api key: {api_key}")
+            self.logger.info(f"HTTP request endpoint id: {endpoint_id}")
+            self.logger.info(f"HTTP request function name: {function_name}")
+            self.logger.info(f"HTTP request params: {params}")
+            self.logger.info(f"<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
+
+            path_parameters = event.get("pathParameters", {})
+            request_context = event.get("requestContext", {})
+            method = self._get_http_method(event)
+            setting, function = SilvaEngineDynamoDBBase.get_function(
+                endpoint_id, function_name, api_key=api_key, method=method
+            )
+
+            self._validate_function_area(params, function)
+            event.update(
+                self._prepare_event(
+                    event.get("headers", {}),
+                    path_parameters.get("area"),
+                    request_context,
+                    function,
+                    endpoint_id,
+                )
+            )
+
+            # Add authorization for http event
+            if function and function.config and function.config.auth_required:
+                if self._is_request_event(event):
+                    return self._handle_authorize(event, context, "authorize")
+                
+                if event.get("body"):
+                    event.update(
+                        self._handle_authorize(event, context, "verify_permission")
+                    )
+
+            return self._invoke_function(event, context, function, params, setting)
+        except Exception as e:
+            self.logger.error(f"Error processing HTTP request: {str(e)}")
+            raise e
 
     def _remove_expired_connections(self, endpoint_id, email):
         # Remove inactive connections with filters
@@ -216,48 +220,52 @@ class Resources(LambdaBase):
         self, event: Dict[str, Any]
     ) -> Tuple[str, str, str, Dict[str, Any]]:
         """Extract and organize event-related data."""
-        if not isinstance(event, dict):
-            raise ValueError("Event must be a dictionary")
+        try:
+            if not isinstance(event, dict):
+                raise ValueError("Event must be a dictionary")
 
-        # headers = event.get("headers", {}) or {}
-        request_context = event.get("requestContext", {}) or {}
-        path_parameters = event.get("pathParameters", {}) or {}
-        identity = request_context.get("identity", {}) or {}
-        api_key = identity.get("apiKey", "#####")
-        area = path_parameters.get("area")
+            # headers = event.get("headers", {}) or {}
+            request_context = event.get("requestContext", {}) or {}
+            path_parameters = event.get("pathParameters", {}) or {}
+            identity = request_context.get("identity", {}) or {}
+            api_key = identity.get("apiKey", "#####")
+            area = path_parameters.get("area")
 
-        if not area:
-            raise ValueError("`area` is required in path parameters")
+            if not area:
+                raise ValueError("`area` is required in path parameters")
 
-        endpoint_id = path_parameters.get("endpoint_id", "")
+            endpoint_id = path_parameters.get("endpoint_id", "")
 
-        if not endpoint_id:
-            raise ValueError("`endpoint_id` is required in path parameters")
+            if not endpoint_id:
+                raise ValueError("`endpoint_id` is required in path parameters")
 
-        proxy = path_parameters.get("proxy", "")
+            proxy = path_parameters.get("proxy", "")
 
-        if not proxy:
-            raise ValueError("`proxy` is required in path parameters")
+            if not proxy:
+                raise ValueError("`proxy` is required in path parameters")
 
-        query_params = event.get("queryStringParameters")
+            query_params = event.get("queryStringParameters")
 
-        if query_params is None:
-            query_params = {}
+            if query_params is None:
+                query_params = {}
 
-        function_name = proxy.split("/")[0] if proxy else ""
+            function_name = proxy.split("/")[0] if proxy else ""
 
-        if not function_name:
-            raise ValueError("missing `function_name` in request")
+            if not function_name:
+                raise ValueError("missing `function_name` in request")
 
-        if "/" in proxy:
-            path = proxy.split("/", 1)[1]
-            query_params["path"] = path
+            if "/" in proxy:
+                path = proxy.split("/", 1)[1]
+                query_params["path"] = path
 
-        params = {k: v for k, v in query_params.items()}
-        params["endpoint_id"] = endpoint_id
-        params["area"] = area
+            params = {k: v for k, v in query_params.items()}
+            params["endpoint_id"] = endpoint_id
+            params["area"] = area
 
-        return api_key, endpoint_id, function_name, params
+            return api_key, endpoint_id, function_name, params
+        except ValueError as e:
+            self.logger.error(f"Error extracting event data: {str(e)}")
+            raise e
 
     def _handle_cognito_trigger(self, event: Dict[str, Any], context: Any) -> Any:
         """Handle Cognito triggers."""
@@ -356,15 +364,15 @@ class Resources(LambdaBase):
         self, exception: Exception, event: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Handle and log exceptions."""
-        log = traceback.format_exc()
-        self.logger.exception(log)
+        status_code = 500
+        message = traceback.format_exc()
+        self.logger.exception(message)
 
-        message = exception.args[0] if exception.args else log
-        status_code = (
-            exception.args[1]
-            if len(exception.args) > 1 and isinstance(exception.args[1], int)
-            else 500
-        )
+        if exception.args:
+            message = exception.args[0]
+
+            if len(exception.args) > 1 and isinstance(exception.args[1], int):
+                status_code = exception.args[1]
 
         if self._is_request_event(event):
             return self._handle_authorizer_failure(event, message)
