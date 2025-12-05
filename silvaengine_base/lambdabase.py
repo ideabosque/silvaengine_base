@@ -159,7 +159,7 @@ class LambdaBase:
         return setting, function
 
     @classmethod
-    def save_wss_connection(cls, endpoint_id: str, connection_id: str, api_key: str, area: str, data: Dict[str, Any]) -> Dict[str, Any] | None:
+    def save_wss_connection(cls, endpoint_id: str, connection_id: str, api_key: str, area: str, data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Save a WSS connection model to DynamoDB.
         :param endpoint_id: The ID of the endpoint.
