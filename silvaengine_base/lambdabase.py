@@ -25,7 +25,10 @@ class LambdaBase:
         """
 
         def handler(event: dict, context: Any):
-            return cls(*args, **kwargs).handle(event, context)
+            r = cls(*args, **kwargs).handle(event, context)
+            print(">>>>>>>>>>>>")
+            print(r)
+            return r
 
         return handler
 
