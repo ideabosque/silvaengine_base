@@ -381,8 +381,9 @@ class Resources(LambdaBase):
             if len(exception.args) > 1 and isinstance(exception.args[1], int):
                 status_code = exception.args[1]
 
-        # if self._is_request_event(event):
-        #     return self._handle_authorizer_failure(event, str(message))
+        self.logger.info(f"status_code: {status_code}, message: {message}")
+        if self._is_request_event(event):
+            return self._handle_authorizer_failure(event, str(message))
 
         return self._generate_response(status_code, str(message))
     
