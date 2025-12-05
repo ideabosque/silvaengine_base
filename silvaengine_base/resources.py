@@ -57,17 +57,12 @@ class Resources(LambdaBase):
 
             if api_key is not None and endpoint_id is not None:
                 LambdaBase.save_wss_connection(
-                    endpoint_id,
-                    connection_id,
-                    **{
-                        "api_key": api_key,
-                        "area": area,
-                        "data": event.get("requestContext", {}).get("authorizer", {}),
-                        "updated_at": pendulum.now("UTC"),
-                        "created_at": pendulum.now("UTC"),
-                    },
+                    endpoint_id=endpoint_id,
+                    connection_id=connection_id,
+                    area=area,
+                    api_key=api_key,
+                    data=event.get("requestContext", {}).get("authorizer", {})
                 )
-
                 LambdaBase.remove_expired_connections(
                     endpoint_id,
                     event.get("requestContext", {}).get("authorizer", {}).get("email"),
