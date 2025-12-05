@@ -207,7 +207,6 @@ class Resources(LambdaBase):
 
             return self._invoke_function(event, context, function, params, setting)
         except Exception as e:
-            self.logger.error(f"Error processing HTTP request: {str(e)}")
             raise e
 
     def _remove_expired_connections(self, endpoint_id, email):
@@ -264,21 +263,26 @@ class Resources(LambdaBase):
 
             return api_key, endpoint_id, function_name, params
         except ValueError as e:
-            self.logger.error(f"Error extracting event data: {str(e)}")
             raise e
 
     def _handle_cognito_trigger(self, event: Dict[str, Any], context: Any) -> Any:
         """Handle Cognito triggers."""
-        return Utility.import_dynamically(
-            module_name=self.settings.get(
-                "cognito_hooks_module_name", "event_triggers"
-            ),
-            function_name=self.settings.get(
-                "cognito_hooks_function_name", "pre_token_generate"
-            ),
-            class_name=self.settings.get("cognito_hooks_class_name", "Cognito"),
-            constructor_parameters={"logger": self.logger, **self.settings},
-        )(event, context)
+        try:
+            if not self.settings:
+                self._initialize(event)
+
+            return Utility.import_dynamically(
+                module_name=self.settings.get(
+                    "cognito_hooks_module_name", "event_triggers"
+                ),
+                function_name=self.settings.get(
+                    "cognito_hooks_function_name", "pre_token_generate"
+                ),
+                class_name=self.settings.get("cognito_hooks_class_name", "Cognito"),
+                constructor_parameters={"logger": self.logger, **self.settings},
+            )(event, context)
+        except Exception as e:
+            raise e
 
     def _get_http_method(self, event: Dict[str, Any]) -> str:
         """Get the HTTP method from the event."""
@@ -347,18 +351,21 @@ class Resources(LambdaBase):
         setting: Dict[str, Any],
     ) -> Dict[str, Any]:
         """Invoke the appropriate function based on event data."""
-        if event.get("requestContext") == "POST":
-            params.update(Utility.json_loads(event.get("requestContext")))
+        try:
+            if str(event.get("requestContext")).strip().upper() == "POST":
+                params.update(Utility.json_loads(event.get("requestContext")))
 
-        if event.get("body"):
-            params.update(Utility.json_loads(event.get("body")))
+            if event.get("body"):
+                params.update(Utility.json_loads(event.get("body")))
 
-        return Utility.import_dynamically(
-            module_name=function.config.module_name,
-            function_name=function.function,
-            class_name=function.config.class_name,
-            constructor_parameters={"logger": self.logger, **setting},
-        )(**params)
+            return Utility.import_dynamically(
+                module_name=function.config.module_name,
+                function_name=function.function,
+                class_name=function.config.class_name,
+                constructor_parameters={"logger": self.logger, **setting},
+            )(**params)
+        except Exception as e:
+            raise e
 
     def _handle_exception(
         self, exception: Exception, event: Dict[str, Any]
