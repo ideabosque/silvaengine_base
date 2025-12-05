@@ -265,7 +265,7 @@ class Resources(LambdaBase):
             return api_key, endpoint_id, function_name, params
         except ValueError as e:
             self.logger.error(f"Error extracting event data: {str(e)}")
-            raise Exception(e)
+            raise e
 
     def _handle_cognito_trigger(self, event: Dict[str, Any], context: Any) -> Any:
         """Handle Cognito triggers."""
@@ -375,9 +375,9 @@ class Resources(LambdaBase):
                 status_code = exception.args[1]
 
         if self._is_request_event(event):
-            return self._handle_authorizer_failure(event, message)
+            return self._handle_authorizer_failure(event, str(message))
 
-        return self._generate_response(status_code, message)
+        return self._generate_response(status_code, str(message))
     
     def _generate_response(self, status_code: int, body: str) -> Dict[str, Any]:
         """Generate a standard HTTP response."""
