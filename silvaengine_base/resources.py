@@ -166,8 +166,8 @@ class Resources(LambdaBase):
         if not self.settings:
             self._initialize(event)
 
-        # if self._is_cognito_trigger(event):
-        #     return self._handle_cognito_trigger(event, context)
+        if self._is_cognito_trigger(event):
+            return self._handle_cognito_trigger(event, context)
 
         path_parameters = event.get("pathParameters", {})
         request_context = event.get("requestContext", {})
@@ -238,7 +238,7 @@ class Resources(LambdaBase):
 
     def _handle_cognito_trigger(self, event: Dict[str, Any], context: Any) -> Any:
         """Handle Cognito triggers."""
-        result = Utility.import_dynamically(
+        return Utility.import_dynamically(
             module_name=self.settings.get(
                 "cognito_hooks_module_name", "event_triggers"
             ),
@@ -248,7 +248,6 @@ class Resources(LambdaBase):
             class_name=self.settings.get("cognito_hooks_class_name", "Cognito"),
             constructor_parameters={"logger": self.logger, **self.settings},
         )(event, context)
-        return result
 
     def _get_http_method(self, event: Dict[str, Any]) -> str:
         """Get the HTTP method from the event."""
