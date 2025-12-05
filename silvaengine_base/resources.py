@@ -402,7 +402,7 @@ class Resources(LambdaBase):
         payload = {
             "params": params,
             "body": event.get("body"),
-            "context": json.dumps(event.get("requestContext")),
+            "context": event.get("requestContext"),
         }
         # self.logger.info(f"Invoking function >>>>>> {payload}")
         # self.logger.info(f"Invoking function >>>>>> type is {type(payload)}")
