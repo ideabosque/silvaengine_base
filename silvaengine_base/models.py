@@ -278,7 +278,7 @@ class ConfigModel(BaseModel):
 
     setting_id = UnicodeAttribute(hash_key=True)
     variable = UnicodeAttribute()
-    value = JSONAttribute()
+    value = AnyAttribute()
 
 
 class ConnectionIdIndex(GlobalSecondaryIndex):
