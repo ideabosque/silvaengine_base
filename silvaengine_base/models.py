@@ -12,10 +12,8 @@ from pynamodb.attributes import (
     JSONAttribute,
     UTCDateTimeAttribute
 )
-from pynamodb.types import (
-    STRING, NUMBER, BOOLEAN, LIST, MAP, NULL, BINARY,
-    TypeSerializer, TypeDeserializer
-)
+from pynamodb.constants import STRING, NUMBER, BOOLEAN, LIST, MAP, NULL, BINARY
+from pynamodb.types import TypeSerializer, TypeDeserializer
 import os
 
 
