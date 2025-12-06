@@ -251,9 +251,9 @@ class Resources(LambdaBase):
             self._initialize(event)
 
         return Utility.import_dynamically(
-            module_name=self.settings.get("cognito_hooks_module_name", "event_triggers"),
-            function_name=self.settings.get("cognito_hooks_function_name", "pre_token_generate"),
-            class_name=self.settings.get("cognito_hooks_class_name", "Cognito"),
+            module_name=self.settings.get("cognito_hook_module_name", "event_triggers"),
+            function_name=self.settings.get("cognito_hook_function_name", "pre_token_generate"),
+            class_name=self.settings.get("cognito_hook_class_name", "Cognito"),
             constructor_parameters={"logger": self.logger, **self.settings},
         )(event, context)
 
