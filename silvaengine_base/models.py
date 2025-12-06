@@ -4,6 +4,7 @@ from __future__ import print_function
 from pynamodb.indexes import AllProjection, GlobalSecondaryIndex
 from pynamodb.models import Model
 from pynamodb.attributes import (
+    Attribute,
     BooleanAttribute,
     ListAttribute,
     MapAttribute,
@@ -11,7 +12,53 @@ from pynamodb.attributes import (
     JSONAttribute,
     UTCDateTimeAttribute
 )
+from pynamodb.types import (
+    STRING, NUMBER, BOOLEAN, LIST, MAP, NULL, BINARY,
+    TypeSerializer, TypeDeserializer
+)
 import os
+
+
+class AnyAttribute(Attribute):
+    """
+    PynamoDB attribute that supports any Python type (compatible with all DynamoDB native types)
+    Supports: str/int/float/bool/list/dict/None/bytes, etc.
+    """
+    # Initialize type serializer/deserializer (reusing PynamoDB built-in tools)
+    _serializer = TypeSerializer()
+    _deserializer = TypeDeserializer()
+
+    def serialize(self, value):
+        """
+        Serialize Python objects to DynamoDB native format
+        :param value: Any Python object (str/int/dict/list, etc.)
+        :return: DynamoDB format dictionary (e.g., {'S': 'hello'} / {'L': [...]})
+        """
+        # Handle None values
+        if value is None:
+            return {NULL: True}
+        
+        # Reuse PynamoDB built-in serializer, automatically adapts to types
+        try:
+            return self._serializer.serialize(value)
+        except TypeError as e:
+            raise ValueError(f"Unsupported type: {type(value)}, error: {e}")
+
+    def deserialize(self, value):
+        """
+        Deserialize DynamoDB format to Python objects
+        :param value: DynamoDB native format (e.g., {'S': 'hello'})
+        :return: Corresponding Python object
+        """
+        # Handle null values
+        if value.get(NULL):
+            return None
+        
+        # Reuse built-in deserializer
+        try:
+            return self._deserializer.deserialize(value)
+        except KeyError as e:
+            raise ValueError(f"Invalid DynamoDB type: {value}, error: {e}")
 
 
 class BaseModel(Model):
