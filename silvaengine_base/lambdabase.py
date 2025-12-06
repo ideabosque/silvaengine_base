@@ -110,7 +110,7 @@ class LambdaBase:
             return {}
         
         try:
-            return {item.variable: item.value for item in ConfigModel.query_raw(setting_id).items}
+            return {item["variable"]: item["value"] for item in ConfigModel.query_raw(setting_id)["items"]}
         except Exception as e:
             if isinstance(e, ValueError):
                 raise e
