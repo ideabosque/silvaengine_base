@@ -302,7 +302,7 @@ class Resources(LambdaBase):
             module_name=self.settings.get("authorizer_module_name", "silvaengine_authorizer"),
             function_name=action,
             class_name=self.settings.get("authorizer_class_name", "Authorizer"),
-            constructor_parameters={"logger": self.logger},
+            constructor_parameters={"logger": self.logger, **self.settings},
         )
 
         if callable(fn):
