@@ -12,8 +12,6 @@ from pynamodb.attributes import (
     JSONAttribute,
     UTCDateTimeAttribute
 )
-from pynamodb.constants import STRING, NUMBER, BOOLEAN, LIST, MAP, NULL, BINARY
-from pynamodb.types import TypeSerializer, TypeDeserializer
 import os
 
 
@@ -22,9 +20,6 @@ class AnyAttribute(Attribute):
     PynamoDB attribute that supports any Python type (compatible with all DynamoDB native types)
     Supports: str/int/float/bool/list/dict/None/bytes, etc.
     """
-    # Initialize type serializer/deserializer (reusing PynamoDB built-in tools)
-    _serializer = TypeSerializer()
-    _deserializer = TypeDeserializer()
 
     def serialize(self, value):
         """
@@ -32,13 +27,9 @@ class AnyAttribute(Attribute):
         :param value: Any Python object (str/int/dict/list, etc.)
         :return: DynamoDB format dictionary (e.g., {'S': 'hello'} / {'L': [...]})
         """
-        # Handle None values
-        if value is None:
-            return {NULL: True}
-        
         # Reuse PynamoDB built-in serializer, automatically adapts to types
         try:
-            return self._serializer.serialize(value)
+            return value
         except TypeError as e:
             raise ValueError(f"Unsupported type: {type(value)}, error: {e}")
 
@@ -48,13 +39,9 @@ class AnyAttribute(Attribute):
         :param value: DynamoDB native format (e.g., {'S': 'hello'})
         :return: Corresponding Python object
         """
-        # Handle null values
-        if value.get(NULL):
-            return None
-        
         # Reuse built-in deserializer
         try:
-            return self._deserializer.deserialize(value)
+            return value
         except KeyError as e:
             raise ValueError(f"Invalid DynamoDB type: {value}, error: {e}")
 
