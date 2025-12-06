@@ -18,6 +18,9 @@ class Resources(LambdaBase):
 
     def handle(self, event: Dict[str, Any], context: Any) -> Any:
         try:
+            self.logger.info(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+            self.logger.info(f"Event received: {event}")
+            self.logger.info("======================================")
             # Check if the event is from a WebSocket connection
             request_context = event.get("requestContext", {})
             connection_id = request_context.get("connectionId")
@@ -151,6 +154,7 @@ class Resources(LambdaBase):
 
         if self._is_cognito_trigger(event):
             self.logger.info(f"Cognito trigger event: {event}")
+            self.logger.info("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
             return self._handle_cognito_trigger(event, context)
         
         api_key, endpoint_id, function_name, params = self._extract_event_data(event)
