@@ -3,6 +3,7 @@
 __author__ = "bibow"
 
 import boto3, os, pendulum
+from boto3.dynamodb.conditions import Key
 from typing import Any, Dict, Tuple, List
 from silvaengine_utility import Utility
 from .models import EndpointModel, ConnectionModel, FunctionModel, HookModel, ConfigModel, WSSConnectionModel
