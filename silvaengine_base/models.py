@@ -3,7 +3,6 @@
 from __future__ import print_function
 from pynamodb.indexes import AllProjection, GlobalSecondaryIndex
 from pynamodb.attributes import (
-    Attribute,
     BooleanAttribute,
     ListAttribute,
     MapAttribute,
@@ -85,7 +84,7 @@ class ConfigModel(BaseModel):
 
     setting_id = UnicodeAttribute(hash_key=True)
     variable = UnicodeAttribute()
-    value = Attribute()
+    value = JSONAttribute()
 
 
 class ConnectionIdIndex(GlobalSecondaryIndex):
