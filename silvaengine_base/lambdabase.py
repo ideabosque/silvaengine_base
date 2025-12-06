@@ -110,7 +110,13 @@ class LambdaBase:
             return {}
         
         try:
-            return {item["variable"]: item["value"] for item in ConfigModel.query_raw(setting_id)["items"]}
+            result = cls.dynamodb.Table("se-configdata").query(
+                KeyConditionExpression=Key("setting_id").eq(setting_id)
+            )
+            if result["Count"] == 0:
+                raise ValueError(f"Cannot find values with the setting_id ({setting_id}).")
+
+            return {item["variable"]: item["value"] for item in result["Items"]}
         except Exception as e:
             if isinstance(e, ValueError):
                 raise e
