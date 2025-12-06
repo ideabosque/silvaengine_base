@@ -11,7 +11,7 @@ from pynamodb.attributes import (
     JSONAttribute,
     UTCDateTimeAttribute
 )
-from silvaengine_base.models import BaseModel
+from silvaengine_dynamodb_base.models import BaseModel
 
 class EndpointModel(BaseModel):
     class Meta(BaseModel.Meta):
