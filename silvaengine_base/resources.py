@@ -150,6 +150,7 @@ class Resources(LambdaBase):
             self._initialize(event)
 
         if self._is_cognito_trigger(event):
+            self.logger.info(f"Cognito trigger event: {event}")
             return self._handle_cognito_trigger(event, context)
         
         api_key, endpoint_id, function_name, params = self._extract_event_data(event)
