@@ -8,6 +8,7 @@ from pynamodb.attributes import (
     ListAttribute,
     MapAttribute,
     UnicodeAttribute,
+    JSONAttribute,
     UTCDateTimeAttribute
 )
 import os
@@ -91,7 +92,7 @@ class ConfigModel(BaseModel):
 
     setting_id = UnicodeAttribute(hash_key=True)
     variable = UnicodeAttribute()
-    value = UnicodeAttribute()
+    value = JSONAttribute()
 
 
 class ConnectionIdIndex(GlobalSecondaryIndex):
