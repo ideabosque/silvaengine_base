@@ -1,6 +1,10 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 from __future__ import print_function
+from enum import Enum
+from datetime import datetime, date
+from typing import Any, Dict, Union, Type
+from silvaengine_utility import Utility
 from pynamodb.indexes import AllProjection, GlobalSecondaryIndex
 from pynamodb.models import Model
 from pynamodb.attributes import (
@@ -12,38 +16,188 @@ from pynamodb.attributes import (
     JSONAttribute,
     UTCDateTimeAttribute
 )
-import os
+import os, decimal, pickle
 
 
-class AnyAttribute(Attribute):
+class AnyAttribute(Attribute[Any]):
     """
-    PynamoDB attribute that supports any Python type (compatible with all DynamoDB native types)
-    Supports: str/int/float/bool/list/dict/None/bytes, etc.
+    Universal Attribute that can store and retrieve any data type supported by DynamoDB
     """
-
-    def serialize(self, value):
+    
+    def serialize(self, value: Any) -> Dict[str, Any]:
         """
-        Serialize Python objects to DynamoDB native format
-        :param value: Any Python object (str/int/dict/list, etc.)
-        :return: DynamoDB format dictionary (e.g., {'S': 'hello'} / {'L': [...]})
+        Serialize Python values to DynamoDB format
         """
-        # Reuse PynamoDB built-in serializer, automatically adapts to types
-        try:
+        # Handle None
+        if value is None:
+            return {"NULL": True}
+        
+        # Handle boolean values
+        elif isinstance(value, bool):
+            return {"BOOL": value}
+        
+        # Handle numbers
+        elif isinstance(value, (int, float, decimal.Decimal)):
+            # Preserve Decimal precision
+            if isinstance(value, decimal.Decimal):
+                num_str = str(value)
+            else:
+                num_str = str(value)
+            return {"N": num_str}
+        
+        # Handle strings
+        elif isinstance(value, str):
+            return {"S": value}
+        
+        # Handle binary data
+        elif isinstance(value, bytes):
+            return {"B": value}
+        
+        # Handle byte arrays
+        elif isinstance(value, bytearray):
+            return {"B": bytes(value)}
+        
+        # Handle lists
+        elif isinstance(value, (list, tuple)):
+            return {"L": [self.serialize(item) for item in value]}
+        
+        # Handle dictionaries
+        elif isinstance(value, dict):
+            return {"M": {k: self.serialize(v) for k, v in value.items()}}
+        
+        # Handle sets
+        elif isinstance(value, set):
+            # Check the type of elements in the set
+            if not value:  # Empty set
+                return {"L": []}
+            
+            first_item = next(iter(value))
+            
+            # Number set
+            if isinstance(first_item, (int, float, decimal.Decimal)):
+                return {"NS": [str(item) for item in value]}
+            
+            # String set
+            elif isinstance(first_item, str):
+                return {"SS": list(value)}
+            
+            # Binary set
+            elif isinstance(first_item, (bytes, bytearray)):
+                binary_items = [bytes(item) if isinstance(item, bytearray) else item 
+                              for item in value]
+                return {"BS": binary_items}
+            
+            else:
+                # Store other types of sets as lists
+                return {"L": [self.serialize(item) for item in value]}
+        
+        # Handle datetime objects
+        elif isinstance(value, (datetime, date)):
+            return {"S": value.isoformat()}
+        
+        # Handle enumerations
+        elif isinstance(value, Enum):
+            return {"S": value.value if hasattr(value, 'value') else value.name}
+        
+        # Try JSON serialization
+        else:
+            try:
+                return {"S": Utility.json_dumps(value, default=self._json_default)}
+            except:
+                # Finally try pickle serialization
+                try:
+                    pickled = pickle.dumps(value)
+                    return {"B": pickled}
+                except:
+                    raise ValueError(f"Cannot serialize value of type {type(value)}: {value}")
+    
+    def _json_default(self, obj):
+        """JSON default handler"""
+        if isinstance(obj, (datetime, date)):
+            return obj.isoformat()
+        elif isinstance(obj, decimal.Decimal):
+            return float(obj)
+        elif isinstance(obj, Enum):
+            return obj.value if hasattr(obj, 'value') else obj.name
+        elif hasattr(obj, '__dict__'):
+            return obj.__dict__
+        raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
+    
+    def deserialize(self, value: Dict[str, Any]) -> Any:
+        """
+        Deserialize DynamoDB format to Python values
+        """
+        # Deserialize based on DynamoDB data type keys
+        if "NULL" in value:
+            return None
+        
+        elif "BOOL" in value:
+            return value["BOOL"]
+        
+        elif "N" in value:
+            # Intelligently convert number types
+            num_str = value["N"]
+            return self._parse_number(num_str)
+        
+        elif "S" in value:
+            str_value = value["S"]
+            # Try parsing as datetime
+            try:
+                # Try ISO format datetime
+                return datetime.fromisoformat(str_value.replace('Z', '+00:00'))
+            except:
+                # Try JSON parsing
+                try:
+                    return Utility.json_loads(str_value, parse_float=decimal.Decimal)
+                except:
+                    return str_value
+        
+        elif "B" in value:
+            binary_data = value["B"]
+            # Try unpickling
+            try:
+                return pickle.loads(binary_data)
+            except:
+                # Return raw binary data
+                return binary_data
+        
+        elif "L" in value:
+            return [self.deserialize(item) for item in value["L"]]
+        
+        elif "M" in value:
+            return {k: self.deserialize(v) for k, v in value["M"].items()}
+        
+        elif "NS" in value:
+            return set([self._parse_number(n) for n in value["NS"]])
+        
+        elif "SS" in value:
+            return set(value["SS"])
+        
+        elif "BS" in value:
+            return set(value["BS"])
+        
+        else:
             return value
-        except TypeError as e:
-            raise ValueError(f"Unsupported type: {type(value)}, error: {e}")
-
-    def deserialize(self, value):
+    
+    def _parse_number(self, num_str: str) -> Union[int, float, decimal.Decimal]:
         """
-        Deserialize DynamoDB format to Python objects
-        :param value: DynamoDB native format (e.g., {'S': 'hello'})
-        :return: Corresponding Python object
+        Intelligently parse number strings
         """
-        # Reuse built-in deserializer
+        # Try integer
         try:
-            return value
-        except KeyError as e:
-            raise ValueError(f"Invalid DynamoDB type: {value}, error: {e}")
+            if '.' not in num_str and 'e' not in num_str.lower():
+                return int(num_str)
+        except:
+            pass
+        
+        # Try float
+        try:
+            return float(num_str)
+        except:
+            pass
+        
+        # Finally try Decimal
+        return decimal.Decimal(num_str)
 
 
 class BaseModel(Model):
