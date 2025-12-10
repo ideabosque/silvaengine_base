@@ -10,7 +10,7 @@ from pynamodb.attributes import (
     JSONAttribute,
     UTCDateTimeAttribute
 )
-from silvaengine_dynamodb_base.models import BaseModel, RawDataMixin
+from silvaengine_dynamodb_base.models import BaseModel
 
 class EndpointModel(BaseModel):
     class Meta(BaseModel.Meta):
@@ -78,7 +78,7 @@ class HookModel(BaseModel):
     description = UnicodeAttribute()
 
 
-class ConfigModel(BaseModel, RawDataMixin):
+class ConfigModel(BaseModel):
     class Meta(BaseModel.Meta):
         abstract = True
         table_name = "se-configdata"
