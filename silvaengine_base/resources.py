@@ -251,17 +251,16 @@ class Resources(LambdaBase):
         result = {}
 
         if type(header_keys) is str:
-            header_keys = Utility.json_loads(header_keys)
-
-            if type(header_keys) is not list:
+            try:
+                header_keys = Utility.json_loads(header_keys)
+            except:
                 header_keys = header_keys.split(",")
 
         if type(header_keys) is list and len(header_keys) > 0:
             for key in header_keys:
                 key = Utility.to_snake_case(key)
                 result[key] = headers.get(key,"")
-        
-        self.logger.info(f"_extract_event_headers: {result}")
+
         return result
 
     def _handle_cognito_trigger(self, event: Dict[str, Any], context: Any) -> Any:
@@ -343,8 +342,6 @@ class Resources(LambdaBase):
 
         if event.get("body"):
             params.update(Utility.json_loads(event.get("body")))
-
-        self.logger.info(f"_invoke_function: {params}")
 
         return Utility.import_dynamically(
             module_name=function.config.module_name,
