@@ -241,6 +241,7 @@ class Resources(LambdaBase):
         headers = event.get("headers")
 
         if headers is Dict:
+            self.logger.info(f"headers: {headers}")
             params.update({
                 "custom_headers": self._extract_event_headers(headers)
             })
@@ -256,6 +257,7 @@ class Resources(LambdaBase):
             key = Utility.to_snake_case(key)
             result[key] = headers.get(key,"")
         
+        self.logger.info(f"_extract_event_headers: {headers}")
         return result
 
     def _handle_cognito_trigger(self, event: Dict[str, Any], context: Any) -> Any:
@@ -337,6 +339,8 @@ class Resources(LambdaBase):
 
         if event.get("body"):
             params.update(Utility.json_loads(event.get("body")))
+
+        self.logger.info(f"_invoke_function: {params}")
 
         return Utility.import_dynamically(
             module_name=function.config.module_name,
