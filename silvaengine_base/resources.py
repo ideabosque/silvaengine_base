@@ -239,15 +239,13 @@ class Resources(LambdaBase):
         params["area"] = area
 
         headers = event.get("headers")
-        self.logger.info(f"headers: {headers}")
+
         self.logger.info(f"headers type: {type(headers)}")
         self.logger.info(f"custom_header_keys: {self.settings.get("custom_header_keys", [])}")
 
-        if headers is dict:
+        if type(headers) is dict:
             self.logger.info(f"headers: {headers}")
-            params.update({
-                "custom_headers": self._extract_event_headers(headers)
-            })
+            params["custom_headers"] = self._extract_event_headers(headers)
 
         return api_key, endpoint_id, function_name, params
     
@@ -257,10 +255,10 @@ class Resources(LambdaBase):
         header_keys = self.settings.get("custom_header_keys", [])
         result = {}
 
-        if header_keys is str:
+        if type(header_keys) is str:
             header_keys = Utility.json_loads(header_keys)
 
-            if header_keys is not list:
+            if type(header_keys) is not list:
                 header_keys = header_keys.split(",")
 
         if header_keys is list and len(header_keys) > 0:
