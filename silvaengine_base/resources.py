@@ -238,7 +238,23 @@ class Resources(LambdaBase):
         params["endpoint_id"] = endpoint_id
         params["area"] = area
 
+        headers = event.get("headers")
+
+        if headers is Dict:
+            params.update(self._extract_event_headers(headers))
+
         return api_key, endpoint_id, function_name, params
+    
+    def _extract_event_headers(self, headers: Dict[str, Any]) -> Dict[str, Any]:
+        """Extract custom headers from the event."""
+        headers = {Utility.to_snake_case(k):v for k,v in headers.items()}
+        result = {}
+
+        for key in self.settings.get("custom_header_keys", []):
+            key = Utility.to_snake_case(key)
+            result[key] = headers.get(key,"")
+        
+        return result
 
     def _handle_cognito_trigger(self, event: Dict[str, Any], context: Any) -> Any:
         """Handle Cognito triggers."""
