@@ -254,7 +254,7 @@ class Resources(LambdaBase):
             try:
                 header_keys = Utility.json_loads(header_keys)
             except Exception:
-                header_keys = [key for key in header_keys.split(",") if key.strip()]
+                header_keys = [key for key in header_keys.split(",")]
         elif not isinstance(header_keys, list):
             header_keys = []
 
@@ -262,10 +262,17 @@ class Resources(LambdaBase):
             return result
 
         # Pre-convert header keys to snake_case for comparison
-        snake_case_keys = {Utility.to_snake_case(key.strip()): key for key in header_keys}
+        snake_case_keys = {Utility.to_snake_case(key.strip()): key for key in header_keys if key.strip()}
+        snake_case_keys_len = len(snake_case_keys)
+
+        if snake_case_keys_len == 0:
+            return result
         
         # Process only needed headers, converting keys on-the-fly
         for original_key, value in headers.items():
+            if snake_case_keys_len == len(result):
+                break
+
             snake_key = Utility.to_snake_case(original_key)
 
             if snake_key in snake_case_keys:
