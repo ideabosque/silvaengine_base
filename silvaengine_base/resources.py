@@ -239,6 +239,8 @@ class Resources(LambdaBase):
         params["area"] = area
 
         headers = event.get("headers")
+        self.logger.info(f"headers: {headers}")
+        self.logger.info(f"custom_header_keys: {self.settings.get("custom_header_keys", [])}")
 
         if headers is Dict:
             self.logger.info(f"headers: {headers}")
