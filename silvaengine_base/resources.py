@@ -237,14 +237,9 @@ class Resources(LambdaBase):
         params = {k: v for k, v in query_params.items()}
         params["endpoint_id"] = endpoint_id
         params["area"] = area
-
         headers = event.get("headers")
 
-        self.logger.info(f"headers type: {type(headers)}")
-        self.logger.info(f"custom_header_keys: {self.settings.get("custom_header_keys", [])}")
-
         if type(headers) is dict:
-            self.logger.info(f"headers: {headers}")
             params["custom_headers"] = self._extract_event_headers(headers)
 
         return api_key, endpoint_id, function_name, params
@@ -261,12 +256,12 @@ class Resources(LambdaBase):
             if type(header_keys) is not list:
                 header_keys = header_keys.split(",")
 
-        if header_keys is list and len(header_keys) > 0:
+        if type(header_keys) is list and len(header_keys) > 0:
             for key in header_keys:
                 key = Utility.to_snake_case(key)
                 result[key] = headers.get(key,"")
         
-        self.logger.info(f"_extract_event_headers: {headers}")
+        self.logger.info(f"_extract_event_headers: {result}")
         return result
 
     def _handle_cognito_trigger(self, event: Dict[str, Any], context: Any) -> Any:
