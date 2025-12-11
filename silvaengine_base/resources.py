@@ -18,16 +18,12 @@ class Resources(LambdaBase):
 
     def handle(self, event: Dict[str, Any], context: Any) -> Any:
         try:
-            self.logger.info(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
-            self.logger.info(f"Event received: {event}")
-            self.logger.info("======================================")
             # Check if the event is from a WebSocket connection
             request_context = event.get("requestContext", {})
             connection_id = request_context.get("connectionId")
             route_key = request_context.get("routeKey")
 
             if connection_id and route_key:
-                self.logger.info(f"WebSocket event received: {event}")
                 return self._handle_websocket_event(
                     event, context, connection_id, route_key
                 )
@@ -44,8 +40,6 @@ class Resources(LambdaBase):
         Handle WebSocket connection events including connection, disconnection, and streaming.
         """
         if route_key == "$connect":
-            self.logger.info(f"WebSocket connected: {connection_id}")
-
             if self._is_authorization_event(event):
                 return self._handle_authorize(event, context, "authorize")
 
@@ -74,8 +68,6 @@ class Resources(LambdaBase):
             return {"statusCode": 200, "body": "Connection successful"}
 
         elif route_key == "$disconnect":
-            self.logger.info(f"WebSocket disconnected: {connection_id}")
-
             results = LambdaBase.get_wss_connections(connection_id)
             wss_onnections = [result for result in results]
 
@@ -153,8 +145,6 @@ class Resources(LambdaBase):
             self._initialize(event)
 
         if self._is_cognito_trigger(event):
-            self.logger.info(f"Cognito trigger event: {event}")
-            self.logger.info("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
             return self._handle_cognito_trigger(event, context)
         
         api_key, endpoint_id, function_name, params = self._extract_event_data(event)
