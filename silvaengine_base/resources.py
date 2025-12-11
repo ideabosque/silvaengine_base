@@ -240,6 +240,7 @@ class Resources(LambdaBase):
 
         headers = event.get("headers")
         self.logger.info(f"headers: {headers}")
+        self.logger.info(f"headers type: {type(headers)}")
         self.logger.info(f"custom_header_keys: {self.settings.get("custom_header_keys", [])}")
 
         if headers is dict:
