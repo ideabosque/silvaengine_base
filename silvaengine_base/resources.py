@@ -242,7 +242,7 @@ class Resources(LambdaBase):
         self.logger.info(f"headers: {headers}")
         self.logger.info(f"custom_header_keys: {self.settings.get("custom_header_keys", [])}")
 
-        if headers is Dict:
+        if headers is dict:
             self.logger.info(f"headers: {headers}")
             params.update({
                 "custom_headers": self._extract_event_headers(headers)
@@ -253,11 +253,19 @@ class Resources(LambdaBase):
     def _extract_event_headers(self, headers: Dict[str, Any]) -> Dict[str, Any]:
         """Extract custom headers from the event."""
         headers = {Utility.to_snake_case(k):v for k,v in headers.items()}
+        header_keys = self.settings.get("custom_header_keys", [])
         result = {}
 
-        for key in self.settings.get("custom_header_keys", []):
-            key = Utility.to_snake_case(key)
-            result[key] = headers.get(key,"")
+        if header_keys is str:
+            header_keys = Utility.json_loads(header_keys)
+
+            if header_keys is not list:
+                header_keys = header_keys.split(",")
+
+        if header_keys is list and len(header_keys) > 0:
+            for key in header_keys:
+                key = Utility.to_snake_case(key)
+                result[key] = headers.get(key,"")
         
         self.logger.info(f"_extract_event_headers: {headers}")
         return result
