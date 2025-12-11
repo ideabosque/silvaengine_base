@@ -241,7 +241,9 @@ class Resources(LambdaBase):
         headers = event.get("headers")
 
         if headers is Dict:
-            params.update(self._extract_event_headers(headers))
+            params.update({
+                "custom_headers": self._extract_event_headers(headers)
+            })
 
         return api_key, endpoint_id, function_name, params
     
