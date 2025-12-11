@@ -246,20 +246,30 @@ class Resources(LambdaBase):
     
     def _extract_event_headers(self, headers: Dict[str, Any]) -> Dict[str, Any]:
         """Extract custom headers from the event."""
-        headers = {Utility.to_snake_case(k):v for k,v in headers.items()}
         header_keys = self.settings.get("custom_header_keys", [])
         result = {}
 
-        if type(header_keys) is str:
+        # Parse header keys
+        if isinstance(header_keys, str):
             try:
                 header_keys = Utility.json_loads(header_keys)
-            except:
-                header_keys = header_keys.split(",")
+            except Exception:
+                header_keys = [key for key in header_keys.split(",") if key.strip()]
+        elif not isinstance(header_keys, list):
+            header_keys = []
 
-        if type(header_keys) is list and len(header_keys) > 0:
-            for key in header_keys:
-                key = Utility.to_snake_case(key)
-                result[key] = headers.get(key,"")
+        if not header_keys:
+            return result
+
+        # Pre-convert header keys to snake_case for comparison
+        snake_case_keys = {Utility.to_snake_case(key.strip()): key for key in header_keys}
+        
+        # Process only needed headers, converting keys on-the-fly
+        for original_key, value in headers.items():
+            snake_key = Utility.to_snake_case(original_key)
+
+            if snake_key in snake_case_keys:
+                result[snake_key] = value
 
         return result
 
