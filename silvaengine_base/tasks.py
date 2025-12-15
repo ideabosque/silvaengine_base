@@ -7,7 +7,7 @@ import traceback
 import urllib.parse
 import boto3
 from typing import Any, Dict, Optional
-from silvaengine_utility import Utility
+from silvaengine_utility import Serializer
 from .lambdabase import LambdaBase
 
 
@@ -36,8 +36,8 @@ class Tasks(LambdaBase):
             "MODULENAME": function.config.module_name,
             "CLASSNAME": function.config.class_name,
             "funct": function.function,
-            "setting": Utility.json_dumps(setting),
-            "params": Utility.json_dumps(params),
+            "setting": Serializer.json_dumps(setting),
+            "params": Serializer.json_dumps(params),
         }
         
         return cls.invoke(
@@ -63,7 +63,7 @@ class Tasks(LambdaBase):
                 self._handle_bot_event(event)
             else:
                 self.logger.info(
-                    f"Endpoint ID: {event.get('endpoint_id')}, Function: {event.get('funct')}, Params: {Utility.json_dumps(event.get('params'))}"
+                    f"Endpoint ID: {event.get('endpoint_id')}, Function: {event.get('funct')}, Params: {Serializer.json_dumps(event.get('params'))}"
                 )
                 return self.dispatch(
                     event.get("endpoint_id"),
@@ -82,7 +82,7 @@ class Tasks(LambdaBase):
                     TopicArn=os.environ["SNSTOPICARN"],
                     Subject=context.invoked_function_arn,
                     MessageStructure="json",
-                    Message=Utility.json_dumps({"default": log}),
+                    Message=Serializer.json_dumps({"default": log}),
                 )
 
     def _handle_sqs_event(self, event: Dict[str, Any]) -> None:
@@ -90,10 +90,10 @@ class Tasks(LambdaBase):
         for record in event.get("Records", []):
             endpoint_id = record["messageAttributes"]["endpoint_id"].get("stringValue")
             funct = record["messageAttributes"]["funct"].get("stringValue")
-            params = Utility.json_loads(record["body"]).get("params", {})
+            params = Serializer.json_loads(record["body"]).get("params", {})
 
             self.logger.info(
-                f"(SQS) Endpoint ID: {endpoint_id}, Function: {funct}, Params: {Utility.json_dumps(params)}"
+                f"(SQS) Endpoint ID: {endpoint_id}, Function: {funct}, Params: {Serializer.json_dumps(params)}"
             )
             self.dispatch(endpoint_id, funct, params=params)
 
@@ -120,7 +120,7 @@ class Tasks(LambdaBase):
 
         endpoint_id, funct = pieces[0], pieces[1]
         self.logger.info(
-            f"(S3) Endpoint ID: {endpoint_id}, Function: {funct}, Params: {Utility.json_dumps(params)}"
+            f"(S3) Endpoint ID: {endpoint_id}, Function: {funct}, Params: {Serializer.json_dumps(params)}"
         )
         self.dispatch(endpoint_id, funct, params=params)
 
@@ -138,13 +138,13 @@ class Tasks(LambdaBase):
 
         if not dynamodb_stream_config.get(table_name):
             self.logger.info(
-                f"(DynamoDB) Endpoint ID: {endpoint_id}, Function: {funct}, Params: {Utility.json_dumps(params)}"
+                f"(DynamoDB) Endpoint ID: {endpoint_id}, Function: {funct}, Params: {Serializer.json_dumps(params)}"
             )
             self.dispatch(endpoint_id, funct, params=params)
         else:
             for config in dynamodb_stream_config[table_name]:
                 self.logger.info(
-                    f"(DynamoDB) Endpoint ID: {config['endpoint_id']}, Function: {config['funct']}, Params: {Utility.json_dumps(params)}"
+                    f"(DynamoDB) Endpoint ID: {config['endpoint_id']}, Function: {config['funct']}, Params: {Serializer.json_dumps(params)}"
                 )
                 self.dispatch(config["endpoint_id"], config["funct"], params=params)
 
@@ -155,6 +155,6 @@ class Tasks(LambdaBase):
         params = event
 
         self.logger.info(
-            f"(Lex Bot) Endpoint ID: {endpoint_id}, Function: {funct}, Params: {Utility.json_dumps(params)}"
+            f"(Lex Bot) Endpoint ID: {endpoint_id}, Function: {funct}, Params: {Serializer.json_dumps(params)}"
         )
         self.dispatch(endpoint_id, funct, params=params)

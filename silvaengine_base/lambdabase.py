@@ -5,7 +5,7 @@ __author__ = "bibow"
 import boto3, os, pendulum
 from boto3.dynamodb.conditions import Key
 from typing import Any, Dict, Tuple, List
-from silvaengine_utility import Utility
+from silvaengine_utility import Serializer
 from .models import EndpointModel, ConnectionModel, FunctionModel, HookModel, ConfigModel, WSSConnectionModel
 
 
@@ -52,7 +52,7 @@ class LambdaBase:
             raise ValueError(f"Invalid invocation_type: {invocation_type}")
         
         try:
-            payload_str = Utility.json_dumps(payload, separators=(',', ':'))
+            payload_str = Serializer.json_dumps(payload, separators=(',', ':'))
             
             response = cls.aws_lambda.invoke(
                 FunctionName=function_name,
@@ -63,7 +63,7 @@ class LambdaBase:
             if "FunctionError" in response:
                 try:
                     payload_content = response["Payload"].read()
-                    log = Utility.json_loads(payload_content) if payload_content else {}
+                    log = Serializer.json_loads(payload_content) if payload_content else {}
                 except Exception as e:
                     log = {"error": "Invalid JSON response from Lambda function"}
                     raise FunctionError(log)
@@ -71,7 +71,7 @@ class LambdaBase:
             if invocation_type == "RequestResponse":
                 try:
                     payload_content = response["Payload"].read()
-                    result = Utility.json_loads(payload_content) if payload_content else {}
+                    result = Serializer.json_loads(payload_content) if payload_content else {}
                 except Exception as e:
                     result = {}
                 return result
