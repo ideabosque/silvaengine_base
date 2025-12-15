@@ -3,7 +3,7 @@
 from __future__ import print_function
 from .lambdabase import LambdaBase
 from typing import Any, Dict, Tuple
-from silvaengine_utility import Utility, Authorizer as ApiGatewayAuthorizer
+from silvaengine_utility import Utility, Serializer, Invoker, Authorizer as ApiGatewayAuthorizer
 import os, traceback, pendulum
 
 __author__ = "bibow"
@@ -106,14 +106,14 @@ class Resources(LambdaBase):
             api_key = wss_onnections[0].api_key
 
         body = (
-            Utility.json_loads(event.get("body"))
+            Serializer.json_loads(event.get("body"))
             if event.get("body") is not None
             else {}
         )
 
         funct = body.get("funct")
         params = (
-            Utility.json_loads(body.get("payload"))
+            Serializer.json_loads(body.get("payload"))
             if body.get("payload") is not None
             else {}
         )
@@ -252,7 +252,7 @@ class Resources(LambdaBase):
         # Parse header keys
         if isinstance(header_keys, str):
             try:
-                header_keys = Utility.json_loads(header_keys)
+                header_keys = Serializer.json_loads(header_keys)
             except Exception:
                 header_keys = [key for key in header_keys.split(",")]
         elif not isinstance(header_keys, list):
@@ -285,7 +285,7 @@ class Resources(LambdaBase):
         if not self.settings:
             self._initialize(event)
 
-        return Utility.import_dynamically(
+        return Invoker.import_dynamically(
             module_name=self.settings.get("cognito_hook_module_name", "event_triggers"),
             function_name=self.settings.get("cognito_hook_function_name", "pre_token_generate"),
             class_name=self.settings.get("cognito_hook_class_name", "Cognito"),
@@ -323,7 +323,7 @@ class Resources(LambdaBase):
         )
 
         return {
-            "fnConfigurations": Utility.json_loads(Utility.json_dumps(function)),
+            "fnConfigurations": Serializer.json_loads(Serializer.json_dumps(function)),
             "requestContext": request_context,
             "module": function.config.module_name,
             "class": function.config.class_name,
@@ -332,7 +332,7 @@ class Resources(LambdaBase):
 
     def _handle_authorize(self, event: Dict[str, Any], context: Any, action: str) -> Any:
         """Dynamically handle authorization and permission checks."""
-        fn = Utility.import_dynamically(
+        fn = Invoker.import_dynamically(
             module_name=self.settings.get("authorizer_module_name", "silvaengine_authorizer"),
             function_name=action,
             class_name=self.settings.get("authorizer_class_name", "Authorizer"),
@@ -355,12 +355,12 @@ class Resources(LambdaBase):
     ) -> Dict[str, Any]:
         """Invoke the appropriate function based on event data."""
         if str(event.get("requestContext")).strip().upper() == "POST":
-            params.update(Utility.json_loads(event.get("requestContext")))
+            params.update(Serializer.json_loads(event.get("requestContext")))
 
         if event.get("body"):
-            params.update(Utility.json_loads(event.get("body")))
+            params.update(Serializer.json_loads(event.get("body")))
 
-        return Utility.import_dynamically(
+        return Invoker.import_dynamically(
             module_name=function.config.module_name,
             function_name=function.function,
             class_name=function.config.class_name,
