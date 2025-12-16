@@ -6,9 +6,10 @@ import os
 import traceback
 import urllib.parse
 import boto3
-from typing import Any, Dict, Optional
-from silvaengine_utility import Serializer
+from typing import Any, Dict, Optional, Tuple
+from silvaengine_utility import Serializer, Utility
 from .lambdabase import LambdaBase
+from .models import  FunctionModel
 
 
 class Tasks(LambdaBase):
@@ -28,10 +29,32 @@ class Tasks(LambdaBase):
 
     @classmethod
     def dispatch(
-        cls, endpoint_id: str, funct: str, params: Optional[Dict[str, Any]] = None
+        cls, 
+        event: Dict[str, Any],
+        endpoint_id: str, 
+        function_name: str, 
+        params: Optional[Dict[str, Any]] = None
     ) -> Any:
         """Dispatch a task to the appropriate AWS Lambda function."""
-        setting, function = cls.get_function(endpoint_id, funct)
+        setting, function = cls.get_function(endpoint_id, function_name)
+        custom_keys = setting.get("custom_header_keys", [])
+
+        if not params:
+            params = {}
+
+        # Parse header keys
+        if isinstance(custom_keys, str):
+            try:
+                custom_keys = Serializer.json_loads(custom_keys)
+            except Exception:
+                custom_keys = [key for key in custom_keys.split(",")]
+        elif not isinstance(custom_keys, list):
+            custom_keys = []
+
+        if custom_keys:
+            snake_case_keys = {Utility.to_snake_case(key.strip()): key for key in custom_keys if key.strip()}
+            params.update({k: event[k] for k in snake_case_keys if k in event})
+
         payload = {
             "MODULENAME": function.config.module_name,
             "CLASSNAME": function.config.class_name,
@@ -66,6 +89,7 @@ class Tasks(LambdaBase):
                     f"Endpoint ID: {event.get('endpoint_id')}, Function: {event.get('funct')}, Params: {Serializer.json_dumps(event.get('params'))}"
                 )
                 return self.dispatch(
+                    event,
                     event.get("endpoint_id"),
                     event.get("funct"),
                     params=dict(
@@ -89,13 +113,13 @@ class Tasks(LambdaBase):
         """Handle SQS events."""
         for record in event.get("Records", []):
             endpoint_id = record["messageAttributes"]["endpoint_id"].get("stringValue")
-            funct = record["messageAttributes"]["funct"].get("stringValue")
+            function_name = record["messageAttributes"]["funct"].get("stringValue")
             params = Serializer.json_loads(record["body"]).get("params", {})
 
             self.logger.info(
-                f"(SQS) Endpoint ID: {endpoint_id}, Function: {funct}, Params: {Serializer.json_dumps(params)}"
+                f"(SQS) Endpoint ID: {endpoint_id}, Function: {function_name}, Params: {Serializer.json_dumps(params)}"
             )
-            self.dispatch(endpoint_id, funct, params=params)
+            self.dispatch(event, endpoint_id, function_name, params=params)
 
     def _handle_s3_event(self, event: Dict[str, Any]) -> None:
         """Handle S3 events."""
@@ -118,16 +142,16 @@ class Tasks(LambdaBase):
             },
         }
 
-        endpoint_id, funct = pieces[0], pieces[1]
+        endpoint_id, function_name = pieces[0], pieces[1]
         self.logger.info(
-            f"(S3) Endpoint ID: {endpoint_id}, Function: {funct}, Params: {Serializer.json_dumps(params)}"
+            f"(S3) Endpoint ID: {endpoint_id}, Function: {function_name}, Params: {Serializer.json_dumps(params)}"
         )
-        self.dispatch(endpoint_id, funct, params=params)
+        self.dispatch(event, endpoint_id, function_name, params=params)
 
     def _handle_dynamodb_event(self, event: Dict[str, Any]) -> None:
         """Handle DynamoDB events."""
         endpoint_id = os.getenv("DYNAMODBSTREAMENDPOINTID", "")
-        funct = "stream_handle"
+        function_name = "stream_handle"
         params = {"records": event.get("Records", [])}
 
         table_name = self.extract_table_name(event["Records"][0]["eventSourceARN"])
@@ -138,23 +162,23 @@ class Tasks(LambdaBase):
 
         if not dynamodb_stream_config.get(table_name):
             self.logger.info(
-                f"(DynamoDB) Endpoint ID: {endpoint_id}, Function: {funct}, Params: {Serializer.json_dumps(params)}"
+                f"(DynamoDB) Endpoint ID: {endpoint_id}, Function: {function_name}, Params: {Serializer.json_dumps(params)}"
             )
-            self.dispatch(endpoint_id, funct, params=params)
+            self.dispatch(event, endpoint_id, function_name, params=params)
         else:
             for config in dynamodb_stream_config[table_name]:
                 self.logger.info(
                     f"(DynamoDB) Endpoint ID: {config['endpoint_id']}, Function: {config['funct']}, Params: {Serializer.json_dumps(params)}"
                 )
-                self.dispatch(config["endpoint_id"], config["funct"], params=params)
+                self.dispatch(event, config["endpoint_id"], config["funct"], params=params)
 
     def _handle_bot_event(self, event: Dict[str, Any]) -> None:
         """Handle bot events."""
         endpoint_id = event["bot"]["id"]
-        funct = f"{event['bot']['name'].lower()}_lex_dispatch"
+        function_name = f"{event['bot']['name'].lower()}_lex_dispatch"
         params = event
 
         self.logger.info(
-            f"(Lex Bot) Endpoint ID: {endpoint_id}, Function: {funct}, Params: {Serializer.json_dumps(params)}"
+            f"(Lex Bot) Endpoint ID: {endpoint_id}, Function: {function_name}, Params: {Serializer.json_dumps(params)}"
         )
-        self.dispatch(endpoint_id, funct, params=params)
+        self.dispatch(event, endpoint_id, function_name, params=params)
