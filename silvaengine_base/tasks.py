@@ -5,11 +5,14 @@ __author__ = "bibow"
 import os
 import traceback
 import urllib.parse
-import boto3
 from typing import Any, Dict, Optional, Tuple
+
+import boto3
+
 from silvaengine_utility import Serializer, Utility
+
 from .lambdabase import LambdaBase
-from .models import  FunctionModel
+from .models import FunctionModel
 
 
 class Tasks(LambdaBase):
@@ -29,11 +32,11 @@ class Tasks(LambdaBase):
 
     @classmethod
     def dispatch(
-        cls, 
+        cls,
         event: Dict[str, Any],
-        endpoint_id: str, 
-        function_name: str, 
-        params: Optional[Dict[str, Any]] = None
+        endpoint_id: str,
+        function_name: str,
+        params: Optional[Dict[str, Any]] = None,
     ) -> Any:
         """Dispatch a task to the appropriate AWS Lambda function."""
         setting, function = cls.get_function(endpoint_id, function_name)
@@ -52,7 +55,11 @@ class Tasks(LambdaBase):
             custom_keys = []
 
         if custom_keys:
-            snake_case_keys = {Utility.to_snake_case(key.strip()): key for key in custom_keys if key.strip()}
+            snake_case_keys = {
+                Utility.to_snake_case(key.strip()): key
+                for key in custom_keys
+                if key.strip()
+            }
             params.update({k: event[k] for k in snake_case_keys if k in event})
 
         payload = {
@@ -62,7 +69,7 @@ class Tasks(LambdaBase):
             "setting": Serializer.json_dumps(setting),
             "params": Serializer.json_dumps(params),
         }
-        
+
         return cls.invoke(
             function.aws_lambda_arn, payload, invocation_type=function.config.funct_type
         )
@@ -93,7 +100,11 @@ class Tasks(LambdaBase):
                     event.get("endpoint_id"),
                     event.get("funct"),
                     params=dict(
-                        {"endpoint_id": event.get("endpoint_id")}, **event.get("params")
+                        {
+                            "endpoint_id": event.get("endpoint_id"),
+                            "part_id": event.get("part_id"),
+                        },
+                        **event.get("params"),
                     ),
                 )
 
@@ -113,8 +124,10 @@ class Tasks(LambdaBase):
         """Handle SQS events."""
         for record in event.get("Records", []):
             endpoint_id = record["messageAttributes"]["endpoint_id"].get("stringValue")
+            part_id = record["messageAttributes"]["part_id"].get("stringValue")
             function_name = record["messageAttributes"]["funct"].get("stringValue")
             params = Serializer.json_loads(record["body"]).get("params", {})
+            params.update({"endpoint_id": endpoint_id, "part_id": part_id})
 
             self.logger.info(
                 f"(SQS) Endpoint ID: {endpoint_id}, Function: {function_name}, Params: {Serializer.json_dumps(params)}"
@@ -170,7 +183,9 @@ class Tasks(LambdaBase):
                 self.logger.info(
                     f"(DynamoDB) Endpoint ID: {config['endpoint_id']}, Function: {config['funct']}, Params: {Serializer.json_dumps(params)}"
                 )
-                self.dispatch(event, config["endpoint_id"], config["funct"], params=params)
+                self.dispatch(
+                    event, config["endpoint_id"], config["funct"], params=params
+                )
 
     def _handle_bot_event(self, event: Dict[str, Any]) -> None:
         """Handle bot events."""
