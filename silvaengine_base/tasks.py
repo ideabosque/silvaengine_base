@@ -102,7 +102,6 @@ class Tasks(LambdaBase):
                     params=dict(
                         {
                             "endpoint_id": event.get("endpoint_id"),
-                            "part_id": event.get("part_id"),
                         },
                         **event.get("params"),
                     ),
@@ -124,15 +123,19 @@ class Tasks(LambdaBase):
         """Handle SQS events."""
         for record in event.get("Records", []):
             endpoint_id = record["messageAttributes"]["endpoint_id"].get("stringValue")
-            part_id = record["messageAttributes"]["part_id"].get("stringValue")
             function_name = record["messageAttributes"]["funct"].get("stringValue")
             params = Serializer.json_loads(record["body"]).get("params", {})
-            params.update({"endpoint_id": endpoint_id, "part_id": part_id})
+            params.update({"endpoint_id": endpoint_id})
 
             self.logger.info(
                 f"(SQS) Endpoint ID: {endpoint_id}, Function: {function_name}, Params: {Serializer.json_dumps(params)}"
             )
-            self.dispatch(event, endpoint_id, function_name, params=params)
+            self.dispatch(
+                {k: v.get("stringValue") for k, v in record["messageAttributes"].items()},
+                endpoint_id,
+                function_name,
+                params=params,
+            )
 
     def _handle_s3_event(self, event: Dict[str, Any]) -> None:
         """Handle S3 events."""
