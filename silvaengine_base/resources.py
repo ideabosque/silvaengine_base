@@ -1,14 +1,22 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 from __future__ import print_function
-from .lambdabase import LambdaBase
+
+import os
+import traceback
 from typing import Any, Dict, Tuple
-from silvaengine_utility import Utility, Serializer, Invoker, Authorizer as ApiGatewayAuthorizer
-import os, traceback, pendulum
+
+import pendulum
+
+from silvaengine_utility import Authorizer as ApiGatewayAuthorizer
+from silvaengine_utility import Invoker, Serializer, Utility
+
+from .lambdabase import LambdaBase
 
 __author__ = "bibow"
 
 FULL_EVENT_AREAS = os.environ.get("FULL_EVENT_AREAS", "").split(",")
+
 
 class Resources(LambdaBase):
     settings: Dict[str, Any] = {}
@@ -58,7 +66,7 @@ class Resources(LambdaBase):
                     connection_id=connection_id,
                     area=area,
                     api_key=api_key,
-                    data=event.get("requestContext", {}).get("authorizer", {})
+                    data=event.get("requestContext", {}).get("authorizer", {}),
                 )
                 LambdaBase.remove_expired_connections(
                     endpoint_id,
@@ -120,9 +128,7 @@ class Resources(LambdaBase):
         params["endpoint_id"] = endpoint_id
 
         if not endpoint_id or not funct:
-            self.logger.error(
-                "Missing 'endpointId' or 'funct' in the stream payload"
-            )
+            self.logger.error("Missing 'endpointId' or 'funct' in the stream payload")
             return {
                 "statusCode": 400,
                 "body": "Missing required parameters: endpointId or funct",
@@ -146,7 +152,7 @@ class Resources(LambdaBase):
 
         if self._is_cognito_trigger(event):
             return self._handle_cognito_trigger(event, context)
-        
+
         api_key, endpoint_id, function_name, params = self._extract_event_data(event)
         path_parameters = event.get("pathParameters", {})
         request_context = event.get("requestContext", {})
@@ -167,27 +173,34 @@ class Resources(LambdaBase):
         )
 
         # Add authorization for http event
-        auth_required = bool(function and function.config and function.config.auth_required)
+        auth_required = bool(
+            function and function.config and function.config.auth_required
+        )
 
         if self._is_authorization_event(event):
             if auth_required:
                 try:
                     return self._handle_authorize(
-                        event, 
-                        context, 
-                        self.settings.get("authorizer_authorize_function_name", "authorize")
+                        event,
+                        context,
+                        self.settings.get(
+                            "authorizer_authorize_function_name", "authorize"
+                        ),
                     )
                 except Exception as e:
                     raise e
 
             return ApiGatewayAuthorizer(event).authorize(is_allow=True)
-        
+
         if event.get("body") and auth_required:
             event.update(
                 self._handle_authorize(
-                    event, 
-                    context, 
-                    self.settings.get("authorizer_verify_permission_function_name", "verify_permission")
+                    event,
+                    context,
+                    self.settings.get(
+                        "authorizer_verify_permission_function_name",
+                        "verify_permission",
+                    ),
                 )
             )
 
@@ -243,7 +256,7 @@ class Resources(LambdaBase):
             params["custom_headers"] = self._extract_event_headers(headers)
 
         return api_key, endpoint_id, function_name, params
-    
+
     def _extract_event_headers(self, headers: Dict[str, Any]) -> Dict[str, Any]:
         """Extract custom headers from the event."""
         header_keys = self.settings.get("custom_header_keys", [])
@@ -262,12 +275,16 @@ class Resources(LambdaBase):
             return result
 
         # Pre-convert header keys to snake_case for comparison
-        snake_case_keys = {Utility.to_snake_case(key.strip()): key for key in header_keys if key.strip()}
+        snake_case_keys = {
+            Utility.to_snake_case(key.strip()): key
+            for key in header_keys
+            if key.strip()
+        }
         snake_case_keys_len = len(snake_case_keys)
 
         if snake_case_keys_len == 0:
             return result
-        
+
         # Process only needed headers, converting keys on-the-fly
         for original_key, value in headers.items():
             if snake_case_keys_len == len(result):
@@ -287,7 +304,9 @@ class Resources(LambdaBase):
 
         return Invoker.import_dynamically(
             module_name=self.settings.get("cognito_hook_module_name", "event_triggers"),
-            function_name=self.settings.get("cognito_hook_function_name", "pre_token_generate"),
+            function_name=self.settings.get(
+                "cognito_hook_function_name", "pre_token_generate"
+            ),
             class_name=self.settings.get("cognito_hook_class_name", "Cognito"),
             constructor_parameters={"logger": self.logger, **self.settings},
         )(event, context)
@@ -330,19 +349,27 @@ class Resources(LambdaBase):
             "function": function.function,
         }
 
-    def _handle_authorize(self, event: Dict[str, Any], context: Any, action: str) -> Any:
+    def _handle_authorize(
+        self, event: Dict[str, Any], context: Any, action: str
+    ) -> Any:
         """Dynamically handle authorization and permission checks."""
         fn = Invoker.import_dynamically(
-            module_name=self.settings.get("authorizer_module_name", "silvaengine_authorizer"),
+            module_name=self.settings.get(
+                "authorizer_module_name", "silvaengine_authorizer"
+            ),
             function_name=action,
             class_name=self.settings.get("authorizer_class_name", "Authorizer"),
             constructor_parameters={"logger": self.logger, **self.settings},
         )
 
         if callable(fn):
-            if action == self.settings.get("authorizer_authorize_function_name", "authorize"):
+            if action == self.settings.get(
+                "authorizer_authorize_function_name", "authorize"
+            ):
                 return fn(event, context)
-            elif action == self.settings.get("authorizer_verify_permission_function_name", "verify_permission"):
+            elif action == self.settings.get(
+                "authorizer_verify_permission_function_name", "verify_permission"
+            ):
                 return fn(event, context)
 
     def _invoke_function(
@@ -382,11 +409,15 @@ class Resources(LambdaBase):
                 status_code = exception.args[1]
 
         if self._is_authorization_event(event):
-            return ApiGatewayAuthorizer(event).authorize(is_allow=False, context={"errorMessage": str(message)})
+            return ApiGatewayAuthorizer(event).authorize(
+                is_allow=False,
+                context={"errorMessage": str(message)},
+            )
 
         return self._generate_response(status_code, str(message))
-    
+
     def _generate_response(self, status_code: int, body: str) -> Dict[str, Any]:
+        self.logger.info(">>>>>>>>>>>>>> Http response")
         """Generate a standard HTTP response."""
         return {
             "statusCode": status_code,
@@ -395,7 +426,7 @@ class Resources(LambdaBase):
                 "Access-Control-Allow-Origin": "*",
                 "Content-Type": "application/json",
             },
-            "body": body
+            "body": body,
         }
 
     def _is_authorization_event(self, event: Dict[str, Any]) -> bool:
@@ -405,7 +436,7 @@ class Resources(LambdaBase):
     def _is_cognito_trigger(self, event: Dict[str, Any]) -> bool:
         """Check if the event is a Cognito trigger."""
         return bool(event.get("triggerSource") and event.get("userPoolId"))
-    
+
     def _get_setting_index(self, event: Dict[str, Any]) -> str:
         """Get the appropriate setting index based on the event data."""
         if self._is_cognito_trigger(event):
