@@ -7,7 +7,6 @@ import traceback
 from typing import Any, Dict, Tuple
 
 import pendulum
-
 from silvaengine_utility import Authorizer as ApiGatewayAuthorizer
 from silvaengine_utility import Invoker, Serializer, Utility
 
@@ -417,7 +416,6 @@ class Resources(LambdaBase):
         return self._generate_response(status_code, str(message))
 
     def _generate_response(self, status_code: int, body: str) -> Dict[str, Any]:
-        self.logger.info(">>>>>>>>>>>>>> Http response")
         """Generate a standard HTTP response."""
         return {
             "statusCode": status_code,
