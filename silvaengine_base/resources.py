@@ -161,6 +161,9 @@ class Resources(LambdaBase):
         )
 
         self.logger.info("*" * 120)
+        self.logger.info(f"Endpoint ID: {endpoint_id}")
+        self.logger.info(f"API Key: {api_key}")
+        self.logger.info(f"Method: {method}")
         self.logger.info(setting)
         self.logger.info(function)
         self.logger.info("*" * 120)
