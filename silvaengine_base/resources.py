@@ -418,9 +418,9 @@ class Resources(LambdaBase):
                 context={"errorMessage": str(message)},
             )
 
-        return self._generate_response(status_code, str(message))
+        return self._generate_response(status_code, {"error": str(message)})
 
-    def _generate_response(self, status_code: int, body: str) -> Dict[str, Any]:
+    def _generate_response(self, status_code: int, body: Any) -> Dict[str, Any]:
         """Generate a standard HTTP response."""
         return {
             "statusCode": status_code,
@@ -429,7 +429,7 @@ class Resources(LambdaBase):
                 "Access-Control-Allow-Origin": "*",
                 "Content-Type": "application/json",
             },
-            "body": body,
+            "body": Serializer.json_dumps(body),
         }
 
     def _is_authorization_event(self, event: Dict[str, Any]) -> bool:
