@@ -160,14 +160,6 @@ class Resources(LambdaBase):
             endpoint_id, function_name, api_key=api_key, method=method
         )
 
-        self.logger.info("*" * 120)
-        self.logger.info(f"Endpoint ID: {endpoint_id}")
-        self.logger.info(f"API Key: {api_key}")
-        self.logger.info(f"Method: {method}")
-        self.logger.info(setting)
-        self.logger.info(function)
-        self.logger.info("*" * 120)
-
         self._validate_function_area(params, function)
         event.update(
             self._prepare_event(
