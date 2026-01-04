@@ -149,7 +149,9 @@ class Resources(LambdaBase):
             params["custom_headers"] = self._extract_event_headers(url_parameters)
 
         method = self._get_http_method(event)
-        self.logger.info(f">>>>>>>>>>>>>> {endpoint_id} {funct} {api_key} {method}")
+        self.logger.info(
+            f"{'>' * 80} {endpoint_id} {funct} {api_key} {method} {params}"
+        )
         setting, function = LambdaBase.get_function(
             endpoint_id, funct, api_key=api_key, method=method
         )
