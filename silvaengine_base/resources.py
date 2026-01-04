@@ -7,7 +7,6 @@ import traceback
 from typing import Any, Dict, Tuple
 
 import pendulum
-
 from silvaengine_utility import Authorizer as ApiGatewayAuthorizer
 from silvaengine_utility import Invoker, Serializer, Utility
 
@@ -51,20 +50,22 @@ class Resources(LambdaBase):
             if self._is_authorization_event(event):
                 return self._handle_authorize(event, context, "authorize")
 
-            endpoint_id = event.get("queryStringParameters", {}).get("endpointId")
+            url_parameters = event.get("queryStringParameters", {})
+            endpoint_id = url_parameters.get("endpointId")
             area = event.get("queryStringParameters", {}).get("area", "")
-            api_key = event.get("requestContext", {}).get("identity", {}).get("apiKey")
             api_key = (
-                event.get("queryStringParameters", {}).get("x-api-key")
-                if api_key is None
-                else api_key
+                event.get("requestContext", {})
+                .get("identity", {})
+                .get("apiKey", url_parameters.get("x-api-key"))
             )
+            url_parameters["connection_id"] = connection_id
+            # api_key = url_parameters.get("x-api-key") if api_key is None else api_key
 
             if api_key is not None and endpoint_id is not None:
                 LambdaBase.save_wss_connection(
                     endpoint_id=endpoint_id,
                     connection_id=connection_id,
-                    url_parameters=event.get("queryStringParameters", {}),
+                    url_parameters=url_parameters,
                     area=area,
                     api_key=api_key,
                     data=event.get("requestContext", {}).get("authorizer", {}),
@@ -139,6 +140,9 @@ class Resources(LambdaBase):
                 "statusCode": 400,
                 "body": "Missing required parameters: endpointId or funct",
             }
+
+        self.logger.info(f"{'=' * 60} {type(wss_onnections[0].url_parameters)}")
+        self.logger.info(f"{'=' * 60} {wss_onnections[0].url_parameters}")
 
         if type(wss_onnections[0].url_parameters) is dict:
             params["custom_headers"] = self._extract_event_headers(
