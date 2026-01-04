@@ -133,6 +133,7 @@ class Resources(LambdaBase):
             else {}
         )
         params["endpoint_id"] = endpoint_id
+        params["connection_id"] = connection_id
 
         if not endpoint_id or not funct:
             self.logger.error("Missing 'endpointId' or 'funct' in the stream payload")
