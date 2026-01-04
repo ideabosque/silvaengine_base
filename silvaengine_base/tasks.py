@@ -70,11 +70,13 @@ class Tasks(LambdaBase):
             "params": Serializer.json_dumps(params),
         }
 
-        print(f"Task Dispatch {'=' * 60} {payload}")
-        print(f"Task Function {'=' * 60} {payload}")
+        print(f"Task Dispatch {'=' * 60} {Serializer.json_dumps(payload)}")
+        print(f"Task Function {'=' * 60} {Serializer.json_dumps(function)}")
 
         return cls.invoke(
-            function.aws_lambda_arn, payload, invocation_type=function.config.funct_type
+            function.aws_lambda_arn,
+            payload,
+            invocation_type=function.config.funct_type,
         )
 
     def handle(self, event: Dict[str, Any], context: Any) -> None:
@@ -98,9 +100,6 @@ class Tasks(LambdaBase):
             elif event.get("bot"):
                 self._handle_bot_event(event)
             else:
-                self.logger.info(
-                    f"Endpoint ID: {event.get('endpoint_id')}, Function: {event.get('funct')}, Params: {Serializer.json_dumps(event.get('params'))}"
-                )
                 return self.dispatch(
                     event,
                     event.get("endpoint_id", ""),
