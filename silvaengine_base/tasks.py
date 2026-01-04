@@ -8,7 +8,6 @@ import urllib.parse
 from typing import Any, Dict, Optional, Tuple
 
 import boto3
-
 from silvaengine_utility import Serializer, Utility
 
 from .lambdabase import LambdaBase
@@ -70,6 +69,9 @@ class Tasks(LambdaBase):
             "params": Serializer.json_dumps(params),
         }
 
+        print(f"Task Dispatch {'=' * 60} {payload}")
+        print(f"Task Function {'=' * 60} {payload}")
+
         return cls.invoke(
             function.aws_lambda_arn, payload, invocation_type=function.config.funct_type
         )
@@ -97,13 +99,13 @@ class Tasks(LambdaBase):
                 )
                 return self.dispatch(
                     event,
-                    event.get("endpoint_id"),
-                    event.get("funct"),
+                    event.get("endpoint_id", ""),
+                    event.get("funct", ""),
                     params=dict(
                         {
-                            "endpoint_id": event.get("endpoint_id"),
+                            "endpoint_id": event.get("endpoint_id", ""),
                         },
-                        **event.get("params"),
+                        **event.get("params", {}),
                     ),
                 )
 
@@ -131,7 +133,10 @@ class Tasks(LambdaBase):
                 f"(SQS) Endpoint ID: {endpoint_id}, Function: {function_name}, Params: {Serializer.json_dumps(params)}"
             )
             self.dispatch(
-                {k: v.get("stringValue") for k, v in record["messageAttributes"].items()},
+                {
+                    k: v.get("stringValue")
+                    for k, v in record["messageAttributes"].items()
+                },
                 endpoint_id,
                 function_name,
                 params=params,
