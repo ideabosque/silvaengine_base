@@ -54,7 +54,9 @@ class Resources(LambdaBase):
                 return self._handle_authorize(event, context, "authorize")
 
             url_parameters = event.get("queryStringParameters", {})
-            endpoint_id = url_parameters.get("endpointId")
+            endpoint_id = url_parameters.get(
+                "endpointId", url_parameters.get("endpoint_id")
+            )
             area = event.get("queryStringParameters", {}).get("area", "")
             api_key = (
                 event.get("requestContext", {})
