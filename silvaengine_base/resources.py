@@ -79,12 +79,12 @@ class Resources(LambdaBase):
 
         elif route_key == "$disconnect":
             results = LambdaBase.get_wss_connections(connection_id)
-            wss_onnections = [result for result in results]
+            wss_onnection = [result for result in results][0]
 
-            if len(wss_onnections) > 0:
-                wss_onnections[0].status = "inactive"
-                wss_onnections[0].updated_at = pendulum.now("UTC")
-                wss_onnections[0].save()
+            if wss_onnection:
+                wss_onnection.status = "inactive"
+                wss_onnection.updated_at = pendulum.now("UTC")
+                wss_onnection.save()
 
             return {"statusCode": 200, "body": "Disconnection successful"}
 
@@ -100,6 +100,7 @@ class Resources(LambdaBase):
         """
         Process the 'stream' route for WebSocket events, managing the payload and dispatching tasks.
         """
+        self.logger.info(f"_handle_websocket_stream 1 {'.' * 80}")
         request_context = event.get("requestContext", {})
         connection_id = request_context.get("connectionId")
 
@@ -107,18 +108,21 @@ class Resources(LambdaBase):
             self.logger.error("WebSocket connection not found")
             return {"statusCode": 400, "body": "Invalid webSocket connection"}
 
+        self.logger.info(f"_handle_websocket_stream 2 {'.' * 80}")
         results = LambdaBase.get_wss_connections(connection_id)
 
         if not results:
             self.logger.error("Not found any connections")
             return {"statusCode": 404, "body": "Not found any websocket connections"}
 
+        self.logger.info(f"_handle_websocket_stream 3 {'.' * 80}")
         wss_onnection = [result for result in results][0]
 
         if not wss_onnection:
             self.logger.error("WebSocket connection not found")
             return {"statusCode": 404, "body": "WebSocket connection not found"}
 
+        self.logger.info(f"_handle_websocket_stream 4 {'.' * 80}")
         endpoint_id = wss_onnection.endpoint_id
         api_key = request_context.get("identity", {}).get(
             "apiKey", wss_onnection.api_key
@@ -146,6 +150,7 @@ class Resources(LambdaBase):
                 "body": "Missing required parameters: endpointId or funct",
             }
 
+        self.logger.info(f"_handle_websocket_stream 5 {'.' * 80}")
         method = self._get_http_method(event)
         setting, function = LambdaBase.get_function(
             endpoint_id, funct, api_key=api_key, method=method
