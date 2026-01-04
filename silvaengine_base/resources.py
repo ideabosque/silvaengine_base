@@ -143,9 +143,6 @@ class Resources(LambdaBase):
             }
 
         method = self._get_http_method(event)
-        self.logger.info(
-            f"{'>' * 80} {endpoint_id} {funct} {api_key} {method} {params}"
-        )
         setting, function = LambdaBase.get_function(
             endpoint_id, funct, api_key=api_key, method=method
         )
@@ -160,6 +157,9 @@ class Resources(LambdaBase):
                 setting,
             )
 
+        self.logger.info(
+            f"{'>' * 80} {endpoint_id} {funct} {api_key} {method} {params}"
+        )
         return self._invoke_function(event, context, function, params, setting)
 
     def _handle_http_request(
