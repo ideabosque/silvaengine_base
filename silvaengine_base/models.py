@@ -1,16 +1,18 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 from __future__ import print_function
-from pynamodb.indexes import AllProjection, GlobalSecondaryIndex
+
 from pynamodb.attributes import (
     BooleanAttribute,
+    JSONAttribute,
     ListAttribute,
     MapAttribute,
     UnicodeAttribute,
-    JSONAttribute,
-    UTCDateTimeAttribute
+    UTCDateTimeAttribute,
 )
+from pynamodb.indexes import AllProjection, GlobalSecondaryIndex
 from silvaengine_dynamodb_base.models import BaseModel
+
 
 class EndpointModel(BaseModel):
     class Meta(BaseModel.Meta):
@@ -110,6 +112,7 @@ class WSSConnectionModel(BaseModel):
     api_key = UnicodeAttribute()
     area = UnicodeAttribute()
     data = MapAttribute(default=dict)
+    url_parameters = MapAttribute(default=dict)
     status = UnicodeAttribute(default="active")
     created_at = UTCDateTimeAttribute()
     updated_at = UTCDateTimeAttribute()
