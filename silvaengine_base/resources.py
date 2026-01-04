@@ -24,6 +24,8 @@ class Resources(LambdaBase):
         self.logger = logger
 
     def handle(self, event: Dict[str, Any], context: Any) -> Any:
+        self.logger.info(f"Event {'+' * 80} {event}")
+
         try:
             # Check if the event is from a WebSocket connection
             request_context = event.get("requestContext", {})
@@ -46,6 +48,7 @@ class Resources(LambdaBase):
         """
         Handle WebSocket connection events including connection, disconnection, and streaming.
         """
+        self.logger.info(f"Route Key {'-' * 80} {route_key}")
         if route_key == "$connect":
             if self._is_authorization_event(event):
                 return self._handle_authorize(event, context, "authorize")
