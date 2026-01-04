@@ -142,13 +142,6 @@ class Resources(LambdaBase):
                 "body": "Missing required parameters: endpointId or funct",
             }
 
-        url_parameters = wss_onnections[0].url_parameters.as_dict()
-        self.logger.info(f"{'=' * 60} {type(url_parameters)}")
-        self.logger.info(f"{'=' * 60} {url_parameters}")
-
-        if type(url_parameters) is dict:
-            params["custom_headers"] = self._extract_event_headers(url_parameters)
-
         method = self._get_http_method(event)
         self.logger.info(
             f"{'>' * 80} {endpoint_id} {funct} {api_key} {method} {params}"
@@ -156,6 +149,16 @@ class Resources(LambdaBase):
         setting, function = LambdaBase.get_function(
             endpoint_id, funct, api_key=api_key, method=method
         )
+
+        url_parameters = wss_onnections[0].url_parameters.as_dict()
+        self.logger.info(f"{'=' * 60} {type(url_parameters)}")
+        self.logger.info(f"{'=' * 60} {url_parameters}")
+
+        if type(url_parameters) is dict:
+            params["custom_headers"] = self._extract_event_headers(
+                url_parameters,
+                setting,
+            )
 
         return self._invoke_function(event, context, function, params, setting)
 
@@ -275,9 +278,16 @@ class Resources(LambdaBase):
 
         return api_key, endpoint_id, function_name, params
 
-    def _extract_event_headers(self, headers: Dict[str, Any]) -> Dict[str, Any]:
+    def _extract_event_headers(
+        self,
+        headers: Dict[str, Any],
+        setting: Dict[str, Any] | None = None,
+    ) -> Dict[str, Any]:
         """Extract custom headers from the event."""
-        header_keys = self.settings.get("custom_header_keys", [])
+        if not setting:
+            setting = self.settings
+
+        header_keys = setting.get("custom_header_keys", [])
         result = {}
 
         # Parse header keys
