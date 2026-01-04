@@ -142,11 +142,11 @@ class Resources(LambdaBase):
             }
 
         self.logger.info(f"{'=' * 60} {type(wss_onnections[0].url_parameters)}")
-        self.logger.info(f"{'=' * 60} {wss_onnections[0].url_parameters}")
+        self.logger.info(f"{'=' * 60} {wss_onnections[0].url_parameters.as_dict()}")
 
         if type(wss_onnections[0].url_parameters) is dict:
             params["custom_headers"] = self._extract_event_headers(
-                wss_onnections[0].url_parameters
+                wss_onnections[0].url_parameters.as_dict()
             )
 
         method = self._get_http_method(event)
