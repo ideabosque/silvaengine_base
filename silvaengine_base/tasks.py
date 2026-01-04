@@ -105,8 +105,10 @@ class Tasks(LambdaBase):
                 else:
                     params = event.get("params", {})
 
-                    if "endpoint_id" not in params and "endpoint_id" in event
-                        params["endpoint_id"] = str(event.get("endpoint_id")).strip().lower()
+                    if "endpoint_id" not in params and "endpoint_id" in event:
+                        params["endpoint_id"] = (
+                            str(event.get("endpoint_id")).strip().lower()
+                        )
 
                     return self.dispatch(
                         event,
