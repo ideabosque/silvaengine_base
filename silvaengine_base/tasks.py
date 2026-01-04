@@ -80,6 +80,9 @@ class Tasks(LambdaBase):
     def handle(self, event: Dict[str, Any], context: Any) -> None:
         """Main handler function for SQS, S3, and DynamoDB events."""
         try:
+            self.logger.info(f"Event Handle {'-' * 60}: {event}")
+            self.logger.info(f"Context Handle {'-' * 60}: {context}")
+
             if event.get("Records") and len(event["Records"]) > 0:
                 event_source = event["Records"][0]["eventSource"]
 
