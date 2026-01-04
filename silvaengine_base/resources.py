@@ -487,6 +487,8 @@ class Resources(LambdaBase):
                 event.get("pathParameters", {}),
             )
             return f"{request_context.get('stage', 'beta')}_{path_parameters.get('area')}_{path_parameters.get('endpoint_id')}"
+        elif event.get("params", {}).get("endpoint_id"):
+            return f"beta_core_{str(event.get('params', {}).get('endpoint_id')).strip().lower()}"
         raise ValueError("Invalid event request")
 
     def _initialize(self, event: Dict[str, Any]) -> None:

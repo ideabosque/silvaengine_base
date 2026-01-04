@@ -39,7 +39,10 @@ class Tasks(LambdaBase):
     ) -> Any:
         """Dispatch a task to the appropriate AWS Lambda function."""
         print(f"Task Dispatch {'=' * 60} {endpoint_id} {function_name}")
-        setting, function = cls.get_function(endpoint_id, function_name)
+        setting, function = cls.get_function(
+            endpoint_id=endpoint_id,
+            function_name=function_name,
+        )
         custom_keys = setting.get("custom_header_keys", [])
 
         if not params:
@@ -74,8 +77,8 @@ class Tasks(LambdaBase):
         print(f"Task Function {'=' * 60} {Serializer.json_dumps(function)}")
 
         return cls.invoke(
-            function.aws_lambda_arn,
-            payload,
+            function_name=function.aws_lambda_arn,
+            payload=payload,
             invocation_type=function.config.funct_type,
         )
 
@@ -84,34 +87,33 @@ class Tasks(LambdaBase):
         try:
             self.logger.info(f"Event Handle {'-' * 60}: {event}")
             self.logger.info(f"Context Handle {'-' * 60}: {context}")
+            if event:
+                if event.get("Records") and len(event["Records"]) > 0:
+                    event_source = event["Records"][0]["eventSource"]
 
-            if event.get("Records") and len(event["Records"]) > 0:
-                event_source = event["Records"][0]["eventSource"]
+                    if event_source == "aws:sqs":
+                        self._handle_sqs_event(event)
+                    elif event_source == "aws:s3":
+                        self._handle_s3_event(event)
+                    elif event_source == "aws:dynamodb":
+                        self._handle_dynamodb_event(event)
+                    else:
+                        raise Exception(f"Unsupported event source: {event_source}")
 
-                if event_source == "aws:sqs":
-                    self._handle_sqs_event(event)
-                elif event_source == "aws:s3":
-                    self._handle_s3_event(event)
-                elif event_source == "aws:dynamodb":
-                    self._handle_dynamodb_event(event)
+                elif event.get("bot"):
+                    self._handle_bot_event(event)
                 else:
-                    raise Exception(f"Unsupported event source: {event_source}")
+                    params = event.get("params", {})
 
-            elif event.get("bot"):
-                self._handle_bot_event(event)
-            else:
-                return self.dispatch(
-                    event,
-                    event.get("endpoint_id", ""),
-                    event.get("funct", ""),
-                    params=dict(
-                        {
-                            "endpoint_id": event.get("endpoint_id", ""),
-                        },
-                        **event.get("params", {}),
-                    ),
-                )
+                    if "endpoint_id" not in params and "endpoint_id" in event
+                        params["endpoint_id"] = str(event.get("endpoint_id")).strip().lower()
 
+                    return self.dispatch(
+                        event,
+                        event.get("endpoint_id", ""),
+                        event.get("funct", ""),
+                        params=params,
+                    )
         except Exception as e:
             self.logger.error(f"Error in event handling: {str(e)}")
             log = traceback.format_exc()

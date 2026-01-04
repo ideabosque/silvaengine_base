@@ -8,7 +8,6 @@ from typing import Any, Dict, List, Tuple
 import boto3
 import pendulum
 from boto3.dynamodb.conditions import Key
-
 from silvaengine_utility import Serializer
 
 from .models import (
@@ -48,7 +47,10 @@ class LambdaBase:
 
     @classmethod
     def invoke(
-        cls, function_name: str, payload: dict, invocation_type: str = "Event"
+        cls,
+        function_name: str,
+        payload: dict,
+        invocation_type: str = "Event",
     ) -> Any:
         """
         Invoke another Lambda function.
