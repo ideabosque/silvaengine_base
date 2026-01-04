@@ -8,6 +8,7 @@ from typing import Any, Dict, List, Tuple
 import boto3
 import pendulum
 from boto3.dynamodb.conditions import Key
+
 from silvaengine_utility import Serializer
 
 from .models import (
@@ -222,6 +223,7 @@ class LambdaBase:
         endpoint_id: str,
         connection_id: str,
         api_key: str,
+        url_parameters: Dict[str, Any],
         area: str,
         data: Dict[str, Any],
     ) -> Dict[str, Any]:
@@ -239,6 +241,7 @@ class LambdaBase:
                 connection_id,
                 **{
                     "api_key": api_key,
+                    "url_parameters": url_parameters,
                     "area": area,
                     "data": data,
                     "updated_at": pendulum.now("UTC"),

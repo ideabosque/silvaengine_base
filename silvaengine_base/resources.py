@@ -64,6 +64,7 @@ class Resources(LambdaBase):
                 LambdaBase.save_wss_connection(
                     endpoint_id=endpoint_id,
                     connection_id=connection_id,
+                    url_parameters=event.get("queryStringParameters", {}),
                     area=area,
                     api_key=api_key,
                     data=event.get("requestContext", {}).get("authorizer", {}),
@@ -108,6 +109,11 @@ class Resources(LambdaBase):
             return {"statusCode": 404, "body": "WebSocket connection not found"}
 
         wss_onnections = [result for result in results]
+
+        if not wss_onnections:
+            self.logger.error("WebSocket connection not found")
+            return {"statusCode": 404, "body": "WebSocket connection not found"}
+
         endpoint_id = wss_onnections[0].endpoint_id
 
         if api_key is None:
@@ -133,6 +139,11 @@ class Resources(LambdaBase):
                 "statusCode": 400,
                 "body": "Missing required parameters: endpointId or funct",
             }
+
+        if type(wss_onnections[0].url_parameters) is dict:
+            params["custom_headers"] = self._extract_event_headers(
+                wss_onnections[0].url_parameters
+            )
 
         method = self._get_http_method(event)
         self.logger.info(f">>>>>>>>>>>>>> {endpoint_id} {funct} {api_key} {method}")
