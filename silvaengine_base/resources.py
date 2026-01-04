@@ -7,6 +7,7 @@ import traceback
 from typing import Any, Dict, Tuple
 
 import pendulum
+
 from silvaengine_utility import Authorizer as ApiGatewayAuthorizer
 from silvaengine_utility import Invoker, Serializer, Utility
 
@@ -134,6 +135,7 @@ class Resources(LambdaBase):
             }
 
         method = self._get_http_method(event)
+        self.logger.info(f">>>>>>>>>>>>>> {endpoint_id} {funct} {api_key} {method}")
         setting, function = LambdaBase.get_function(
             endpoint_id, funct, api_key=api_key, method=method
         )
