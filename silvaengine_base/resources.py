@@ -141,12 +141,13 @@ class Resources(LambdaBase):
                 "body": "Missing required parameters: endpointId or funct",
             }
 
-        self.logger.info(f"{'=' * 60} {type(wss_onnections[0].url_parameters)}")
-        self.logger.info(f"{'=' * 60} {wss_onnections[0].url_parameters.as_dict()}")
+        url_parameters = wss_onnections[0].url_parameters.as_dict()
+        self.logger.info(f"{'=' * 60} {type(url_parameters}")
+        self.logger.info(f"{'=' * 60} {url_parameters}")
 
-        if type(wss_onnections[0].url_parameters) is dict:
+        if type(url_parameters) is dict:
             params["custom_headers"] = self._extract_event_headers(
-                wss_onnections[0].url_parameters.as_dict()
+                url_parameters
             )
 
         method = self._get_http_method(event)
