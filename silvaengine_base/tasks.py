@@ -38,15 +38,15 @@ class Tasks(LambdaBase):
         params: Optional[Dict[str, Any]] = None,
     ) -> Any:
         """Dispatch a task to the appropriate AWS Lambda function."""
+        if not params:
+            params = {}
+
         print(f"Task Dispatch {'=' * 60} {endpoint_id} {function_name}")
         setting, function = cls.get_function(
             endpoint_id=endpoint_id,
             function_name=function_name,
         )
         custom_keys = setting.get("custom_header_keys", [])
-
-        if not params:
-            params = {}
 
         # Parse header keys
         if isinstance(custom_keys, str):
@@ -69,8 +69,8 @@ class Tasks(LambdaBase):
             "MODULENAME": function.config.module_name,
             "CLASSNAME": function.config.class_name,
             "funct": function.function,
-            "setting": Serializer.json_dumps(setting),
-            "params": Serializer.json_dumps(params),
+            "setting": setting,
+            "params": params,
         }
 
         print(f"Task Dispatch {'=' * 60} {Serializer.json_dumps(payload)}")
