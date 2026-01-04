@@ -100,25 +100,29 @@ class Resources(LambdaBase):
         """
         Process the 'stream' route for WebSocket events, managing the payload and dispatching tasks.
         """
-        connection_id = event.get("requestContext", {}).get("connectionId")
         request_context = event.get("requestContext", {})
-        api_key = request_context.get("identity", {}).get("apiKey")
+        connection_id = request_context.get("connectionId")
+
+        if not connection_id:
+            self.logger.error("WebSocket connection not found")
+            return {"statusCode": 400, "body": "Invalid webSocket connection"}
+
         results = LambdaBase.get_wss_connections(connection_id)
 
         if not results:
+            self.logger.error("Not found any connections")
+            return {"statusCode": 404, "body": "Not found any websocket connections"}
+
+        wss_onnection = [result for result in results][0]
+
+        if not wss_onnection:
             self.logger.error("WebSocket connection not found")
             return {"statusCode": 404, "body": "WebSocket connection not found"}
 
-        wss_onnections = [result for result in results]
-
-        if not wss_onnections:
-            self.logger.error("WebSocket connection not found")
-            return {"statusCode": 404, "body": "WebSocket connection not found"}
-
-        endpoint_id = wss_onnections[0].endpoint_id
-
-        if api_key is None:
-            api_key = wss_onnections[0].api_key
+        endpoint_id = wss_onnection.endpoint_id
+        api_key = request_context.get("identity", {}).get(
+            "apiKey", wss_onnection.api_key
+        )
 
         body = (
             Serializer.json_loads(event.get("body"))
@@ -147,9 +151,7 @@ class Resources(LambdaBase):
             endpoint_id, funct, api_key=api_key, method=method
         )
 
-        url_parameters = wss_onnections[0].url_parameters.as_dict()
-        self.logger.info(f"{'=' * 60} {type(url_parameters)}")
-        self.logger.info(f"{'=' * 60} {url_parameters}")
+        url_parameters = wss_onnection.url_parameters.as_dict()
 
         if type(url_parameters) is dict:
             params["custom_headers"] = self._extract_event_headers(
