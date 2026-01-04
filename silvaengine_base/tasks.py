@@ -38,6 +38,7 @@ class Tasks(LambdaBase):
         params: Optional[Dict[str, Any]] = None,
     ) -> Any:
         """Dispatch a task to the appropriate AWS Lambda function."""
+        print(f"Task Dispatch {'=' * 60} {endpoint_id} {function_name}")
         setting, function = cls.get_function(endpoint_id, function_name)
         custom_keys = setting.get("custom_header_keys", [])
 
