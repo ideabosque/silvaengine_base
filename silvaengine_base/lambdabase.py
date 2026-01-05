@@ -269,7 +269,7 @@ class LambdaBase:
             raise ValueError(f"Failed to get WSS connection: {str(e)}")
 
     @classmethod
-    def get_wss_connections(cls, connection_id: str) -> List[WSSConnectionModel]:
+    def get_wss_connections(cls, connection_id: str):
         """
         Get all WSS connection models from DynamoDB for a given connection.
         :param connection_id: The ID of the connection.

@@ -110,6 +110,7 @@ class Tasks(LambdaBase):
                     self._handle_bot_event(event)
                 else:
                     params = event.get("params", {})
+                    params.update({"logger": self.logger})
 
                     if "endpoint_id" not in params and "endpoint_id" in event:
                         params["endpoint_id"] = (
@@ -140,7 +141,12 @@ class Tasks(LambdaBase):
             endpoint_id = record["messageAttributes"]["endpoint_id"].get("stringValue")
             function_name = record["messageAttributes"]["funct"].get("stringValue")
             params = Serializer.json_loads(record["body"]).get("params", {})
-            params.update({"endpoint_id": endpoint_id})
+            params.update(
+                {
+                    "endpoint_id": endpoint_id,
+                    "logger": self.logger,
+                }
+            )
 
             self.logger.info(
                 f"(SQS) Endpoint ID: {endpoint_id}, Function: {function_name}, Params: {Serializer.json_dumps(params)}"
@@ -163,6 +169,7 @@ class Tasks(LambdaBase):
 
         pieces = key.split("/")
         params = {
+            "logger": self.logger,
             "bucket": bucket,
             "key": key,
             "id": pieces[-1]
@@ -186,7 +193,10 @@ class Tasks(LambdaBase):
         """Handle DynamoDB events."""
         endpoint_id = os.getenv("DYNAMODBSTREAMENDPOINTID", "")
         function_name = "stream_handle"
-        params = {"records": event.get("Records", [])}
+        params = {
+            "records": event.get("Records", []),
+            "logger": self.logger,
+        }
 
         table_name = self.extract_table_name(event["Records"][0]["eventSourceARN"])
         try:
@@ -213,6 +223,7 @@ class Tasks(LambdaBase):
         endpoint_id = event["bot"]["id"]
         function_name = f"{event['bot']['name'].lower()}_lex_dispatch"
         params = event
+        params.update({"logger": self.logger})
 
         self.logger.info(
             f"(Lex Bot) Endpoint ID: {endpoint_id}, Function: {function_name}, Params: {Serializer.json_dumps(params)}"
