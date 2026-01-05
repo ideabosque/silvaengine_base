@@ -8,7 +8,7 @@ import urllib.parse
 from typing import Any, Dict, Optional, Tuple
 
 import boto3
-from silvaengine_utility import Serializer, Utility
+from silvaengine_utility import Invoker, Serializer, Utility
 
 from .lambdabase import LambdaBase
 from .models import FunctionModel
@@ -65,22 +65,28 @@ class Tasks(LambdaBase):
             }
             params.update({k: event[k] for k in snake_case_keys if k in event})
 
-        payload = {
-            "MODULENAME": function.config.module_name,
-            "CLASSNAME": function.config.class_name,
-            "funct": function.function,
-            "setting": setting,
-            "params": params,
-        }
+        # payload = {
+        #     "MODULENAME": function.config.module_name,
+        #     "CLASSNAME": function.config.class_name,
+        #     "funct": function.function,
+        #     "setting": setting,
+        #     "params": params,
+        # }
 
-        print(f"Task Dispatch {'=' * 60} {Serializer.json_dumps(payload)}")
+        print(f"Task Dispatch {'=' * 60} {Serializer.json_dumps(params)}")
         print(f"Task Function {'=' * 60} {Serializer.json_dumps(function)}")
 
-        return cls.invoke(
-            function_name=function.aws_lambda_arn,
-            payload=payload,
-            invocation_type=function.config.funct_type,
-        )
+        # return cls.invoke(
+        #     function_name=function.aws_lambda_arn,
+        #     payload=payload,
+        #     invocation_type=function.config.funct_type,
+        # )
+        return Invoker.import_dynamically(
+            module_name=function.config.module_name,
+            function_name=function.function,
+            class_name=function.config.class_name,
+            constructor_parameters={"logger": params.get("logger"), **setting},
+        )(**params)
 
     def handle(self, event: Dict[str, Any], context: Any) -> None:
         """Main handler function for SQS, S3, and DynamoDB events."""
