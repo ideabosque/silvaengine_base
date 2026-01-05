@@ -73,9 +73,6 @@ class Tasks(LambdaBase):
         #     "params": params,
         # }
 
-        print(f"Task Dispatch {'=' * 60} {Serializer.json_dumps(params)}")
-        print(f"Task Function {'=' * 60} {Serializer.json_dumps(function)}")
-
         # return cls.invoke(
         #     function_name=function.aws_lambda_arn,
         #     payload=payload,
@@ -91,8 +88,6 @@ class Tasks(LambdaBase):
     def handle(self, event: Dict[str, Any], context: Any) -> None:
         """Main handler function for SQS, S3, and DynamoDB events."""
         try:
-            self.logger.info(f"Event Handle {'-' * 60}: {event}")
-            self.logger.info(f"Context Handle {'-' * 60}: {context}")
             if event:
                 if event.get("Records") and len(event["Records"]) > 0:
                     event_source = event["Records"][0]["eventSource"]
