@@ -331,7 +331,7 @@ class Resources(LambdaBase):
         if not self.settings:
             self._initialize(event)
 
-        return Invoker.import_dynamically(
+        return Invoker.resolve_proxied_callable(
             module_name=self.settings.get("cognito_hook_module_name", "event_triggers"),
             function_name=self.settings.get(
                 "cognito_hook_function_name", "pre_token_generate"
@@ -382,7 +382,7 @@ class Resources(LambdaBase):
         self, event: Dict[str, Any], context: Any, action: str
     ) -> Any:
         """Dynamically handle authorization and permission checks."""
-        fn = Invoker.import_dynamically(
+        fn = Invoker.resolve_proxied_callable(
             module_name=self.settings.get(
                 "authorizer_module_name", "silvaengine_authorizer"
             ),
@@ -416,7 +416,7 @@ class Resources(LambdaBase):
         if event.get("body"):
             params.update(Serializer.json_loads(event.get("body")))
 
-        return Invoker.import_dynamically(
+        return Invoker.resolve_proxied_callable(
             module_name=function.config.module_name,
             function_name=function.function,
             class_name=function.config.class_name,
