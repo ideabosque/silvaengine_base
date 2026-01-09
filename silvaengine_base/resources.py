@@ -8,7 +8,7 @@ from typing import Any, Dict, Tuple
 
 import pendulum
 from silvaengine_utility import Authorizer as ApiGatewayAuthorizer
-from silvaengine_utility import Invoker, Serializer, Utility
+from silvaengine_utility import Debugger, Invoker, Serializer, Utility
 
 from .lambdabase import LambdaBase
 
@@ -25,6 +25,13 @@ class Resources(LambdaBase):
 
     def handle(self, event: Dict[str, Any], context: Any) -> Any:
         try:
+            Debugger.info(
+                variable=event,
+                stage="Lambda Handle",
+                logger=self.logger,
+                delimiter="#",
+            )
+
             # Check if the event is from a WebSocket connection
             request_context = event.get("requestContext", {})
             connection_id = request_context.get("connectionId")
