@@ -78,7 +78,7 @@ class Tasks(LambdaBase):
         #     payload=payload,
         #     invocation_type=function.config.funct_type,
         # )
-        return Invoker.import_dynamically(
+        return Invoker.resolve_proxied_callable(
             module_name=function.config.module_name,
             function_name=function.function,
             class_name=function.config.class_name,
