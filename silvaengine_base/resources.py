@@ -27,9 +27,16 @@ class Resources(LambdaBase):
         try:
             Debugger.info(
                 variable=event,
-                stage="Lambda Handle",
+                stage="Lambda Handle (EVENT)",
                 logger=self.logger,
                 delimiter="#",
+            )
+
+            Debugger.info(
+                variable=context,
+                stage="Lambda Handle (CONTEXT)",
+                logger=self.logger,
+                delimiter="=",
             )
 
             # Check if the event is from a WebSocket connection
