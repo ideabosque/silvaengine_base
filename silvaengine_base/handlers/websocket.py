@@ -71,12 +71,6 @@ class WebSocketHandler(Handler):
             area = self._get_api_area()
             api_key = self._get_api_key()
 
-            Debugger.info(
-                variable=f"Endpoint ID: {endpoint_id},Area: {area},Connection ID: {connection_id}, Route Key: {route_key}, Api Key: {api_key}",
-                stage="Websocket Handle",
-                logger=self.logger,
-            )
-
             url_parameters.update(connection_id=connection_id)
 
             if not api_key and not endpoint_id:
