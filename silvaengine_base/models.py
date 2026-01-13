@@ -11,7 +11,8 @@ from pynamodb.attributes import (
     UTCDateTimeAttribute,
 )
 from pynamodb.indexes import AllProjection, GlobalSecondaryIndex
-from silvaengine_dynamodb_base.models import BaseModel
+
+from silvaengine_dynamodb_base import BaseModel
 
 
 class EndpointModel(BaseModel):
