@@ -5,8 +5,9 @@ from __future__ import print_function
 from typing import Any, Dict
 
 import pendulum
-from silvaengine_constants import AuthorizationAction, HttpStatus, SwitchStatus
 from silvaengine_dynamodb_base.models import FunctionModel, WSSConnectionModel
+
+from silvaengine_constants import AuthorizationAction, HttpStatus, SwitchStatus
 from silvaengine_utility import Serializer
 
 from ..handler import Handler
@@ -180,7 +181,7 @@ class WebSocketHandler(Handler):
                 )
 
             if (
-                type(function) is not FunctionModel
+                not isinstance(function, FunctionModel)
                 or not hasattr(function, "config")
                 or not hasattr(function.config, "module_name")
                 or not hasattr(function.config, "class_name")

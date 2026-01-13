@@ -21,7 +21,10 @@ class S3Handler(Handler):
 
     def handle(self) -> Any:
         try:
-            if type(self.event["Records"]) is list and len(self.event["Records"]) > 0:
+            if (
+                isinstance(self.event["Records"], list)
+                and len(self.event["Records"]) > 0
+            ):
                 record = self.event["Records"][0]
                 bucket = str(record.get("s3", {}).get("bucket", {}).get("name")).strip()
                 object_key = str(
@@ -58,7 +61,7 @@ class S3Handler(Handler):
                 )
 
                 if (
-                    type(function) is not FunctionModel
+                    not isinstance(function, FunctionModel)
                     or not hasattr(function, "config")
                     or not hasattr(function.config, "module_name")
                     or not hasattr(function.config, "class_name")

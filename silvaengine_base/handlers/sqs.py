@@ -58,7 +58,7 @@ class SQSHandler(Handler):
                 )
 
                 if (
-                    type(function) is not FunctionModel
+                    not isinstance(function, FunctionModel)
                     or not hasattr(function, "config")
                     or not hasattr(function.config, "module_name")
                     or not hasattr(function.config, "class_name")
