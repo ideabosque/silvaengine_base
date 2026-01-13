@@ -7,17 +7,18 @@ import os
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import boto3
+from silvaengine_dynamodb_base.models import (
+    ConfigModel,
+    ConnectionModel,
+    FunctionModel,
+)
+
 from silvaengine_constants import (
     AuthorizationAction,
     AuthorizationType,
     HttpStatus,
     InvocationType,
     RequestMethod,
-)
-from silvaengine_dynamodb_base.models import (
-    ConfigModel,
-    ConnectionModel,
-    FunctionModel,
 )
 from silvaengine_utility import (
     Authorizer,
@@ -457,7 +458,7 @@ class Handler:
             "area": area,
             "api_key": api_key,
             "metadata": metadata,
-            "context": self.context,
+            # "context": self.context,
         }
         parameters.update(**self._parse_event_body())
 
@@ -482,7 +483,7 @@ class Handler:
         """Extract additional parameters from the metadata."""
         result = {}
 
-        if type(metadata) is not dict or len(metadata) < 1:
+        if not isinstance(metadata, dict) or len(metadata) < 1:
             return result
 
         keys = self.setting.get("custom_header_keys", [])

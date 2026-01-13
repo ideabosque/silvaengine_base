@@ -4,8 +4,9 @@ from __future__ import print_function
 
 from typing import Any, Callable, Dict, List, Optional, Union
 
-from silvaengine_constants import AuthorizationAction
 from silvaengine_dynamodb_base.models import FunctionModel
+
+from silvaengine_constants import AuthorizationAction
 from silvaengine_utility import Authorizer, Debugger
 
 from ..handler import Handler
@@ -39,7 +40,9 @@ class HttpHandler(Handler):
                 method=self._get_request_method(),
             )
 
-            if type(function) is not FunctionModel or not hasattr(function, "config"):
+            if not isinstance(function, FunctionModel) or not hasattr(
+                function, "config"
+            ):
                 raise ValueError("Invalid function")
             elif hasattr(function, "area"):
                 self._validate_function_area(function.area)
