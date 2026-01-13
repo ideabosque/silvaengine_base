@@ -11,7 +11,7 @@ from ..handler import Handler
 
 class BotHandler(Handler):
     @classmethod
-    def _is_event_match_handler(cls, event: Dict[str, Any]) -> bool:
+    def is_event_match_handler(cls, event: Dict[str, Any]) -> bool:
         return "bot" in event
 
     def handle(self) -> Any:
@@ -35,9 +35,9 @@ class BotHandler(Handler):
             if (
                 type(function) is not FunctionModel
                 or not hasattr(function, "config")
-                or hasattr(function.config, "module_name")
-                or hasattr(function.config, "class_name")
-                or hasattr(function, "function")
+                or not hasattr(function.config, "module_name")
+                or not hasattr(function.config, "class_name")
+                or not hasattr(function, "function")
             ):
                 raise ValueError("Invalid function")
 

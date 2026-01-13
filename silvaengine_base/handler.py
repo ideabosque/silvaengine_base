@@ -7,18 +7,17 @@ import os
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import boto3
-from silvaengine_dynamodb_base.models import (
-    ConfigModel,
-    ConnectionModel,
-    FunctionModel,
-)
-
 from silvaengine_constants import (
     AuthorizationAction,
     AuthorizationType,
     HttpStatus,
     InvocationType,
     RequestMethod,
+)
+from silvaengine_dynamodb_base.models import (
+    ConfigModel,
+    ConnectionModel,
+    FunctionModel,
 )
 from silvaengine_utility import (
     Authorizer,
@@ -53,17 +52,17 @@ class Handler:
         raise NotImplementedError("Subclasses must implement the handle method.")
 
     @classmethod
-    def _is_event_match_handler(cls, event: Dict[str, Any]) -> bool:
+    def is_event_match_handler(cls, event: Dict[str, Any]) -> bool:
         raise NotImplementedError("Subclasses must implement the handle method.")
 
     @classmethod
-    def instantiate_handler(
+    def new_handler(
         cls,
         event: Dict[str, Any],
         context: Any,
         logger: logging.Logger,
     ):
-        if cls._is_event_match_handler(event):
+        if cls.is_event_match_handler(event):
             return cls(
                 logger=logger,
                 event=event,
@@ -212,7 +211,7 @@ class Handler:
             if not api_key:
                 raise ValueError("Invalid api key")
 
-            connection = ConnectionModel.get(endpoint_id, api_key)
+            connection = ConnectionModel.get(hash_key=endpoint_id, range_key=api_key)
             middleman = next(
                 (
                     fn
@@ -459,6 +458,8 @@ class Handler:
             "api_key": api_key,
             "metadata": metadata,
         }
+        parameters.update(**self._parse_event_body())
+
         function_name, proxy_path = self._get_proxy_function_and_path()
 
         if not function_name:

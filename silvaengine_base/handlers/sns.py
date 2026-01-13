@@ -9,7 +9,7 @@ from ..handler import Handler
 
 class SNSHandler(Handler):
     @classmethod
-    def _is_event_match_handler(cls, event: Dict[str, Any]) -> bool:
+    def is_event_match_handler(cls, event: Dict[str, Any]) -> bool:
         return (
             "Records" in event
             and len(event["Records"]) > 0

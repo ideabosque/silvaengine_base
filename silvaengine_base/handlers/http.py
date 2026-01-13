@@ -4,17 +4,16 @@ from __future__ import print_function
 
 from typing import Any, Callable, Dict, List, Optional, Union
 
-from silvaengine_dynamodb_base.models import FunctionModel
-
 from silvaengine_constants import AuthorizationAction
-from silvaengine_utility import Authorizer
+from silvaengine_dynamodb_base.models import FunctionModel
+from silvaengine_utility import Authorizer, Debugger
 
 from ..handler import Handler
 
 
 class HttpHandler(Handler):
     @classmethod
-    def _is_event_match_handler(cls, event: Dict[str, Any]) -> bool:
+    def is_event_match_handler(cls, event: Dict[str, Any]) -> bool:
         return (
             "requestContext" in event
             and "http" in event["requestContext"]
@@ -80,11 +79,16 @@ class HttpHandler(Handler):
                     self._merge_metadata_to_event(permission)
 
             if (
-                hasattr(function.config, "module_name")
-                or hasattr(function.config, "class_name")
-                or hasattr(function, "function")
+                not hasattr(function.config, "module_name")
+                or not hasattr(function.config, "class_name")
+                or not hasattr(function, "function")
             ):
                 raise ValueError("Missing function config")
+
+            Debugger.info(
+                variable=(function, parameters),
+                stage="EXECUTE FUNCTION",
+            )
 
             return self._get_proxied_callable(
                 module_name=function.config.module_name,

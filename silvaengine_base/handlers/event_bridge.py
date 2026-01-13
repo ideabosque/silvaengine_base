@@ -9,7 +9,7 @@ from ..handler import Handler
 
 class EventBridgeHandler(Handler):
     @classmethod
-    def _is_event_match_handler(cls, event: Dict[str, Any]) -> bool:
+    def is_event_match_handler(cls, event: Dict[str, Any]) -> bool:
         return all(key in event for key in ["source", "detail-type", "detail"])
 
     def handle(self) -> Any:

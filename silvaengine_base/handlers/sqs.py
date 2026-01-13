@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 
-from typing import Any,  Dict
+from typing import Any, Dict
 
 from silvaengine_dynamodb_base.models import FunctionModel
 
@@ -13,7 +13,7 @@ from ..handler import Handler
 
 class SQSHandler(Handler):
     @classmethod
-    def _is_event_match_handler(cls, event: Dict[str, Any]) -> bool:
+    def is_event_match_handler(cls, event: Dict[str, Any]) -> bool:
         return (
             "Records" in event
             and len(event["Records"]) > 0
@@ -60,9 +60,9 @@ class SQSHandler(Handler):
                 if (
                     type(function) is not FunctionModel
                     or not hasattr(function, "config")
-                    or hasattr(function.config, "module_name")
-                    or hasattr(function.config, "class_name")
-                    or hasattr(function, "function")
+                    or not hasattr(function.config, "module_name")
+                    or not hasattr(function.config, "class_name")
+                    or not hasattr(function, "function")
                 ):
                     raise ValueError("Invalid function")
 
