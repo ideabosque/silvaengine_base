@@ -79,12 +79,12 @@ class Handler:
         )
 
     def _merge_setting_to_default(self, setting: Dict[str, Any]):
-        if type(setting) is dict:
+        if isinstance(setting, dict):
             self.setting.update(setting)
         return self
 
     def _merge_metadata_to_event(self, metadata: Any):
-        if type(metadata) is dict:
+        if isinstance(metadata, dict):
             self.event.update(metadata)
         return self
 
