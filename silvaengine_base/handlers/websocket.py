@@ -72,7 +72,7 @@ class WebSocketHandler(Handler):
             api_key = self._get_api_key()
 
             Debugger.info(
-                variable=f"Endpoint ID: {endpoint_id},Area: {area},Connection ID: {connection_id}, Route Key: {route_key}, Route Key: {api_key}",
+                variable=f"Endpoint ID: {endpoint_id},Area: {area},Connection ID: {connection_id}, Route Key: {route_key}, Api Key: {api_key}",
                 stage="Websocket Handle",
                 logger=self.logger,
             )
