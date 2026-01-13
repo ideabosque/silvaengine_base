@@ -9,7 +9,7 @@ from ..handler import Handler
 
 class CloudwatchLogHandler(Handler):
     @classmethod
-    def _is_event_match_handler(cls, event: Dict[str, Any]) -> bool:
+    def is_event_match_handler(cls, event: Dict[str, Any]) -> bool:
         return "awslogs" in event
 
     def handle(self) -> Any:

@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 
+import traceback
 from typing import Any, Dict
 
 from silvaengine_constants import HttpStatus
@@ -49,14 +50,14 @@ class Resources:
         return handler
 
     def handle(self, event: Dict[str, Any], context: Any) -> Any:
-        try:
-            Debugger.info(
-                variable=event,
-                stage="Lambda Handle",
-                logger=self.logger,
-                delimiter="#",
-            )
+        Debugger.info(
+            variable=event,
+            stage="Lambda Handle",
+            logger=self.logger,
+            delimiter="#",
+        )
 
+        try:
             handle_parameters = {
                 "event": event,
                 "context": context,
@@ -65,13 +66,15 @@ class Resources:
 
             return next(
                 (
-                    handler
+                    handler.new_handler(**handle_parameters)
                     for handler in self._event_handlers
-                    if handler.instantiate_handler(**handle_parameters)
+                    if handler.is_event_match_handler(event)
                 ),
                 UnknownHandler(**handle_parameters),
             ).handle()
         except Exception as e:
+            print(traceback.format_exc())
+            print(str(e))
             return HttpResponse.format_response(
                 status_code=HttpStatus.INTERNAL_SERVER_ERROR.value,
                 data={"error": str(e)},
