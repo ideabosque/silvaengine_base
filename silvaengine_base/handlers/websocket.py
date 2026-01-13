@@ -5,10 +5,9 @@ from __future__ import print_function
 from typing import Any, Dict
 
 import pendulum
-from silvaengine_dynamodb_base.models import FunctionModel, WSSConnectionModel
-
 from silvaengine_constants import AuthorizationAction, HttpStatus, SwitchStatus
-from silvaengine_utility import Serializer
+from silvaengine_dynamodb_base.models import FunctionModel, WSSConnectionModel
+from silvaengine_utility import Debugger, Serializer
 
 from ..handler import Handler
 
@@ -46,6 +45,12 @@ class WebSocketHandler(Handler):
     def handle(self) -> Any:
         connection_id = self._get_connection_id()
         route_key = self._get_route_key()
+
+        Debugger.info(
+            variable=f"Connection ID: {connection_id}, Route Key: {route_key}",
+            stage="Websocket Handle",
+            logger=self.logger,
+        )
 
         if connection_id and route_key:
             return self._dispatch(connection_id, route_key)
