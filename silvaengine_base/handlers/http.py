@@ -44,7 +44,7 @@ class HttpHandler(Handler):
             elif hasattr(function, "area"):
                 self._validate_function_area(function.area)
 
-            if type(setting) is dict:
+            if isinstance(setting, dict):
                 self._merge_setting_to_default(setting)
 
             self._merge_metadata_to_event(
@@ -75,7 +75,7 @@ class HttpHandler(Handler):
                     action=AuthorizationAction.VERIFY_PERMISSION
                 )
 
-                if type(permission) is dict:
+                if isinstance(permission, dict):
                     self._merge_metadata_to_event(permission)
 
             if (

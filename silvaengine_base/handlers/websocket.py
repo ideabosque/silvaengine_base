@@ -5,9 +5,8 @@ from __future__ import print_function
 from typing import Any, Dict
 
 import pendulum
-from silvaengine_dynamodb_base.models import FunctionModel, WSSConnectionModel
-
 from silvaengine_constants import AuthorizationAction, HttpStatus, SwitchStatus
+from silvaengine_dynamodb_base.models import FunctionModel, WSSConnectionModel
 from silvaengine_utility import Serializer
 
 from ..handler import Handler
@@ -93,12 +92,12 @@ class WebSocketHandler(Handler):
 
         elif route_key == "$disconnect":
             results = WSSConnectionModel.find(connection_id)
-            wss_onnection = [result for result in results][0]
+            wss_connection = [result for result in results][0]
 
-            if wss_onnection:
-                wss_onnection.status = SwitchStatus.INACTIVE.value
-                wss_onnection.updated_at = pendulum.now("UTC")
-                wss_onnection.save()
+            if wss_connection:
+                wss_connection.status = SwitchStatus.INACTIVE.value
+                wss_connection.updated_at = pendulum.now("UTC")
+                wss_connection.save()
 
             return self._generate_response(
                 status_code=HttpStatus.OK.value,
@@ -133,15 +132,15 @@ class WebSocketHandler(Handler):
                     body={"data": "Not found any websocket connections"},
                 )
 
-            wss_onnection = [result for result in results][0]
+            wss_connection = [result for result in results][0]
 
-            if not wss_onnection:
+            if not wss_connection:
                 return self._generate_response(
                     status_code=HttpStatus.NOT_FOUND.value,
                     body={"data": "WebSocket connection not found"},
                 )
 
-            endpoint_id = wss_onnection.endpoint_id
+            endpoint_id = wss_connection.endpoint_id
 
             if not endpoint_id:
                 endpoint_id = self._get_endpoint_id()
@@ -171,9 +170,9 @@ class WebSocketHandler(Handler):
 
             self._merge_setting_to_default(setting=setting)
 
-            url_parameters = wss_onnection.url_parameters.as_dict()
+            url_parameters = wss_connection.url_parameters.as_dict()
 
-            if type(url_parameters) is dict:
+            if isinstance(url_parameters, dict):
                 parameters.update(
                     self._extract_additional_parameters(
                         url_parameters,
