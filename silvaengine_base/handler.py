@@ -79,7 +79,7 @@ class Handler:
     ) -> Dict[str, Any]:
         """Generate a standard HTTP response."""
         return HttpResponse.format_response(
-            status_code=HttpStatus.INTERNAL_SERVER_ERROR.value,
+            status_code=status_code,
             data=body,
             as_websocket_format=as_websocket_format,
         )
