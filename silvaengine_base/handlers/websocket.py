@@ -47,14 +47,8 @@ class WebSocketHandler(Handler):
             connection_id = self._get_connection_id()
             route_key = self._get_route_key()
 
-            Debugger.info(
-                variable=f"Connection ID: {connection_id}, Route Key: {route_key}",
-                stage="Websocket Handle",
-                logger=self.logger,
-            )
-
             if connection_id and route_key:
-                return self._dispatch(connection_id, route_key)
+                return self._dispatch(connection_id=connection_id, route_key=route_key)
 
         except Exception as e:
             return {}
@@ -76,6 +70,12 @@ class WebSocketHandler(Handler):
             endpoint_id = self._get_endpoint_id()
             area = self._get_api_area()
             api_key = self._get_api_key()
+
+            Debugger.info(
+                variable=f"Endpoint ID: {endpoint_id},Area: {area},Connection ID: {connection_id}, Route Key: {route_key}, Route Key: {api_key}",
+                stage="Websocket Handle",
+                logger=self.logger,
+            )
 
             url_parameters.update(connection_id=connection_id)
 
