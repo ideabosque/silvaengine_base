@@ -209,6 +209,6 @@ class WebSocketHandler(Handler):
                 module_name=function.config.module_name,
                 class_name=function.config.class_name,
                 function_name=function.function,
-            )
+            )(**parameters)
         except Exception as e:
             raise e
