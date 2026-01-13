@@ -457,6 +457,7 @@ class Handler:
             "area": area,
             "api_key": api_key,
             "metadata": metadata,
+            "context": self.context,
         }
         parameters.update(**self._parse_event_body())
 
