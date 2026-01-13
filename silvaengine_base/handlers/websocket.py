@@ -43,19 +43,21 @@ class WebSocketHandler(Handler):
         return {}
 
     def handle(self) -> Any:
-        connection_id = self._get_connection_id()
-        route_key = self._get_route_key()
+        try:
+            connection_id = self._get_connection_id()
+            route_key = self._get_route_key()
 
-        Debugger.info(
-            variable=f"Connection ID: {connection_id}, Route Key: {route_key}",
-            stage="Websocket Handle",
-            logger=self.logger,
-        )
+            Debugger.info(
+                variable=f"Connection ID: {connection_id}, Route Key: {route_key}",
+                stage="Websocket Handle",
+                logger=self.logger,
+            )
 
-        if connection_id and route_key:
-            return self._dispatch(connection_id, route_key)
+            if connection_id and route_key:
+                return self._dispatch(connection_id, route_key)
 
-        return {}
+        except Exception as e:
+            return {}
 
     def _dispatch(self, connection_id: str, route_key: str) -> Any:
         """
