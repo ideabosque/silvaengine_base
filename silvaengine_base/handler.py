@@ -7,18 +7,17 @@ import os
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import boto3
-from silvaengine_dynamodb_base.models import (
-    ConfigModel,
-    ConnectionModel,
-    FunctionModel,
-)
-
 from silvaengine_constants import (
     AuthorizationAction,
     AuthorizationType,
     HttpStatus,
     InvocationType,
     RequestMethod,
+)
+from silvaengine_dynamodb_base.models import (
+    ConfigModel,
+    ConnectionModel,
+    FunctionModel,
 )
 from silvaengine_utility import (
     Authorizer,
@@ -72,11 +71,17 @@ class Handler:
         return None
 
     @classmethod
-    def _generate_response(cls, status_code: int, body: Any) -> Dict[str, Any]:
+    def _generate_response(
+        cls,
+        status_code: int,
+        body: Any,
+        as_websocket_format: bool = False,
+    ) -> Dict[str, Any]:
         """Generate a standard HTTP response."""
         return HttpResponse.format_response(
             status_code=HttpStatus.INTERNAL_SERVER_ERROR.value,
             data=body,
+            as_websocket_format=as_websocket_format,
         )
 
     def _merge_setting_to_default(self, setting: Dict[str, Any]):

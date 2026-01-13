@@ -93,13 +93,10 @@ class WebSocketHandler(Handler):
                     email=str(self._get_authorized_user().get("email", "")).strip(),
                 )
 
-            return {
-                "statusCode": HttpStatus.OK.value,
-                "body": "Connection successful",
-            }
             return self._generate_response(
                 status_code=HttpStatus.OK.value,
                 body={"data": "Connection successful"},
+                as_websocket_format=True,
             )
 
         elif route_key == "$disconnect":
@@ -111,24 +108,18 @@ class WebSocketHandler(Handler):
                 wss_connection.updated_at = pendulum.now("UTC")
                 wss_connection.save()
 
-            return {
-                "statusCode": HttpStatus.OK.value,
-                "body": "Disconnection successful",
-            }
             return self._generate_response(
                 status_code=HttpStatus.OK.value,
                 body={"data": "Disconnection successful"},
+                as_websocket_format=True,
             )
         elif route_key == "stream":
             return self._message()
 
-        return {
-            "statusCode": HttpStatus.BAD_REQUEST.value,
-            "body": "Invalid websocket route",
-        }
         return self._generate_response(
             status_code=HttpStatus.BAD_REQUEST.value,
             body={"data": "Invalid websocket route"},
+            as_websocket_format=True,
         )
 
     def _message(self) -> Any:
@@ -139,37 +130,28 @@ class WebSocketHandler(Handler):
             connection_id = self._get_connection_id()
 
             if not connection_id:
-                return {
-                    "statusCode": HttpStatus.BAD_REQUEST.value,
-                    "body": "Invalid webSocket connection",
-                }
                 return self._generate_response(
                     status_code=HttpStatus.BAD_REQUEST.value,
                     body={"data": "Invalid webSocket connection"},
+                    as_websocket_format=True,
                 )
 
             results = WSSConnectionModel.find(connection_id)
 
             if not results:
-                return {
-                    "statusCode": HttpStatus.NOT_FOUND.value,
-                    "body": "Not found any websocket connections",
-                }
                 return self._generate_response(
                     status_code=HttpStatus.NOT_FOUND.value,
                     body={"data": "Not found any websocket connections"},
+                    as_websocket_format=True,
                 )
 
             wss_connection = [result for result in results][0]
 
             if not wss_connection:
-                return {
-                    "statusCode": HttpStatus.NOT_FOUND.value,
-                    "body": "WebSocket connection not found",
-                }
                 return self._generate_response(
                     status_code=HttpStatus.NOT_FOUND.value,
                     body={"data": "WebSocket connection not found"},
+                    as_websocket_format=True,
                 )
 
             endpoint_id = wss_connection.endpoint_id
@@ -181,12 +163,9 @@ class WebSocketHandler(Handler):
             function = body.get("funct")
 
             if not endpoint_id or not function:
-                return {
-                    "statusCode": HttpStatus.BAD_REQUEST.value,
-                    "body": "Missing required parameters: `endpointId` or `funct`",
-                }
                 return self._generate_response(
                     status_code=HttpStatus.BAD_REQUEST.value,
+                    as_websocket_format=True,
                     body={
                         "data": "Missing required parameters: `endpointId` or `funct`"
                     },
