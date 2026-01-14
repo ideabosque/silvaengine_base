@@ -23,9 +23,7 @@ class WebSocketHandler(Handler):
         )
 
     def _get_connection_id(self):
-        return (
-            str(self.event["requestContext"].get("connectionId")).strip().lower() or ""
-        )
+        return str(self.event["requestContext"].get("connectionId")).strip() or ""
 
     def _get_route_key(self):
         return str(self.event["requestContext"].get("routeKey")).strip().lower() or ""
