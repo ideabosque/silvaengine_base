@@ -114,6 +114,7 @@ class WebSocketHandler(Handler):
             variable="Invalid websocket route",
             stage="WEBSOCKET TEST",
             delimiter="#",
+            logger=self.logger,
         )
         return self._generate_response(
             status_code=HttpStatus.BAD_REQUEST.value,
@@ -133,6 +134,7 @@ class WebSocketHandler(Handler):
                     variable="Invalid websocket connection",
                     stage="WEBSOCKET TEST",
                     delimiter="#",
+                    logger=self.logger,
                 )
                 return self._generate_response(
                     status_code=HttpStatus.BAD_REQUEST.value,
@@ -147,6 +149,7 @@ class WebSocketHandler(Handler):
                     variable="Not found any websocket connections",
                     stage="WEBSOCKET TEST",
                     delimiter="#",
+                    logger=self.logger,
                 )
 
                 return self._generate_response(
@@ -162,6 +165,7 @@ class WebSocketHandler(Handler):
                     variable="WebSocket connection not found",
                     stage="WEBSOCKET TEST",
                     delimiter="#",
+                    logger=self.logger,
                 )
                 return self._generate_response(
                     status_code=HttpStatus.NOT_FOUND.value,
@@ -182,6 +186,7 @@ class WebSocketHandler(Handler):
                     variable="Missing required parameters: `endpointId` or `funct`",
                     stage="WEBSOCKET TEST",
                     delimiter="#",
+                    logger=self.logger,
                 )
                 return self._generate_response(
                     status_code=HttpStatus.BAD_REQUEST.value,
@@ -224,7 +229,10 @@ class WebSocketHandler(Handler):
                 or not hasattr(function, "function")
             ):
                 Debugger.info(
-                    variable="Invalid function", stage="WEBSOCKET TEST", delimiter="#"
+                    variable="Invalid function",
+                    stage="WEBSOCKET TEST",
+                    delimiter="#",
+                    logger=self.logger,
                 )
                 return self._generate_response(
                     status_code=HttpStatus.INTERNAL_SERVER_ERROR.value,
@@ -232,7 +240,12 @@ class WebSocketHandler(Handler):
                     body={"data": "Invalid function"},
                 )
 
-            Debugger.info(variable=parameters, stage="WEBSOCKET TEST", delimiter="#")
+            Debugger.info(
+                variable=parameters,
+                stage="WEBSOCKET TEST",
+                delimiter="#",
+                logger=self.logger,
+            )
 
             r = self._get_proxied_callable(
                 module_name=function.config.module_name,
@@ -241,7 +254,10 @@ class WebSocketHandler(Handler):
             )(**parameters)
 
             Debugger.info(
-                variable=parameters, stage="WEBSOCKET RESPONSE", delimiter="+"
+                variable=parameters,
+                stage="WEBSOCKET RESPONSE",
+                delimiter="+",
+                logger=self.logger,
             )
 
             return r
