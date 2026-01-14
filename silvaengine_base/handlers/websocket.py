@@ -183,6 +183,13 @@ class WebSocketHandler(Handler):
                     as_websocket_format=True,
                 )
 
+            Debugger.info(
+                variable=[result for result in results],
+                stage="WEBSOCKET TEST(connections)",
+                delimiter="#",
+                logger=self.logger,
+            )
+
             wss_connection = [result for result in results][0]
 
             if not wss_connection:
