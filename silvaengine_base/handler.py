@@ -71,18 +71,9 @@ class Handler:
         return None
 
     @classmethod
-    def _generate_response(
-        cls,
-        status_code: int,
-        body: Any,
-        as_websocket_format: bool = False,
-    ) -> Dict[str, Any]:
+    def _generate_response(cls, status_code: int, body: Any) -> Dict[str, Any]:
         """Generate a standard HTTP response."""
-        return HttpResponse.format_response(
-            status_code=status_code,
-            data=body,
-            as_websocket_format=as_websocket_format,
-        )
+        return HttpResponse.format_response(status_code=status_code, data=body)
 
     def _merge_setting_to_default(self, setting: Dict[str, Any]):
         if isinstance(setting, dict):
