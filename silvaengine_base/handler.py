@@ -299,10 +299,9 @@ class Handler:
 
     def _get_request_method(self) -> str:
         """Get the HTTP method from the event."""
-        return (
-            self.event["requestContext"].get("http", {}).get("method")
-            or self.event["requestContext"]["httpMethod"]
-        )
+        return self.event["requestContext"].get("http", {}).get("method") or self.event[
+            "requestContext"
+        ].get("httpMethod", RequestMethod.POST.name)
 
     def _get_endpoint_id(self) -> str:
         return (
