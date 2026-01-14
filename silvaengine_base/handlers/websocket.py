@@ -110,6 +110,11 @@ class WebSocketHandler(Handler):
         elif route_key == "stream":
             return self._message()
 
+        Debugger.info(
+            variable="Invalid websocket route",
+            stage="WEBSOCKET TEST",
+            delimiter="#",
+        )
         return self._generate_response(
             status_code=HttpStatus.BAD_REQUEST.value,
             body={"data": "Invalid websocket route"},
@@ -219,7 +224,7 @@ class WebSocketHandler(Handler):
                 or not hasattr(function, "function")
             ):
                 Debugger.info(
-                    variable=parameters, stage="Invalid function", delimiter="#"
+                    variable="Invalid function", stage="WEBSOCKET TEST", delimiter="#"
                 )
                 return self._generate_response(
                     status_code=HttpStatus.INTERNAL_SERVER_ERROR.value,
