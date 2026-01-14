@@ -87,7 +87,6 @@ class WebSocketHandler(Handler):
         if route_key == "$connect":
             if self._is_authorization_event():
                 try:
-                    print(">>>>>>>>>>>>>>>>>>>>>>>>>>>")
                     return self._invoke_authorization(
                         action=AuthorizationAction.AUTHORIZE
                     )
@@ -104,31 +103,35 @@ class WebSocketHandler(Handler):
                         as_websocket_format=True,
                     )
 
-            url_parameters = self._get_query_string_parameters()
-            area = self._get_api_area()
-            api_key = self._get_api_key()
+            try:
+                url_parameters = self._get_query_string_parameters()
+                area = self._get_api_area()
+                api_key = self._get_api_key()
 
-            url_parameters.update(connection_id=connection_id)
+                url_parameters.update(connection_id=connection_id)
 
-            if api_key and endpoint_id:
-                r = WSSConnectionModel.store(
-                    endpoint_id=endpoint_id,
-                    connection_id=connection_id,
-                    url_parameters=url_parameters,
-                    area=area,
-                    api_key=api_key,
-                    data=self._get_authorized_user(),
-                )
+                if api_key and endpoint_id:
+                    WSSConnectionModel.store(
+                        endpoint_id=endpoint_id,
+                        connection_id=connection_id,
+                        url_parameters=url_parameters,
+                        area=area,
+                        api_key=api_key,
+                        data=self._get_authorized_user(),
+                    )
+
+                    WSSConnectionModel.remove(
+                        endpoint_id=endpoint_id,
+                        email=str(self._get_authorized_user().get("email", "")).strip(),
+                    )
+            except Exception as e:
                 Debugger.info(
-                    variable=r,
+                    variable=e,
                     stage="WEBSOCKET TEST(save connection to database)",
                     delimiter="#",
                     logger=self.logger,
                 )
-                WSSConnectionModel.remove(
-                    endpoint_id=endpoint_id,
-                    email=str(self._get_authorized_user().get("email", "")).strip(),
-                )
+                pass
 
             return self._generate_response(
                 status_code=HttpStatus.OK.value,
