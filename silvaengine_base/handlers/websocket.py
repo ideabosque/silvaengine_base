@@ -51,7 +51,16 @@ class WebSocketHandler(Handler):
                 return self._dispatch(connection_id=connection_id, route_key=route_key)
 
         except Exception as e:
-            return {}
+            Debugger.info(
+                variable=e,
+                stage="WEBSOCKET TEST(handle)",
+                delimiter="#",
+                logger=self.logger,
+            )
+            return self._generate_response(
+                status_code=HttpStatus.INTERNAL_SERVER_ERROR.value,
+                body={"data": str(e)},
+            )
 
     def _dispatch(self, connection_id: str, route_key: str) -> Any:
         """
@@ -64,7 +73,17 @@ class WebSocketHandler(Handler):
                         action=AuthorizationAction.AUTHORIZE
                     )
                 except Exception as e:
-                    raise e
+                    Debugger.info(
+                        variable=e,
+                        stage="WEBSOCKET TEST(_dispatch)",
+                        delimiter="#",
+                        logger=self.logger,
+                    )
+                    return self._generate_response(
+                        status_code=HttpStatus.UNAUTHORIZED.value,
+                        body={"data": str(e)},
+                        as_websocket_format=True,
+                    )
 
             url_parameters = self._get_query_string_parameters()
             endpoint_id = self._get_endpoint_id()
