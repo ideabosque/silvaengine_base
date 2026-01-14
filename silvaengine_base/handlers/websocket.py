@@ -197,12 +197,24 @@ class WebSocketHandler(Handler):
                 or not hasattr(function.config, "class_name")
                 or not hasattr(function, "function")
             ):
-                raise ValueError("Invalid function")
+                return self._generate_response(
+                    status_code=HttpStatus.INTERNAL_SERVER_ERROR.value,
+                    as_websocket_format=True,
+                    body={"data": "Invalid function"},
+                )
 
-            return self._get_proxied_callable(
+            Debugger.info(variable=parameters, stage="WEBSOCKET TEST", delimiter="#")
+
+            r = self._get_proxied_callable(
                 module_name=function.config.module_name,
                 class_name=function.config.class_name,
                 function_name=function.function,
             )(**parameters)
+
+            Debugger.info(
+                variable=parameters, stage="WEBSOCKET RESPONSE", delimiter="+"
+            )
+
+            return r
         except Exception as e:
             raise e
