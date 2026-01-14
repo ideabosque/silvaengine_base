@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 
+import traceback
 from typing import Any, Dict
 
 import pendulum
@@ -47,9 +48,13 @@ class WebSocketHandler(Handler):
             connection_id = self._get_connection_id()
             route_key = self._get_route_key()
 
-            if connection_id and route_key:
-                return self._dispatch(connection_id=connection_id, route_key=route_key)
+            if not connection_id and not route_key:
+                return self._generate_response(
+                    status_code=HttpStatus.BAD_REQUEST.value,
+                    body={"data": "Missing required `connection_id` or `route_key`"},
+                )
 
+            return self._dispatch(connection_id=connection_id, route_key=route_key)
         except Exception as e:
             Debugger.info(
                 variable=e,
@@ -57,6 +62,7 @@ class WebSocketHandler(Handler):
                 delimiter="#",
                 logger=self.logger,
             )
+            print(traceback.format_exc())
             return self._generate_response(
                 status_code=HttpStatus.INTERNAL_SERVER_ERROR.value,
                 body={"data": str(e)},
