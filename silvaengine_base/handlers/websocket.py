@@ -87,6 +87,7 @@ class WebSocketHandler(Handler):
         if route_key == "$connect":
             if self._is_authorization_event():
                 try:
+                    print(">>>>>>>>>>>>>>>>>>>>>>>>>>>")
                     return self._invoke_authorization(
                         action=AuthorizationAction.AUTHORIZE
                     )
@@ -109,7 +110,7 @@ class WebSocketHandler(Handler):
 
             url_parameters.update(connection_id=connection_id)
 
-            if not api_key and not endpoint_id:
+            if api_key and endpoint_id:
                 r = WSSConnectionModel.store(
                     endpoint_id=endpoint_id,
                     connection_id=connection_id,
