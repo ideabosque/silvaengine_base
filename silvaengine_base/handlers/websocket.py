@@ -68,6 +68,7 @@ class WebSocketHandler(Handler):
                 variable=e,
                 stage="WEBSOCKET TEST(handle)",
                 delimiter="#",
+                setting=self.setting,
                 logger=self.logger,
             )
             return self._generate_response(
@@ -93,6 +94,7 @@ class WebSocketHandler(Handler):
                         stage="WEBSOCKET TEST(_dispatch)",
                         delimiter="#",
                         logger=self.logger,
+                        setting=self.setting,
                     )
                     return self._generate_response(
                         status_code=HttpStatus.OK.value,
@@ -127,6 +129,7 @@ class WebSocketHandler(Handler):
                     stage="WEBSOCKET TEST(save connection to database)",
                     delimiter="#",
                     logger=self.logger,
+                    setting=self.setting,
                 )
                 pass
 
