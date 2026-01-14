@@ -213,30 +213,12 @@ class WebSocketHandler(Handler):
                     as_websocket_format=True,
                 )
 
-            wss_connection = self._get_current_connection(
-                endpoint_id=endpoint_id,
-                connection_id=connection_id,
-            )
-
-            if not wss_connection:
-                Debugger.info(
-                    variable="WebSocket connection not found",
-                    stage="WEBSOCKET TEST",
-                    delimiter="#",
-                    logger=self.logger,
-                )
-                return self._generate_response(
-                    status_code=HttpStatus.OK.value,
-                    body={"data": "WebSocket connection not found"},
-                    as_websocket_format=True,
-                )
-
             body = self._parse_event_body()
             function = body.get("funct")
 
-            if not endpoint_id or not function:
+            if not function:
                 Debugger.info(
-                    variable="Missing required parameters: `endpointId` or `funct`",
+                    variable="Missing required `funct`",
                     stage="WEBSOCKET TEST",
                     delimiter="#",
                     logger=self.logger,
@@ -244,9 +226,7 @@ class WebSocketHandler(Handler):
                 return self._generate_response(
                     status_code=HttpStatus.OK.value,
                     as_websocket_format=True,
-                    body={
-                        "data": "Missing required parameters: `endpointId` or `funct`"
-                    },
+                    body={"data": "Missing required `funct`"},
                 )
 
             parameters = {
@@ -264,6 +244,24 @@ class WebSocketHandler(Handler):
             )
 
             self._merge_setting_to_default(setting=setting)
+
+            Debugger.info(
+                variable=f"Endpoint ID: {endpoint_id}, Connection ID: {connection_id}",
+                stage="WEBSOCKET DEBUG",
+                delimiter="#",
+                logger=self.logger,
+            )
+            wss_connection = self._get_current_connection(
+                endpoint_id=endpoint_id,
+                connection_id=connection_id,
+            )
+
+            if not wss_connection:
+                return self._generate_response(
+                    status_code=HttpStatus.OK.value,
+                    body={"data": "WebSocket connection not found"},
+                    as_websocket_format=True,
+                )
 
             url_parameters = wss_connection.url_parameters.as_dict()
 
