@@ -3,7 +3,7 @@
 from __future__ import print_function
 
 import traceback
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import pendulum
 from silvaengine_constants import AuthorizationAction, HttpStatus, SwitchStatus
@@ -29,6 +29,12 @@ class WebSocketHandler(Handler):
 
     def _get_route_key(self):
         return str(self.event["requestContext"].get("routeKey")).strip().lower() or ""
+
+    def _get_last_connectin(self, connection_id: str)->Optional[WSSConnectionModel]:
+        results = WSSConnectionModel.find(connection_id)
+
+
+        wss_connection = [result for result in results][0]
 
     def _parse_event_body_parameters(self) -> Dict[str, Any]:
         try:
