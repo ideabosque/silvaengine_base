@@ -124,15 +124,26 @@ class WebSocketHandler(Handler):
             connection_id = self._get_connection_id()
 
             if not connection_id:
+                Debugger.info(
+                    variable="Invalid websocket connection",
+                    stage="WEBSOCKET TEST",
+                    delimiter="#",
+                )
                 return self._generate_response(
                     status_code=HttpStatus.BAD_REQUEST.value,
-                    body={"data": "Invalid webSocket connection"},
+                    body={"data": "Invalid websocket connection"},
                     as_websocket_format=True,
                 )
 
             results = WSSConnectionModel.find(connection_id)
 
             if not results:
+                Debugger.info(
+                    variable="Not found any websocket connections",
+                    stage="WEBSOCKET TEST",
+                    delimiter="#",
+                )
+
                 return self._generate_response(
                     status_code=HttpStatus.NOT_FOUND.value,
                     body={"data": "Not found any websocket connections"},
@@ -142,6 +153,11 @@ class WebSocketHandler(Handler):
             wss_connection = [result for result in results][0]
 
             if not wss_connection:
+                Debugger.info(
+                    variable="WebSocket connection not found",
+                    stage="WEBSOCKET TEST",
+                    delimiter="#",
+                )
                 return self._generate_response(
                     status_code=HttpStatus.NOT_FOUND.value,
                     body={"data": "WebSocket connection not found"},
@@ -157,6 +173,11 @@ class WebSocketHandler(Handler):
             function = body.get("funct")
 
             if not endpoint_id or not function:
+                Debugger.info(
+                    variable="Missing required parameters: `endpointId` or `funct`",
+                    stage="WEBSOCKET TEST",
+                    delimiter="#",
+                )
                 return self._generate_response(
                     status_code=HttpStatus.BAD_REQUEST.value,
                     as_websocket_format=True,
@@ -197,6 +218,9 @@ class WebSocketHandler(Handler):
                 or not hasattr(function.config, "class_name")
                 or not hasattr(function, "function")
             ):
+                Debugger.info(
+                    variable=parameters, stage="Invalid function", delimiter="#"
+                )
                 return self._generate_response(
                     status_code=HttpStatus.INTERNAL_SERVER_ERROR.value,
                     as_websocket_format=True,
