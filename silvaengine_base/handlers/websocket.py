@@ -185,7 +185,7 @@ class WebSocketHandler(Handler):
 
             if isinstance(url_parameters, dict):
                 parameters.update(
-                    self._extract_additional_parameters(
+                    metadata=self._extract_additional_parameters(
                         url_parameters,
                     )
                 )

@@ -4,9 +4,8 @@ from __future__ import print_function
 
 from typing import Any, Callable, Dict, List, Optional, Union
 
-from silvaengine_dynamodb_base.models import FunctionModel
-
 from silvaengine_constants import AuthorizationAction
+from silvaengine_dynamodb_base.models import FunctionModel
 from silvaengine_utility import Authorizer, Debugger
 
 from ..handler import Handler
@@ -87,11 +86,6 @@ class HttpHandler(Handler):
                 or not hasattr(function, "function")
             ):
                 raise ValueError("Missing function config")
-
-            Debugger.info(
-                variable=(function, parameters),
-                stage="EXECUTE FUNCTION",
-            )
 
             return self._get_proxied_callable(
                 module_name=function.config.module_name,
