@@ -118,9 +118,9 @@ class WebSocketHandler(Handler):
                         data=self._get_authorized_user(),
                     )
 
-                    WSSConnectionModel.remove(
+                    WSSConnectionModel.cleanup_connections(
                         endpoint_id=endpoint_id,
-                        email=str(self._get_authorized_user().get("email", "")).strip(),
+                        expires_in_minutes=10,
                     )
             except Exception as e:
                 Debugger.info(
@@ -224,6 +224,9 @@ class WebSocketHandler(Handler):
                     status_code=HttpStatus.OK.value,
                     body={"data": "WebSocket connection not found"},
                 )
+            elif hasattr(wss_connection, "updated_at"):
+                wss_connection.updated_at = pendulum.now("UTC")
+                wss_connection.save()
 
             url_parameters = wss_connection.url_parameters.as_dict()
 
