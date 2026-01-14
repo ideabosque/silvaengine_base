@@ -2,498 +2,71 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 
-import os
 import traceback
-from typing import Any, Dict, Tuple
+from typing import Any, Dict
 
-import pendulum
-from silvaengine_utility import Authorizer as ApiGatewayAuthorizer
-from silvaengine_utility import Debugger, Invoker, Serializer, Utility
+from silvaengine_constants import HttpStatus
+from silvaengine_utility import Debugger, HttpResponse
 
-from .lambdabase import LambdaBase
+from .handlers import (
+    CloudwatchLogHandler,
+    CognitoHandler,
+    DynamodbHandler,
+    EventBridgeHandler,
+    HttpHandler,
+    S3Handler,
+    SNSHandler,
+    SQSHandler,
+    UnknownHandler,
+    WebSocketHandler,
+)
 
-__author__ = "bibow"
 
-FULL_EVENT_AREAS = os.environ.get("FULL_EVENT_AREAS", "").split(",")
-
-
-class Resources(LambdaBase):
-    settings: Dict[str, Any] = {}
+class Resources:
+    _event_handlers = [
+        HttpHandler,
+        WebSocketHandler,
+        CloudwatchLogHandler,
+        CognitoHandler,
+        DynamodbHandler,
+        EventBridgeHandler,
+        S3Handler,
+        SNSHandler,
+        SQSHandler,
+    ]
 
     def __init__(self, logger: Any) -> None:
         self.logger = logger
 
+    @classmethod
+    def get_handler(cls, *args, **kwargs):
+        """
+        Generate a handler function for Lambda events.
+        """
+
+        def handler(event: Dict[str, Any], context: Any):
+            return cls(*args, **kwargs).handle(event, context)
+
+        return handler
+
     def handle(self, event: Dict[str, Any], context: Any) -> Any:
         try:
-            Debugger.info(
-                variable=event,
-                stage="Lambda Handle (EVENT)",
-                logger=self.logger,
-                delimiter="#",
-            )
+            handle_parameters = {
+                "event": event,
+                "context": context,
+                "logger": self.logger,
+            }
 
-            Debugger.info(
-                variable=context,
-                stage="Lambda Handle (CONTEXT)",
-                logger=self.logger,
-                delimiter="=",
-            )
-
-            # Check if the event is from a WebSocket connection
-            request_context = event.get("requestContext", {})
-            connection_id = request_context.get("connectionId")
-            route_key = request_context.get("routeKey")
-
-            if connection_id and route_key:
-                return self._handle_websocket_event(
-                    event, context, connection_id, route_key
-                )
-
-            # If it's not a WebSocket event, handle it as a regular API request
-            return self._handle_http_request(event, context)
+            return next(
+                (
+                    handler.new_handler(**handle_parameters)
+                    for handler in self._event_handlers
+                    if handler.is_event_match_handler(event)
+                ),
+                UnknownHandler(**handle_parameters),
+            ).handle()
         except Exception as e:
-            return self._handle_exception(e, event)
-
-    def _handle_websocket_event(
-        self, event: Dict[str, Any], context: Any, connection_id: str, route_key: str
-    ) -> Dict[str, Any]:
-        """
-        Handle WebSocket connection events including connection, disconnection, and streaming.
-        """
-        if route_key == "$connect":
-            if self._is_authorization_event(event):
-                return self._handle_authorize(event, context, "authorize")
-
-            url_parameters = event.get("queryStringParameters", {})
-            endpoint_id = url_parameters.get(
-                "endpointId", url_parameters.get("endpoint_id")
+            return HttpResponse.format_response(
+                status_code=HttpStatus.INTERNAL_SERVER_ERROR.value,
+                data={"error": str(e)},
             )
-            area = event.get("queryStringParameters", {}).get("area", "")
-            api_key = (
-                event.get("requestContext", {})
-                .get("identity", {})
-                .get("apiKey", url_parameters.get("x-api-key"))
-            )
-            url_parameters["connection_id"] = connection_id
-            # api_key = url_parameters.get("x-api-key") if api_key is None else api_key
-
-            if api_key is not None and endpoint_id is not None:
-                LambdaBase.save_wss_connection(
-                    endpoint_id=endpoint_id,
-                    connection_id=connection_id,
-                    url_parameters=url_parameters,
-                    area=area,
-                    api_key=api_key,
-                    data=event.get("requestContext", {}).get("authorizer", {}),
-                )
-                LambdaBase.remove_expired_connections(
-                    endpoint_id,
-                    event.get("requestContext", {}).get("authorizer", {}).get("email"),
-                )
-
-            return {"statusCode": 200, "body": "Connection successful"}
-
-        elif route_key == "$disconnect":
-            results = LambdaBase.get_wss_connections(connection_id)
-            wss_onnection = [result for result in results][0]
-
-            if wss_onnection:
-                wss_onnection.status = "inactive"
-                wss_onnection.updated_at = pendulum.now("UTC")
-                wss_onnection.save()
-
-            return {"statusCode": 200, "body": "Disconnection successful"}
-
-        elif route_key == "stream":
-            return self._handle_websocket_stream(event, context)
-
-        self.logger.warning(f"Invalid WebSocket route: {route_key}")
-        return {"statusCode": 400, "body": "Invalid WebSocket route"}
-
-    def _handle_websocket_stream(
-        self, event: Dict[str, Any], context: Any
-    ) -> Dict[str, Any]:
-        """
-        Process the 'stream' route for WebSocket events, managing the payload and dispatching tasks.
-        """
-        request_context = event.get("requestContext", {})
-        connection_id = request_context.get("connectionId")
-
-        if not connection_id:
-            self.logger.error("WebSocket connection not found")
-            return {"statusCode": 400, "body": "Invalid webSocket connection"}
-
-        results = LambdaBase.get_wss_connections(connection_id)
-
-        if not results:
-            self.logger.error("Not found any connection")
-            return {"statusCode": 404, "body": "Not found any websocket connections"}
-
-        wss_onnection = [result for result in results][0]
-
-        if not wss_onnection:
-            self.logger.error("WebSocket connection not found")
-            return {"statusCode": 404, "body": "WebSocket connection not found"}
-
-        endpoint_id = wss_onnection.endpoint_id
-        api_key = request_context.get("identity", {}).get(
-            "apiKey", wss_onnection.api_key
-        )
-
-        body = (
-            Serializer.json_loads(event.get("body"))
-            if event.get("body") is not None
-            else {}
-        )
-
-        funct = body.get("funct")
-        params = (
-            Serializer.json_loads(body.get("payload"))
-            if body.get("payload") is not None
-            else {}
-        )
-        params["endpoint_id"] = endpoint_id
-        params["connection_id"] = connection_id
-
-        if not endpoint_id or not funct:
-            self.logger.error("Missing 'endpointId' or 'funct' in the stream payload")
-            return {
-                "statusCode": 400,
-                "body": "Missing required parameters: endpointId or funct",
-            }
-
-        method = self._get_http_method(event)
-        setting, function = LambdaBase.get_function(
-            endpoint_id, funct, api_key=api_key, method=method
-        )
-
-        url_parameters = wss_onnection.url_parameters.as_dict()
-
-        if type(url_parameters) is dict:
-            params["metadata"] = self._extract_event_headers(
-                url_parameters,
-                setting,
-            )
-
-        return self._invoke_function(event, context, function, params, setting)
-
-    def _handle_http_request(
-        self, event: Dict[str, Any], context: Any
-    ) -> Dict[str, Any]:
-        """
-        Process regular HTTP API requests when the event is not related to WebSocket.
-        """
-        if not self.settings:
-            self._initialize(event)
-
-        if self._is_cognito_trigger(event):
-            return self._handle_cognito_trigger(event, context)
-
-        api_key, endpoint_id, function_name, params = self._extract_event_data(event)
-        path_parameters = event.get("pathParameters", {})
-        request_context = event.get("requestContext", {})
-        method = self._get_http_method(event)
-        setting, function = LambdaBase.get_function(
-            endpoint_id, function_name, api_key=api_key, method=method
-        )
-
-        self._validate_function_area(params, function)
-        event.update(
-            self._prepare_event(
-                event.get("headers", {}),
-                path_parameters.get("area"),
-                request_context,
-                function,
-                endpoint_id,
-            )
-        )
-
-        # Add authorization for http event
-        auth_required = bool(
-            function and function.config and function.config.auth_required
-        )
-
-        if self._is_authorization_event(event):
-            if auth_required:
-                try:
-                    return self._handle_authorize(
-                        event,
-                        context,
-                        self.settings.get(
-                            "authorizer_authorize_function_name", "authorize"
-                        ),
-                    )
-                except Exception as e:
-                    raise e
-
-            return ApiGatewayAuthorizer(event).authorize(is_allow=True)
-
-        if event.get("body") and auth_required:
-            event.update(
-                self._handle_authorize(
-                    event,
-                    context,
-                    self.settings.get(
-                        "authorizer_verify_permission_function_name",
-                        "verify_permission",
-                    ),
-                )
-            )
-
-        return self._invoke_function(event, context, function, params, setting)
-
-    def _extract_event_data(
-        self, event: Dict[str, Any]
-    ) -> Tuple[str, str, str, Dict[str, Any]]:
-        """Extract and organize event-related data."""
-        if not isinstance(event, dict):
-            raise ValueError("Event must be a dictionary")
-
-        # headers = event.get("headers", {}) or {}
-        request_context = event.get("requestContext", {}) or {}
-        path_parameters = event.get("pathParameters", {}) or {}
-        identity = request_context.get("identity", {}) or {}
-        api_key = identity.get("apiKey", "#####")
-        area = path_parameters.get("area")
-
-        if not area:
-            raise ValueError("`area` is required in path parameters")
-
-        endpoint_id = path_parameters.get("endpoint_id", "")
-
-        if not endpoint_id:
-            raise ValueError("`endpoint_id` is required in path parameters")
-
-        proxy = path_parameters.get("proxy", "")
-
-        if not proxy:
-            raise ValueError("`proxy` is required in path parameters")
-
-        query_params = event.get("queryStringParameters")
-
-        if query_params is None:
-            query_params = {}
-
-        function_name = proxy.split("/")[0] if proxy else ""
-
-        if not function_name:
-            raise ValueError("missing `function_name` in request")
-
-        if "/" in proxy:
-            path = proxy.split("/", 1)[1]
-            query_params["path"] = path
-
-        params = {k: v for k, v in query_params.items()}
-        params["endpoint_id"] = endpoint_id
-        params["area"] = area
-        headers = event.get("headers")
-
-        if type(headers) is dict:
-            params["metadata"] = self._extract_event_headers(headers)
-
-        return api_key, endpoint_id, function_name, params
-
-    def _extract_event_headers(
-        self,
-        headers: Dict[str, Any],
-        setting: Dict[str, Any] | None = None,
-    ) -> Dict[str, Any]:
-        """Extract custom headers from the event."""
-        if not setting:
-            setting = self.settings
-
-        header_keys = setting.get("custom_header_keys", [])
-        result = {}
-
-        # Parse header keys
-        if isinstance(header_keys, str):
-            try:
-                header_keys = Serializer.json_loads(header_keys)
-            except Exception:
-                header_keys = [key for key in header_keys.split(",")]
-        elif not isinstance(header_keys, list):
-            header_keys = []
-
-        if not header_keys:
-            return result
-
-        # Pre-convert header keys to snake_case for comparison
-        snake_case_keys = {
-            Utility.to_snake_case(key.strip()): key
-            for key in header_keys
-            if key.strip()
-        }
-        snake_case_keys_len = len(snake_case_keys)
-
-        if snake_case_keys_len == 0:
-            return result
-
-        # Process only needed headers, converting keys on-the-fly
-        for original_key, value in headers.items():
-            if snake_case_keys_len == len(result):
-                break
-
-            snake_key = Utility.to_snake_case(original_key)
-
-            if snake_key in snake_case_keys:
-                result[snake_key] = value
-
-        return result
-
-    def _handle_cognito_trigger(self, event: Dict[str, Any], context: Any) -> Any:
-        """Handle Cognito triggers."""
-        if not self.settings:
-            self._initialize(event)
-
-        return Invoker.resolve_proxied_callable(
-            module_name=self.settings.get("cognito_hook_module_name", "event_triggers"),
-            function_name=self.settings.get(
-                "cognito_hook_function_name", "pre_token_generate"
-            ),
-            class_name=self.settings.get("cognito_hook_class_name", "Cognito"),
-            constructor_parameters={"logger": self.logger, **self.settings},
-        )(event, context)
-
-    def _get_http_method(self, event: Dict[str, Any]) -> str:
-        """Get the HTTP method from the event."""
-        return event.get("requestContext", {}).get(
-            "httpMethod", event.get("httpMethod", "POST")
-        )
-
-    def _validate_function_area(self, params: Dict[str, Any], function: Any) -> None:
-        """Validate if the area matches the function configuration."""
-        area = params.get("area")
-        assert area == function.area, (
-            f"Area ({area}) does not match the function ({function.area})."
-        )
-
-    def _prepare_event(
-        self,
-        header: Dict[str, Any],
-        area: str,
-        request_context: Dict[str, Any],
-        function: Any,
-        endpoint_id: str,
-    ) -> Dict[str, Any]:
-        """Prepare the event data for function invocation."""
-        request_context.update(
-            {
-                "channel": endpoint_id,
-                "area": area,
-                "headers": header,
-            }
-        )
-
-        return {
-            "fnConfigurations": Serializer.json_loads(Serializer.json_dumps(function)),
-            "requestContext": request_context,
-            "module": function.config.module_name,
-            "class": function.config.class_name,
-            "function": function.function,
-        }
-
-    def _handle_authorize(
-        self, event: Dict[str, Any], context: Any, action: str
-    ) -> Any:
-        """Dynamically handle authorization and permission checks."""
-        fn = Invoker.resolve_proxied_callable(
-            module_name=self.settings.get(
-                "authorizer_module_name", "silvaengine_authorizer"
-            ),
-            function_name=action,
-            class_name=self.settings.get("authorizer_class_name", "Authorizer"),
-            constructor_parameters={"logger": self.logger, **self.settings},
-        )
-
-        if callable(fn):
-            if action == self.settings.get(
-                "authorizer_authorize_function_name", "authorize"
-            ):
-                return fn(event, context)
-            elif action == self.settings.get(
-                "authorizer_verify_permission_function_name", "verify_permission"
-            ):
-                return fn(event, context)
-
-    def _invoke_function(
-        self,
-        event: Dict[str, Any],
-        context: Any,
-        function: Any,
-        params: Dict[str, Any],
-        setting: Dict[str, Any],
-    ) -> Dict[str, Any]:
-        """Invoke the appropriate function based on event data."""
-        if str(event.get("requestContext")).strip().upper() == "POST":
-            params.update(Serializer.json_loads(event.get("requestContext")))
-
-        if event.get("body"):
-            params.update(Serializer.json_loads(event.get("body")))
-
-        return Invoker.resolve_proxied_callable(
-            module_name=function.config.module_name,
-            function_name=function.function,
-            class_name=function.config.class_name,
-            constructor_parameters={"logger": self.logger, **setting},
-        )(**params)
-
-    def _handle_exception(
-        self, exception: Exception, event: Dict[str, Any]
-    ) -> Dict[str, Any]:
-        """Handle and log exceptions."""
-        status_code = 500
-        message = traceback.format_exc()
-        self.logger.exception(message)
-
-        if exception.args:
-            message = exception.args[0]
-
-            if len(exception.args) > 1 and isinstance(exception.args[1], int):
-                status_code = exception.args[1]
-
-        if self._is_authorization_event(event):
-            return ApiGatewayAuthorizer(event).authorize(
-                is_allow=False,
-                context={"errorMessage": str(message)},
-            )
-
-        return self._generate_response(status_code, {"error": str(message)})
-
-    def _generate_response(self, status_code: int, body: Any) -> Dict[str, Any]:
-        """Generate a standard HTTP response."""
-        return {
-            "statusCode": status_code,
-            "headers": {
-                "Access-Control-Allow-Headers": "Access-Control-Allow-Origin",
-                "Access-Control-Allow-Origin": "*",
-                "Content-Type": "application/json",
-            },
-            "body": Serializer.json_dumps(body),
-        }
-
-    def _is_authorization_event(self, event: Dict[str, Any]) -> bool:
-        """Check if the event is a request event."""
-        return bool(str(event.get("type")).strip().upper() in ["REQUEST", "TOKEN"])
-
-    def _is_cognito_trigger(self, event: Dict[str, Any]) -> bool:
-        """Check if the event is a Cognito trigger."""
-        return bool(event.get("triggerSource") and event.get("userPoolId"))
-
-    def _get_setting_index(self, event: Dict[str, Any]) -> str:
-        """Get the appropriate setting index based on the event data."""
-        if self._is_cognito_trigger(event):
-            settings = LambdaBase.get_setting("general")
-            return settings.get(event.get("userPoolId", ""), "")
-        elif event.get("requestContext") and event.get("pathParameters"):
-            request_context, path_parameters = (
-                event.get("requestContext", {}),
-                event.get("pathParameters", {}),
-            )
-            return f"{request_context.get('stage', 'beta')}_{path_parameters.get('area')}_{path_parameters.get('endpoint_id')}"
-        elif event.get("params", {}).get("endpoint_id"):
-            return f"beta_core_{str(event.get('params', {}).get('endpoint_id')).strip().lower()}"
-        raise ValueError("Invalid event request")
-
-    def _initialize(self, event: Dict[str, Any]) -> None:
-        """Load settings from configuration data."""
-        self.settings = LambdaBase.get_setting(self._get_setting_index(event))
