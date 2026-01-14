@@ -143,7 +143,7 @@ class WebSocketHandler(Handler):
             )
 
             if wss_connection:
-                wss_connection.status = SwitchStatus.INACTIVE.value
+                wss_connection.status = SwitchStatus.INACTIVE.name
                 wss_connection.updated_at = pendulum.now("UTC")
                 wss_connection.save()
 
