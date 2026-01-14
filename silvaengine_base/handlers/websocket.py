@@ -30,11 +30,15 @@ class WebSocketHandler(Handler):
     def _get_route_key(self):
         return str(self.event["requestContext"].get("routeKey")).strip().lower() or ""
 
-    def _get_last_connectin(self, connection_id: str)->Optional[WSSConnectionModel]:
-        results = WSSConnectionModel.find(connection_id)
-
-
-        wss_connection = [result for result in results][0]
+    def _get_current_connection(
+        self,
+        endpoint_id: str,
+        connection_id: str,
+    ) -> Optional[WSSConnectionModel]:
+        return WSSConnectionModel.get(
+            hash_key=endpoint_id,
+            range_key=connection_id,
+        )
 
     def _parse_event_body_parameters(self) -> Dict[str, Any]:
         try:
@@ -78,6 +82,8 @@ class WebSocketHandler(Handler):
         """
         Handle WebSocket connection events including connection, disconnection, and streaming.
         """
+        endpoint_id = self._get_endpoint_id()
+
         if route_key == "$connect":
             if self._is_authorization_event():
                 try:
@@ -98,20 +104,25 @@ class WebSocketHandler(Handler):
                     )
 
             url_parameters = self._get_query_string_parameters()
-            endpoint_id = self._get_endpoint_id()
             area = self._get_api_area()
             api_key = self._get_api_key()
 
             url_parameters.update(connection_id=connection_id)
 
             if not api_key and not endpoint_id:
-                WSSConnectionModel.store(
+                r = WSSConnectionModel.store(
                     endpoint_id=endpoint_id,
                     connection_id=connection_id,
                     url_parameters=url_parameters,
                     area=area,
                     api_key=api_key,
                     data=self._get_authorized_user(),
+                )
+                Debugger.info(
+                    variable=r,
+                    stage="WEBSOCKET TEST(save connection to database)",
+                    delimiter="#",
+                    logger=self.logger,
                 )
                 WSSConnectionModel.remove(
                     endpoint_id=endpoint_id,
@@ -125,8 +136,10 @@ class WebSocketHandler(Handler):
             )
 
         elif route_key == "$disconnect":
-            results = WSSConnectionModel.find(connection_id)
-            wss_connection = [result for result in results][0]
+            wss_connection = self._get_current_connection(
+                endpoint_id=endpoint_id,
+                connection_id=connection_id,
+            )
 
             if wss_connection:
                 wss_connection.status = SwitchStatus.INACTIVE.value
@@ -169,34 +182,29 @@ class WebSocketHandler(Handler):
                 )
                 return self._generate_response(
                     status_code=HttpStatus.BAD_REQUEST.value,
-                    body={"data": "Invalid websocket connection"},
+                    body={"data": "Invalid websocket connection id"},
                     as_websocket_format=True,
                 )
 
-            results = WSSConnectionModel.find(connection_id)
+            endpoint_id = self._get_endpoint_id()
 
-            if not results:
+            if not endpoint_id:
                 Debugger.info(
-                    variable="Not found any websocket connections",
+                    variable="Invalid websocket connection endpoint id",
                     stage="WEBSOCKET TEST",
                     delimiter="#",
                     logger=self.logger,
                 )
-
                 return self._generate_response(
-                    status_code=HttpStatus.NOT_FOUND.value,
-                    body={"data": "Not found any websocket connections"},
+                    status_code=HttpStatus.BAD_REQUEST.value,
+                    body={"data": "Invalid websocket connection endpoint id"},
                     as_websocket_format=True,
                 )
 
-            Debugger.info(
-                variable=[result for result in results],
-                stage="WEBSOCKET TEST(connections)",
-                delimiter="#",
-                logger=self.logger,
+            wss_connection = self._get_current_connection(
+                endpoint_id=endpoint_id,
+                connection_id=connection_id,
             )
-
-            wss_connection = [result for result in results][0]
 
             if not wss_connection:
                 Debugger.info(
@@ -210,11 +218,6 @@ class WebSocketHandler(Handler):
                     body={"data": "WebSocket connection not found"},
                     as_websocket_format=True,
                 )
-
-            endpoint_id = wss_connection.endpoint_id
-
-            if not endpoint_id:
-                endpoint_id = self._get_endpoint_id()
 
             body = self._parse_event_body()
             function = body.get("funct")
