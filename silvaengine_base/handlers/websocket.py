@@ -99,7 +99,6 @@ class WebSocketHandler(Handler):
                     return self._generate_response(
                         status_code=HttpStatus.OK.value,
                         body={"data": str(e)},
-                        as_websocket_format=True,
                     )
 
             try:
@@ -136,7 +135,6 @@ class WebSocketHandler(Handler):
             return self._generate_response(
                 status_code=HttpStatus.OK.value,
                 body={"data": "Connection successful"},
-                as_websocket_format=True,
             )
 
         elif route_key == "$disconnect":
@@ -161,7 +159,6 @@ class WebSocketHandler(Handler):
             return self._generate_response(
                 status_code=HttpStatus.OK.value,
                 body={"data": "Disconnection successful"},
-                as_websocket_format=True,
             )
         elif route_key == "stream":
             return self._message()
@@ -169,7 +166,6 @@ class WebSocketHandler(Handler):
         return self._generate_response(
             status_code=HttpStatus.OK.value,
             body={"data": "Invalid websocket route"},
-            as_websocket_format=True,
         )
 
     def _message(self) -> Any:
@@ -183,7 +179,6 @@ class WebSocketHandler(Handler):
                 return self._generate_response(
                     status_code=HttpStatus.OK.value,
                     body={"data": "Invalid websocket connection id"},
-                    as_websocket_format=True,
                 )
 
             endpoint_id = self._get_endpoint_id()
@@ -192,7 +187,6 @@ class WebSocketHandler(Handler):
                 return self._generate_response(
                     status_code=HttpStatus.OK.value,
                     body={"data": "Invalid websocket connection endpoint id"},
-                    as_websocket_format=True,
                 )
 
             body = self._parse_event_body()
@@ -201,7 +195,6 @@ class WebSocketHandler(Handler):
             if not function:
                 return self._generate_response(
                     status_code=HttpStatus.OK.value,
-                    as_websocket_format=True,
                     body={"data": "Missing required `funct`"},
                 )
 
@@ -230,7 +223,6 @@ class WebSocketHandler(Handler):
                 return self._generate_response(
                     status_code=HttpStatus.OK.value,
                     body={"data": "WebSocket connection not found"},
-                    as_websocket_format=True,
                 )
 
             url_parameters = wss_connection.url_parameters.as_dict()
@@ -251,7 +243,6 @@ class WebSocketHandler(Handler):
             ):
                 return self._generate_response(
                     status_code=HttpStatus.OK.value,
-                    as_websocket_format=True,
                     body={"data": "Invalid function"},
                 )
 
