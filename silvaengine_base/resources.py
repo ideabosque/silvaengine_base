@@ -50,13 +50,6 @@ class Resources:
         return handler
 
     def handle(self, event: Dict[str, Any], context: Any) -> Any:
-        Debugger.info(
-            variable=event,
-            stage="Lambda Handle",
-            logger=self.logger,
-            delimiter="#",
-        )
-
         try:
             handle_parameters = {
                 "event": event,
@@ -73,8 +66,6 @@ class Resources:
                 UnknownHandler(**handle_parameters),
             ).handle()
         except Exception as e:
-            print(traceback.format_exc())
-            print(str(e))
             return HttpResponse.format_response(
                 status_code=HttpStatus.INTERNAL_SERVER_ERROR.value,
                 data={"error": str(e)},
