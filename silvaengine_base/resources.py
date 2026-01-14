@@ -170,7 +170,7 @@ class Resources(LambdaBase):
         url_parameters = wss_onnection.url_parameters.as_dict()
 
         if type(url_parameters) is dict:
-            params["custom_headers"] = self._extract_event_headers(
+            params["metadata"] = self._extract_event_headers(
                 url_parameters,
                 setting,
             )
@@ -289,7 +289,7 @@ class Resources(LambdaBase):
         headers = event.get("headers")
 
         if type(headers) is dict:
-            params["custom_headers"] = self._extract_event_headers(headers)
+            params["metadata"] = self._extract_event_headers(headers)
 
         return api_key, endpoint_id, function_name, params
 
