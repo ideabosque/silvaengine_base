@@ -74,7 +74,7 @@ class WebSocketHandler(Handler):
             )
             print(traceback.format_exc())
             return self._generate_response(
-                status_code=HttpStatus.INTERNAL_SERVER_ERROR.value,
+                status_code=HttpStatus.OK.value,
                 body={"data": str(e)},
             )
 
@@ -98,7 +98,7 @@ class WebSocketHandler(Handler):
                         logger=self.logger,
                     )
                     return self._generate_response(
-                        status_code=HttpStatus.UNAUTHORIZED.value,
+                        status_code=HttpStatus.OK.value,
                         body={"data": str(e)},
                         as_websocket_format=True,
                     )
@@ -140,15 +140,25 @@ class WebSocketHandler(Handler):
             )
 
         elif route_key == "$disconnect":
-            wss_connection = self._get_current_connection(
-                endpoint_id=endpoint_id,
-                connection_id=connection_id,
-            )
+            try:
+                wss_connection = self._get_current_connection(
+                    endpoint_id=endpoint_id,
+                    connection_id=connection_id,
+                )
 
-            if wss_connection:
-                wss_connection.status = SwitchStatus.INACTIVE.name
-                wss_connection.updated_at = pendulum.now("UTC")
-                wss_connection.save()
+                if wss_connection:
+                    wss_connection.status = SwitchStatus.INACTIVE.name
+                    wss_connection.updated_at = pendulum.now("UTC")
+                    wss_connection.save()
+            except Exception as e:
+                Debugger.info(
+                    variable=e,
+                    stage="WEBSOCKET DEBUG(disconnect)",
+                    delimiter="#",
+                    logger=self.logger,
+                    setting=self.setting,
+                )
+                pass
 
             return self._generate_response(
                 status_code=HttpStatus.OK.value,
@@ -165,7 +175,7 @@ class WebSocketHandler(Handler):
             logger=self.logger,
         )
         return self._generate_response(
-            status_code=HttpStatus.BAD_REQUEST.value,
+            status_code=HttpStatus.OK.value,
             body={"data": "Invalid websocket route"},
             as_websocket_format=True,
         )
@@ -185,7 +195,7 @@ class WebSocketHandler(Handler):
                     logger=self.logger,
                 )
                 return self._generate_response(
-                    status_code=HttpStatus.BAD_REQUEST.value,
+                    status_code=HttpStatus.OK.value,
                     body={"data": "Invalid websocket connection id"},
                     as_websocket_format=True,
                 )
@@ -200,7 +210,7 @@ class WebSocketHandler(Handler):
                     logger=self.logger,
                 )
                 return self._generate_response(
-                    status_code=HttpStatus.BAD_REQUEST.value,
+                    status_code=HttpStatus.OK.value,
                     body={"data": "Invalid websocket connection endpoint id"},
                     as_websocket_format=True,
                 )
@@ -218,7 +228,7 @@ class WebSocketHandler(Handler):
                     logger=self.logger,
                 )
                 return self._generate_response(
-                    status_code=HttpStatus.NOT_FOUND.value,
+                    status_code=HttpStatus.OK.value,
                     body={"data": "WebSocket connection not found"},
                     as_websocket_format=True,
                 )
@@ -234,7 +244,7 @@ class WebSocketHandler(Handler):
                     logger=self.logger,
                 )
                 return self._generate_response(
-                    status_code=HttpStatus.BAD_REQUEST.value,
+                    status_code=HttpStatus.OK.value,
                     as_websocket_format=True,
                     body={
                         "data": "Missing required parameters: `endpointId` or `funct`"
@@ -280,7 +290,7 @@ class WebSocketHandler(Handler):
                     logger=self.logger,
                 )
                 return self._generate_response(
-                    status_code=HttpStatus.INTERNAL_SERVER_ERROR.value,
+                    status_code=HttpStatus.OK.value,
                     as_websocket_format=True,
                     body={"data": "Invalid function"},
                 )
