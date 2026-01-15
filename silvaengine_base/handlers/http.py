@@ -84,7 +84,7 @@ class HttpHandler(Handler):
                 not hasattr(function.config, "module_name")
                 or not hasattr(function.config, "class_name")
                 or not hasattr(function, "function")
-                or not hasattr(function, "arn")
+                or not hasattr(function, "aws_lambda_arn")
             ):
                 raise ValueError("Missing function config")
 
@@ -92,6 +92,6 @@ class HttpHandler(Handler):
                 module_name=function.config.module_name,
                 class_name=function.config.class_name,
                 function_name=function.function,
-            )(aws_lambda_arn=function.arn, **parameters)
+            )(aws_lambda_arn=function.aws_lambda_arn, **parameters)
         except Exception as e:
             raise e

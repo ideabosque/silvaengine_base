@@ -66,7 +66,7 @@ class S3Handler(Handler):
                     or not hasattr(function.config, "module_name")
                     or not hasattr(function.config, "class_name")
                     or not hasattr(function, "function")
-                    or not hasattr(function, "arn")
+                    or not hasattr(function, "aws_lambda_arn")
                 ):
                     raise ValueError("Invalid function")
 
@@ -76,7 +76,7 @@ class S3Handler(Handler):
                     module_name=function.config.module_name,
                     function_name=function.function,
                     class_name=function.config.class_name,
-                )(aws_lambda_arn=function.arn, **parameters)
+                )(aws_lambda_arn=function.aws_lambda_arn, **parameters)
 
             return {}
         except Exception as e:
