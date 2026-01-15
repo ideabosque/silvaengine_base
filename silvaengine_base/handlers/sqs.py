@@ -5,7 +5,6 @@ from __future__ import print_function
 from typing import Any, Dict
 
 from silvaengine_dynamodb_base.models import FunctionModel
-
 from silvaengine_utility import Serializer
 
 from ..handler import Handler
@@ -63,6 +62,7 @@ class SQSHandler(Handler):
                     or not hasattr(function.config, "module_name")
                     or not hasattr(function.config, "class_name")
                     or not hasattr(function, "function")
+                    or not hasattr(function, "arn")
                 ):
                     raise ValueError("Invalid function")
 
@@ -72,7 +72,7 @@ class SQSHandler(Handler):
                     module_name=function.config.module_name,
                     function_name=function.function,
                     class_name=function.config.class_name,
-                )(**parameters)
+                )(aws_lambda_arn=function.arn, **parameters)
 
             return {}
         except Exception as e:

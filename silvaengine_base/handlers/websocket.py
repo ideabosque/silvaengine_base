@@ -243,6 +243,7 @@ class WebSocketHandler(Handler):
                 or not hasattr(function.config, "module_name")
                 or not hasattr(function.config, "class_name")
                 or not hasattr(function, "function")
+                or not hasattr(function, "arn")
             ):
                 return self._generate_response(
                     status_code=HttpStatus.OK.value,
@@ -253,6 +254,6 @@ class WebSocketHandler(Handler):
                 module_name=function.config.module_name,
                 class_name=function.config.class_name,
                 function_name=function.function,
-            )(**parameters)
+            )(aws_lambda_arn=function.arn, **parameters)
         except Exception as e:
             raise e
