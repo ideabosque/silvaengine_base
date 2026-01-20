@@ -7,7 +7,11 @@ from typing import Any, Dict, Optional
 
 import pendulum
 from silvaengine_constants import AuthorizationAction, HttpStatus, SwitchStatus
-from silvaengine_dynamodb_base.models import FunctionModel, WSSConnectionModel
+from silvaengine_dynamodb_base.models import (
+    DoesNotExist,
+    FunctionModel,
+    WSSConnectionModel,
+)
 from silvaengine_utility import Debugger, Serializer
 
 from ..handler import Handler
@@ -64,6 +68,9 @@ class WebSocketHandler(Handler):
 
             return self._dispatch(connection_id=connection_id, route_key=route_key)
         except Exception as e:
+            if isinstance(e, DoesNotExist):
+                e = "The connection has been terminated, please establish a new connection."
+
             Debugger.info(
                 variable=e,
                 stage="WEBSOCKET TEST(handle)",
@@ -91,7 +98,7 @@ class WebSocketHandler(Handler):
                 except Exception as e:
                     Debugger.info(
                         variable=e,
-                        stage="WEBSOCKET TEST(_dispatch)",
+                        stage="WEBSOCKET TEST(connect)",
                         delimiter="#",
                         logger=self.logger,
                         setting=self.setting,
