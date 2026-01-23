@@ -7,17 +7,18 @@ import os
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import boto3
+from silvaengine_dynamodb_base.models import (
+    ConfigModel,
+    ConnectionModel,
+    FunctionModel,
+)
+
 from silvaengine_constants import (
     AuthorizationAction,
     AuthorizationType,
     HttpStatus,
     InvocationType,
     RequestMethod,
-)
-from silvaengine_dynamodb_base.models import (
-    ConfigModel,
-    ConnectionModel,
-    FunctionModel,
 )
 from silvaengine_utility import (
     Authorizer,
@@ -349,8 +350,7 @@ class Handler:
         try:
             return Serializer.json_loads(self.event.get("body", "{}"))
         except Exception:
-            pass
-        return {}
+            return {}
 
     def _get_api_key(self) -> str:
         def is_valid_api_key(value: Optional[str]) -> bool:
