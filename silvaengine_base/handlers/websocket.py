@@ -6,13 +6,12 @@ import traceback
 from typing import Any, Dict, Optional
 
 import pendulum
+from silvaengine_constants import AuthorizationAction, HttpStatus, SwitchStatus
 from silvaengine_dynamodb_base.models import (
     DoesNotExist,
     FunctionModel,
     WSSConnectionModel,
 )
-
-from silvaengine_constants import AuthorizationAction, HttpStatus, SwitchStatus
 from silvaengine_utility import Debugger, Serializer
 
 from ..handler import Handler
