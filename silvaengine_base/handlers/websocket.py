@@ -6,12 +6,13 @@ import traceback
 from typing import Any, Dict, Optional
 
 import pendulum
-from silvaengine_constants import AuthorizationAction, HttpStatus, SwitchStatus
 from silvaengine_dynamodb_base.models import (
     DoesNotExist,
     FunctionModel,
     WSSConnectionModel,
 )
+
+from silvaengine_constants import AuthorizationAction, HttpStatus, SwitchStatus
 from silvaengine_utility import Debugger, Serializer
 
 from ..handler import Handler
@@ -52,8 +53,7 @@ class WebSocketHandler(Handler):
                 else {}
             )
         except Exception:
-            pass
-        return {}
+            return {}
 
     def handle(self) -> Any:
         try:
@@ -96,17 +96,7 @@ class WebSocketHandler(Handler):
                         action=AuthorizationAction.AUTHORIZE
                     )
                 except Exception as e:
-                    Debugger.info(
-                        variable=e,
-                        stage="WEBSOCKET TEST(connect)",
-                        delimiter="#",
-                        logger=self.logger,
-                        setting=self.setting,
-                    )
-                    return self._generate_response(
-                        status_code=HttpStatus.OK.value,
-                        body={"data": str(e)},
-                    )
+                    raise e
 
             try:
                 url_parameters = self._get_query_string_parameters()
@@ -130,13 +120,8 @@ class WebSocketHandler(Handler):
                         expires_in_minutes=10,
                     )
             except Exception as e:
-                Debugger.info(
-                    variable=e,
-                    stage="WEBSOCKET TEST(save connection to database)",
-                    delimiter="#",
-                    logger=self.logger,
-                    setting=self.setting,
-                )
+                if not isinstance(e, DoesNotExist):
+                    raise e
                 pass
 
             return self._generate_response(
@@ -154,13 +139,8 @@ class WebSocketHandler(Handler):
                 if wss_connection:
                     wss_connection.delete()
             except Exception as e:
-                Debugger.info(
-                    variable=e,
-                    stage="WEBSOCKET DEBUG(disconnect)",
-                    delimiter="#",
-                    logger=self.logger,
-                    setting=self.setting,
-                )
+                if not isinstance(e, DoesNotExist):
+                    raise e
                 pass
 
             return self._generate_response(
