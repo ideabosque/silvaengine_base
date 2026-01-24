@@ -57,12 +57,12 @@ class Resources:
                 "logger": self.logger,
             }
 
-            Debugger.info(
-                variable=handle_parameters,
-                stage=f"{__name__}.handle",
-                delimiter="#",
-                enabled_trace=False,
-            )
+            # Debugger.info(
+            #     variable=handle_parameters,
+            #     stage=f"{__name__}.handle",
+            #     delimiter="#",
+            #     enabled_trace=False,
+            # )
 
             return next(
                 (
