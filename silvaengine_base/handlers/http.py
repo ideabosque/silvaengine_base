@@ -29,9 +29,18 @@ class HttpHandler(Handler):
         Process regular HTTP API requests when the event is not related to WebSocket.
         """
         try:
-            api_key, endpoint_id, function_name, parameters = (
-                self._extract_core_parameters()
-            )
+            api_key, endpoint_id, parameters = self._extract_core_parameters()
+
+            if not endpoint_id:
+                raise ValueError("missing `endpoint_id` in request")
+
+            function_name, proxy_path = self._get_proxy_function_and_path()
+
+            if not function_name:
+                raise ValueError("missing `function_name` in request")
+            elif proxy_path:
+                parameters.update(path=proxy_path)
+
             setting, function = self._get_function_and_setting(
                 endpoint_id,
                 function_name,
