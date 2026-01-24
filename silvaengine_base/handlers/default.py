@@ -32,7 +32,16 @@ class DefaultHandler(Handler):
         if not isinstance(context, dict) or not module_name or not function_name:
             raise TypeError("Invalid request")
 
-        parameters.update(context=context)
+        if "context" not in parameters:
+            parameters.update(context=context)
+
+        if "metadata" not in parameters:
+            parameters.update(
+                metadata={
+                    "aws_lambda_invoker": self.__class__.invoke_aws_lambda_function,
+                    "aws_lambda_context": self.context,
+                }
+            )
 
         return self._get_proxied_callable(
             module_name=module_name,
