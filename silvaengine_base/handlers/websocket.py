@@ -167,7 +167,7 @@ class WebSocketHandler(Handler):
                     body={"data": "Invalid websocket connection id"},
                 )
 
-            endpoint_id = self._get_endpoint_id()
+            api_key, endpoint_id, parameters = self._extract_core_parameters()
 
             if not endpoint_id:
                 return self._generate_response(
@@ -184,25 +184,17 @@ class WebSocketHandler(Handler):
                     body={"data": "Missing required `funct`"},
                 )
 
-            Debugger.info(
-                variable=self._extract_core_parameters(),
-                stage=f"{__file__}.handle",
-                delimiter="~",
-                enabled_trace=False,
-            )
-
-            parameters = {
+            parameters.update(
+                endpoint_id=endpoint_id,
+                connection_id=connection_id,
+                api_key=api_key,
                 **self._parse_event_body_parameters(),
-                "endpoint_id": endpoint_id,
-                "connection_id": connection_id,
-            }
-            api_key = self._get_api_key()
-            method = self._get_request_method()
+            )
             setting, function = self._get_function_and_setting(
                 endpoint_id=endpoint_id,
                 function_name=function,
                 api_key=api_key,
-                method=method,
+                method=self._get_request_method(),
             )
 
             self._merge_setting_to_default(setting=setting)
@@ -224,11 +216,12 @@ class WebSocketHandler(Handler):
             url_parameters = wss_connection.url_parameters.as_dict()
 
             if isinstance(url_parameters, dict):
-                parameters.update(
-                    metadata=self._extract_additional_parameters(
-                        url_parameters,
-                    )
-                )
+                metadata=self._extract_additional_parameters(url_parameters)
+
+                if "metadata" in parameters and isinstance(parameters.get("metadata"), dict):
+                    parameters["metadata"].update(**metadata)
+                else:
+                    parameters.update(metadata=metadata)
 
             if (
                 not isinstance(function, FunctionModel)

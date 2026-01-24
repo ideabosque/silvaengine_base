@@ -424,7 +424,7 @@ class Handler:
         except Exception as e:
             raise e
 
-    def _extract_core_parameters(self) -> Tuple[str, str, str, Dict[str, Any]]:
+    def _extract_core_parameters(self) -> Tuple[str, str, Dict[str, Any]]:
         """Extract and organize event-related data."""
         api_key = self._get_api_key()
         area = self._get_api_area()
@@ -458,17 +458,9 @@ class Handler:
         }
         parameters.update(**self._parse_event_body())
 
-        function_name, proxy_path = self._get_proxy_function_and_path()
-
-        if not function_name:
-            raise ValueError("missing `function_name` in request")
-        elif proxy_path:
-            parameters.update(path=proxy_path)
-
         return (
             api_key,
             endpoint_id,
-            function_name,
             parameters,
         )
 
