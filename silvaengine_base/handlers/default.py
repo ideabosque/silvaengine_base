@@ -29,7 +29,7 @@ class DefaultHandler(Handler):
         class_name = self.event.get("class_name")
         parameters = self.event.get("parameters") or {}
 
-        if not isinstance(context, dict) or not module_name or not function_name
+        if not isinstance(context, dict) or not module_name or not function_name:
             raise TypeError("Invalid request")
 
         parameters.update(context=context)
@@ -39,7 +39,6 @@ class DefaultHandler(Handler):
             function_name=function_name,
             class_name=class_name,
         )(**parameters)
-
 
     def _get_default_setting_index(self) -> str:
         context = self.event.get("context") or {}
