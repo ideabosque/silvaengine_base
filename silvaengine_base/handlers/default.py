@@ -21,8 +21,6 @@ class DefaultHandler(Handler):
         return required_keys.issubset(event.keys())
 
     def handle(self) -> Any:
-        print("~UNKNOWN HANDLER~" * 10)
-
         context = self.event.get("context")
         module_name = self.event.get("module_name")
         function_name = self.event.get("function_name")
