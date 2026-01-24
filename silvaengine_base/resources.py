@@ -11,13 +11,13 @@ from silvaengine_utility import Debugger, HttpResponse
 from .handlers import (
     CloudwatchLogHandler,
     CognitoHandler,
+    DefaultHandler,
     DynamodbHandler,
     EventBridgeHandler,
     HttpHandler,
     S3Handler,
     SNSHandler,
     SQSHandler,
-    UnknownHandler,
     WebSocketHandler,
 )
 
@@ -70,7 +70,7 @@ class Resources:
                     for handler in self._event_handlers
                     if handler.is_event_match_handler(event)
                 ),
-                UnknownHandler(**handle_parameters),
+                DefaultHandler(**handle_parameters),
             ).handle()
         except Exception as e:
             return HttpResponse.format_response(

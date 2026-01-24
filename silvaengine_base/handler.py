@@ -128,7 +128,7 @@ class Handler:
     def invoke_aws_lambda_function(
         cls,
         function_name: str,
-        payload: dict,
+        payload: Dict[str, Any],
         invocation_type: InvocationType = InvocationType.EVENT,
     ) -> Any:
         """
@@ -411,8 +411,8 @@ class Handler:
     def _get_proxied_callable(
         self,
         module_name: str,
-        class_name: str,
-        function_name: str,
+        class_name: Optional[str],
+        function_name: Optional[str],
     ) -> Callable:
         try:
             return Invoker.resolve_proxied_callable(
@@ -454,6 +454,7 @@ class Handler:
             "endpoint_id": endpoint_id,
             "area": area,
             "api_key": api_key,
+            "stage": self._get_api_stage(),
             "metadata": metadata,
         }
         parameters.update(**self._parse_event_body())
