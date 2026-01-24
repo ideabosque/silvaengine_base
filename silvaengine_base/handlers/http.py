@@ -97,13 +97,6 @@ class HttpHandler(Handler):
             ):
                 raise ValueError("Missing function config")
 
-            Debugger.info(
-                variable=parameters,
-                stage=f"{__file__}.handle",
-                delimiter="~",
-                enabled_trace=False,
-            )
-
             return self._get_proxied_callable(
                 module_name=function.config.module_name,
                 class_name=function.config.class_name,
