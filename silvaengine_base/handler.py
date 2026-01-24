@@ -444,7 +444,10 @@ class Handler:
                 **self._get_query_string_parameters(),
             }
         )
-        metadata.update(aws_lambda_invoker=self.__class__.invoke_aws_lambda_function)
+        metadata.update(
+            aws_lambda_invoker=self.__class__.invoke_aws_lambda_function,
+            aws_lambda_context=self.context,
+        )
 
         parameters = {
             **self._get_query_string_parameters(),
@@ -452,7 +455,6 @@ class Handler:
             "area": area,
             "api_key": api_key,
             "metadata": metadata,
-            "context": self.context,
         }
         parameters.update(**self._parse_event_body())
 
