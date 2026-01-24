@@ -156,7 +156,7 @@ class Handler:
             function_payload = Serializer.json_dumps(payload, separators=(",", ":"))
             response = cls.aws_lambda.invoke(
                 FunctionName=function_name,
-                InvocationType=invocation_type,
+                InvocationType=invocation_type.value,
                 Payload=function_payload,
             )
 
