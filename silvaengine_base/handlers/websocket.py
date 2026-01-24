@@ -184,6 +184,13 @@ class WebSocketHandler(Handler):
                     body={"data": "Missing required `funct`"},
                 )
 
+            Debugger.info(
+                variable=self._extract_core_parameters(),
+                stage=f"{__file__}.handle",
+                delimiter="~",
+                enabled_trace=False,
+            )
+
             parameters = {
                 **self._parse_event_body_parameters(),
                 "endpoint_id": endpoint_id,
