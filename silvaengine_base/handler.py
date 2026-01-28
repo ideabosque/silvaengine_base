@@ -18,6 +18,7 @@ from silvaengine_dynamodb_base.models import (
     ConfigModel,
     ConnectionModel,
     FunctionModel,
+    GraphqlSchemaModel,
 )
 from silvaengine_utility import (
     Authorizer,
@@ -447,6 +448,7 @@ class Handler:
         metadata.update(
             aws_lambda_invoker=self.__class__.invoke_aws_lambda_function,
             aws_lambda_context=self.context,
+            graphql_schema_picker=GraphqlSchemaModel.get_schema_picker(endpoint_id),
         )
 
         parameters = {
