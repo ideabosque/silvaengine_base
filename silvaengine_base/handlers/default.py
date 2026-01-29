@@ -4,6 +4,8 @@ from __future__ import print_function
 
 from typing import Any, Callable, Dict, List, Optional, Union
 
+from silvaengine_dynamodb_base.models import GraphqlSchemaModel
+
 from ..handler import Handler
 
 
@@ -38,6 +40,9 @@ class DefaultHandler(Handler):
                 metadata={
                     "aws_lambda_invoker": self.__class__.invoke_aws_lambda_function,
                     "aws_lambda_context": self.context,
+                    "graphql_schema_picker": GraphqlSchemaModel.get_schema_picker(
+                        endpoint_id=self._get_endpoint_id(context=context)
+                    ),
                 }
             )
 
@@ -47,11 +52,44 @@ class DefaultHandler(Handler):
             class_name=class_name,
         )(**parameters)
 
+    def _get_api_area(self, context: Optional[Dict[str, Any]] = None) -> str:
+        api_area = context.get("aws_api_area") if isinstance(context, dict) else ""
+
+        if isinstance(api_area, str):
+            api_area = api_area.strip()
+
+            if api_area:
+                return api_area.lower()
+
+        return super()._get_api_area()
+
+    def _get_api_stage(self, context: Optional[Dict[str, Any]] = None) -> str:
+        api_stage = context.get("aws_api_stage") if isinstance(context, dict) else ""
+
+        if isinstance(api_stage, str):
+            api_stage = api_stage.strip()
+
+            if api_stage:
+                return api_stage.lower()
+
+        return super()._get_api_stage()
+
+    def _get_endpoint_id(self, context: Optional[Dict[str, Any]] = None) -> str:
+        endpoint_id = context.get("endpoint_id") if isinstance(context, dict) else ""
+
+        if isinstance(endpoint_id, str):
+            endpoint_id = endpoint_id.strip()
+
+            if endpoint_id:
+                return endpoint_id.lower()
+
+        return super()._get_endpoint_id()
+
     def _get_default_setting_index(self) -> str:
         context = self.event.get("context") or {}
-        aws_api_stage = str(context.get("aws_api_stage") or "").strip().lower()
-        aws_api_area = str(context.get("aws_api_area") or "").strip().lower()
-        endpoint_id = str(context.get("endpoint_id") or "").strip().lower()
+        aws_api_stage = self._get_api_stage(context=context)
+        aws_api_area = self._get_api_area(context=context)
+        endpoint_id = self._get_endpoint_id(context=context)
 
         if not aws_api_stage or not aws_api_area or not endpoint_id:
             raise ValueError("Invalid required parameter(s)")
