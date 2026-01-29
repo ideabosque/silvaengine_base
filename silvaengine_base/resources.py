@@ -63,7 +63,7 @@ class Resources:
                     for handler in self._event_handlers
                     if handler.is_event_match_handler(event)
                 ),
-                DefaultHandler(**handle_parameters),
+                DefaultHandler.new_handler(**handle_parameters),
             ).handle()
         except Exception as e:
             return HttpResponse.format_response(
