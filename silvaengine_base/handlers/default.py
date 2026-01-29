@@ -23,40 +23,44 @@ class DefaultHandler(Handler):
         return required_keys.issubset(event.keys())
 
     def handle(self) -> Any:
-        context = self.event.get("context")
-        module_name = self.event.get("module_name")
-        function_name = self.event.get("function_name")
-        class_name = self.event.get("class_name")
-        parameters = self.event.get("parameters") or {}
+        try:
+            context = self.event.get("context")
+            module_name = self.event.get("module_name")
+            function_name = self.event.get("function_name")
+            class_name = self.event.get("class_name")
+            parameters = self.event.get("parameters") or {}
 
-        if not isinstance(context, dict) or not module_name or not function_name:
-            raise TypeError("Invalid request")
+            if not isinstance(context, dict) or not module_name or not function_name:
+                raise TypeError("Invalid request")
 
-        if "context" not in parameters:
-            parameters.update(context=context)
+            if "context" not in parameters:
+                parameters.update(context=context)
 
-        if "metadata" not in parameters:
-            parameters.update(
-                metadata={
-                    "aws_lambda_invoker": self.__class__.invoke_aws_lambda_function,
-                    "aws_lambda_context": self.context,
-                    "graphql_schema_picker": GraphqlSchemaModel.get_schema_picker(
-                        endpoint_id=self._get_endpoint_id(context=context)
-                    ),
-                }
+            if "metadata" not in parameters:
+                parameters.update(
+                    metadata={
+                        "aws_lambda_invoker": self.__class__.invoke_aws_lambda_function,
+                        "aws_lambda_context": self.context,
+                        "graphql_schema_picker": GraphqlSchemaModel.get_schema_picker(
+                            endpoint_id=self._get_endpoint_id(context=context)
+                        ),
+                    }
+                )
+
+            print("#" * 80)
+            print(
+                f"module_name={module_name}, class_name={class_name},function_name={function_name}, parameters={parameters}"
             )
+            print("#" * 80)
 
-        print("#" * 80)
-        print(
-            f"module_name={module_name}, class_name={class_name},function_name={function_name}, parameters={parameters}"
-        )
-        print("#" * 80)
-
-        return self._get_proxied_callable(
-            module_name=module_name,
-            function_name=function_name,
-            class_name=class_name,
-        )(**parameters)
+            return self._get_proxied_callable(
+                module_name=module_name,
+                function_name=function_name,
+                class_name=class_name,
+            )(**parameters)
+        except Exception as e:
+            print(f"Error:{e}")
+            raise
 
     def _get_api_area(self, context: Optional[Dict[str, Any]] = None) -> str:
         api_area = context.get("aws_api_area") if isinstance(context, dict) else ""
