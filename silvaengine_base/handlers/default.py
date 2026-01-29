@@ -48,7 +48,7 @@ class DefaultHandler(Handler):
 
         print("#" * 80)
         print(
-            f"module_name={module_name}, class_name={class_name},function_name={module_name}, parameters={parameters}"
+            f"module_name={module_name}, class_name={class_name},function_name={function_name}, parameters={parameters}"
         )
         print("#" * 80)
 
