@@ -5,6 +5,7 @@ from __future__ import print_function
 from typing import Any, Callable, Dict, List, Optional, Union
 
 from silvaengine_dynamodb_base.models import GraphqlSchemaModel
+from silvaengine_utility import Debugger
 
 from ..handler import Handler
 
@@ -59,7 +60,10 @@ class DefaultHandler(Handler):
                 class_name=class_name,
             )(**parameters)
         except Exception as e:
-            print(f"Error:{e}")
+            Debugger.info(
+                variable=e,
+                stage=f"{__file__}.handle",
+            )
             raise
 
     def _get_api_area(self, context: Optional[Dict[str, Any]] = None) -> str:

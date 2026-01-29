@@ -416,6 +416,9 @@ class Handler:
         function_name: Optional[str],
     ) -> Callable:
         try:
+            print("--" * 40)
+            print(f"Setting: {self.setting}")
+            print("--" * 40)
             return Invoker.resolve_proxied_callable(
                 module_name=module_name,
                 class_name=class_name,
