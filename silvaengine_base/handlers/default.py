@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 
+import traceback
 from typing import Any, Callable, Dict, List, Optional, Union
 
 from silvaengine_dynamodb_base.models import GraphqlSchemaModel
@@ -60,8 +61,9 @@ class DefaultHandler(Handler):
                 class_name=class_name,
             )(**parameters)
         except Exception as e:
+            trace_log = traceback.format_exc()
             Debugger.info(
-                variable=e,
+                variable=f"Error: {e}, Trace: {trace_log}",
                 stage=f"{__file__}.handle",
             )
             raise
