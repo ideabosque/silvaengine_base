@@ -51,19 +51,19 @@ class Resources:
 
     def handle(self, event: Dict[str, Any], context: Any) -> Any:
         try:
-            handle_parameters = {
-                "event": event,
-                "context": context,
-                "logger": self.logger,
-            }
-
-            return next(
+            handler = next(
                 (
-                    handler.new_handler(**handle_parameters)
+                    handler
                     for handler in self._event_handlers
                     if handler.is_event_match_handler(event)
                 ),
-                DefaultHandler.new_handler(**handle_parameters),
+                DefaultHandler,
+            )
+
+            return handler.new_handler(
+                event=event,
+                context=context,
+                logger=self.logger,
             ).handle()
         except Exception as e:
             return HttpResponse.format_response(
