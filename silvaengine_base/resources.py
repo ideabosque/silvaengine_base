@@ -2,8 +2,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 
-import traceback
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 from silvaengine_constants import HttpStatus
 from silvaengine_utility import Debugger, HttpResponse
@@ -22,9 +21,17 @@ from .handlers import (
     WebSocketHandler,
 )
 
+print("~" * 40, "Lambda start")
+
+
+def fn():
+    print("*" * 40)
+    return "test"
+
 
 class Resources:
-    _event_handlers = [
+    _test: str = fn()
+    _event_handlers: List = [
         HttpHandler,
         WebSocketHandler,
         LambdaInvocationHandler,
