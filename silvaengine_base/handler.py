@@ -305,8 +305,12 @@ class Handler:
 
     def _get_endpoint_id(self) -> str:
         return (
-            self.event.get("pathParameters", {}).get("endpoint_id")
-            or str(self.context.function_name).split("_")[0].strip().lower()
+            str(
+                self.event.get("pathParameters", {}).get("endpoint_id")
+                or str(self.context.function_name).split("_")[0]
+            )
+            .strip()
+            .lower()
         )
 
     def _get_api_stage(self) -> str:
@@ -433,6 +437,32 @@ class Handler:
         except Exception as e:
             raise e
 
+    def _get_reusable_resource_pool(self) -> Dict[str, Any]:
+        # TODO: Reusable resource pool
+        return {}
+
+    def _get_metadata(self, endpoint_id: Optional[str] = None) -> Dict[str, Any]:
+        metadata = {
+            "reusable_resource_pool": self._get_reusable_resource_pool(),
+            "aws_lambda_invoker": self.__class__.invoke_aws_lambda_function,
+            "aws_lambda_context": self.context,
+            "graphql_schema_picker": GraphqlSchemaModel.get_schema_picker(
+                endpoint_id or self._get_endpoint_id()
+            ),
+        }
+        extra = self._extract_additional_parameters(
+            {
+                **self._get_headers(),
+                **self._get_path_parameters(),
+                **self._get_query_string_parameters(),
+            }
+        )
+
+        if isinstance(extra, dict) and len(extra) > 0:
+            metadata.update(extra)
+
+        return metadata
+
     def _extract_core_parameters(self) -> Tuple[str, str, Dict[str, Any]]:
         """Extract and organize event-related data."""
         api_key = self._get_api_key()
@@ -446,28 +476,15 @@ class Handler:
         if not endpoint_id:
             raise ValueError("`endpoint_id` is required in path parameters")
 
-        metadata = self._extract_additional_parameters(
-            {
-                **self._get_headers(),
-                **self._get_path_parameters(),
-                **self._get_query_string_parameters(),
-            }
-        )
-        metadata.update(
-            aws_lambda_invoker=self.__class__.invoke_aws_lambda_function,
-            aws_lambda_context=self.context,
-            graphql_schema_picker=GraphqlSchemaModel.get_schema_picker(endpoint_id),
-        )
-
         parameters = {
+            **self._parse_event_body(),
             **self._get_query_string_parameters(),
             "endpoint_id": endpoint_id,
             "area": area,
             "api_key": api_key,
             "stage": self._get_api_stage(),
-            "metadata": metadata,
+            "metadata": self._get_metadata(endpoint_id=endpoint_id),
         }
-        parameters.update(**self._parse_event_body())
 
         return (
             api_key,
