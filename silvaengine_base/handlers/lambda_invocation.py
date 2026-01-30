@@ -4,9 +4,9 @@ from __future__ import print_function
 
 import time
 import traceback
-from tkinter import EventType
 from typing import Any, Callable, Dict, List, Optional, Set, Union
 
+from silvaengine_constants import EventType
 from silvaengine_dynamodb_base.models import GraphqlSchemaModel
 from silvaengine_utility import Debugger
 
