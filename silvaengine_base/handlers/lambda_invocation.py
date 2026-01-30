@@ -6,8 +6,9 @@ import time
 import traceback
 from typing import Any, Callable, Dict, List, Optional, Set, Union
 
-from silvaengine_constants import EventType
 from silvaengine_dynamodb_base.models import GraphqlSchemaModel
+
+from silvaengine_constants import EventType
 from silvaengine_utility import Debugger
 
 from ..handler import Handler
@@ -26,7 +27,7 @@ class LambdaInvocationHandler(Handler):
     def is_event_match_handler(cls, event: Dict[str, Any]) -> bool:
         return (
             cls._required_parameter_keys.issubset(event.keys())
-            and event.get("__type") == EventType.LAMBDA_INVOCATION
+            and event.get("__type") == EventType.LAMBDA_INVOCATION.value
         )
 
     def _invoke_time_counter(self):
