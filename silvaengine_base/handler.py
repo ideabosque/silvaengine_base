@@ -4,12 +4,15 @@ from __future__ import print_function
 
 import logging
 import os
+import time
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import boto3
+from botocore.config import Config
 from silvaengine_constants import (
     AuthorizationAction,
     AuthorizationType,
+    EventType,
     HttpStatus,
     InvocationType,
     RequestMethod,
@@ -32,7 +35,17 @@ from silvaengine_utility import (
 
 class Handler:
     region = os.getenv("REGION_NAME", os.getenv("REGIONNAME", "us-east-1"))
-    aws_lambda = boto3.client("lambda", region_name=region)
+    aws_lambda = boto3.client(
+        "lambda",
+        region_name=region,
+        config=Config(
+            keepalive=True,
+            max_pool_connections=20,
+            connect_timeout=1,
+            read_timeout=5,
+            retries={"max_attempts": 2},
+        ),
+    )
 
     def __init__(
         self,
@@ -141,7 +154,7 @@ class Handler:
         """
         if not function_name:
             raise ValueError("Function name is required")
-        elif not payload:
+        elif isinstance(payload, dict):
             payload = {}
 
         valid_invocation_types = {
@@ -154,6 +167,11 @@ class Handler:
             raise ValueError(f"Invalid invocation_type: {invocation_type.value}")
 
         try:
+            payload.update(
+                __execution_start_time=time.time(),
+                __type=EventType.LAMBDA_INVOCATION,
+            )
+
             function_payload = Serializer.json_dumps(payload, separators=(",", ":"))
             response = cls.aws_lambda.invoke(
                 FunctionName=function_name,
