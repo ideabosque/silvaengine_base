@@ -25,6 +25,7 @@ class LambdaInvocationHandler(Handler):
 
     @classmethod
     def is_event_match_handler(cls, event: Dict[str, Any]) -> bool:
+        Debugger.info(variable=event, stage=f"{__file__}")
         return (
             cls._required_parameter_keys.issubset(event.keys())
             and event.get("__type") == EventType.LAMBDA_INVOCATION.value
