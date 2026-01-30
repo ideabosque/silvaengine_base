@@ -144,7 +144,7 @@ class Handler:
         """
         if not function_name:
             raise ValueError("Function name is required")
-        elif isinstance(payload, dict):
+        elif not isinstance(payload, dict):
             payload = {}
 
         valid_invocation_types = {
