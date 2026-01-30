@@ -8,6 +8,13 @@ import time
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import boto3
+from silvaengine_dynamodb_base.models import (
+    ConfigModel,
+    ConnectionModel,
+    FunctionModel,
+    GraphqlSchemaModel,
+)
+
 from silvaengine_constants import (
     AuthorizationAction,
     AuthorizationType,
@@ -15,12 +22,6 @@ from silvaengine_constants import (
     HttpStatus,
     InvocationType,
     RequestMethod,
-)
-from silvaengine_dynamodb_base.models import (
-    ConfigModel,
-    ConnectionModel,
-    FunctionModel,
-    GraphqlSchemaModel,
 )
 from silvaengine_utility import (
     Authorizer,
@@ -158,7 +159,7 @@ class Handler:
         try:
             payload.update(
                 __execution_start_time=time.time(),
-                __type=EventType.LAMBDA_INVOCATION,
+                __type=EventType.LAMBDA_INVOCATION.value,
             )
 
             function_payload = Serializer.json_dumps(payload, separators=(",", ":"))
