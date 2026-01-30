@@ -15,6 +15,7 @@ from .handlers import (
     DynamodbHandler,
     EventBridgeHandler,
     HttpHandler,
+    LambdaInvocationHandler,
     S3Handler,
     SNSHandler,
     SQSHandler,
@@ -26,6 +27,7 @@ class Resources:
     _event_handlers = [
         HttpHandler,
         WebSocketHandler,
+        LambdaInvocationHandler,
         CloudwatchLogHandler,
         CognitoHandler,
         DynamodbHandler,

@@ -2,8 +2,10 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 
+import time
 import traceback
-from typing import Any, Callable, Dict, List, Optional, Union
+from tkinter import EventType
+from typing import Any, Callable, Dict, List, Optional, Set, Union
 
 from silvaengine_dynamodb_base.models import GraphqlSchemaModel
 from silvaengine_utility import Debugger
@@ -11,20 +13,33 @@ from silvaengine_utility import Debugger
 from ..handler import Handler
 
 
-class DefaultHandler(Handler):
+class LambdaInvocationHandler(Handler):
+    _required_parameter_keys: Set[str] = {
+        "__type",
+        "context",
+        "module_name",
+        "class_name",
+        "function_name",
+    }
+
     @classmethod
     def is_event_match_handler(cls, event: Dict[str, Any]) -> bool:
-        required_keys = {
-            "context",
-            "module_name",
-            "class_name",
-            "function_name",
-        }
+        return (
+            cls._required_parameter_keys.issubset(event.keys())
+            and event.get("__type") == EventType.LAMBDA_INVOCATION
+        )
 
-        return required_keys.issubset(event.keys())
+    def _invoke_time_counter(self):
+        started_at = self.event.get("__execution_start_time")
+
+        if isinstance(started_at, (int, float, complex)):
+            duration = time.time() - started_at
+            self.logger.info(f"It takes {duration:.6f}s to invoke the lambda function.")
 
     def handle(self) -> Any:
         try:
+            self._invoke_time_counter()
+
             context = self.event.get("context")
             module_name = self.event.get("module_name")
             function_name = self.event.get("function_name")
@@ -48,21 +63,14 @@ class DefaultHandler(Handler):
                     }
                 )
 
-            print("#" * 80)
-            print(
-                f"module_name={module_name}, class_name={class_name},function_name={function_name}, parameters={parameters}"
-            )
-            print("#" * 80)
-
             return self._get_proxied_callable(
                 module_name=module_name,
                 function_name=function_name,
                 class_name=class_name,
             )(**parameters)
         except Exception as e:
-            trace_log = traceback.format_exc()
             Debugger.info(
-                variable=f"Error: {e}, Trace: {trace_log}",
+                variable=f"Error: {e}, Trace: {traceback.format_exc()}",
                 stage=f"{__file__}.handle",
             )
             raise
