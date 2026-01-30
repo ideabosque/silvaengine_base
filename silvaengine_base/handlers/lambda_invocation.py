@@ -48,22 +48,19 @@ class LambdaInvocationHandler(Handler):
             class_name = self.event.get("class_name")
             parameters = self.event.get("parameters") or {}
 
-            if not isinstance(context, dict) or not module_name or not function_name:
+            if (
+                not isinstance(context, dict)
+                or not module_name
+                or not function_name
+                or not isinstance(parameters, dict)
+            ):
                 raise TypeError("Invalid request")
 
             if "context" not in parameters:
                 parameters.update(context=context)
 
             if "metadata" not in parameters:
-                parameters.update(
-                    metadata={
-                        "aws_lambda_invoker": self.__class__.invoke_aws_lambda_function,
-                        "aws_lambda_context": self.context,
-                        "graphql_schema_picker": GraphqlSchemaModel.get_schema_picker(
-                            endpoint_id=self._get_endpoint_id(context=context)
-                        ),
-                    }
-                )
+                parameters.update(metadata=self._get_metadata())
 
             return self._get_proxied_callable(
                 module_name=module_name,

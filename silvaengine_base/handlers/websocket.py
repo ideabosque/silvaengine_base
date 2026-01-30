@@ -6,12 +6,13 @@ import traceback
 from typing import Any, Dict, Optional
 
 import pendulum
-from silvaengine_constants import AuthorizationAction, HttpStatus, SwitchStatus
 from silvaengine_dynamodb_base.models import (
     DoesNotExist,
     FunctionModel,
     WSSConnectionModel,
 )
+
+from silvaengine_constants import AuthorizationAction, HttpStatus, SwitchStatus
 from silvaengine_utility import Debugger, Serializer
 
 from ..handler import Handler
@@ -213,15 +214,19 @@ class WebSocketHandler(Handler):
                 wss_connection.updated_at = pendulum.now("UTC")
                 wss_connection.save()
 
+            metadata = self._get_metadata(endpoint_id=endpoint_id)
             url_parameters = wss_connection.url_parameters.as_dict()
 
-            if isinstance(url_parameters, dict):
-                metadata=self._extract_additional_parameters(url_parameters)
+            if isinstance(url_parameters, dict) and len(url_parameters) > 0:
+                extra = self._extract_additional_parameters(url_parameters)
 
-                if "metadata" in parameters and isinstance(parameters.get("metadata"), dict):
-                    parameters["metadata"].update(**metadata)
-                else:
-                    parameters.update(metadata=metadata)
+                if isinstance(extra, dict) and len(extra) > 0:
+                    metadata.update(extra)
+
+            if isinstance(parameters.get("metadata"), dict):
+                parameters["metadata"].update(metadata)
+            else:
+                parameters["metadata"] = metadata
 
             if (
                 not isinstance(function, FunctionModel)
