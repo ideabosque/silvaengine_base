@@ -8,7 +8,6 @@ import time
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import boto3
-from botocore.config import Config
 from silvaengine_constants import (
     AuthorizationAction,
     AuthorizationType,
@@ -35,17 +34,7 @@ from silvaengine_utility import (
 
 class Handler:
     region = os.getenv("REGION_NAME", os.getenv("REGIONNAME", "us-east-1"))
-    aws_lambda = boto3.client(
-        "lambda",
-        region_name=region,
-        config=Config(
-            keepalive=True,
-            max_pool_connections=20,
-            connect_timeout=1,
-            read_timeout=5,
-            retries={"max_attempts": 2},
-        ),
-    )
+    aws_lambda = boto3.client("lambda", region_name=region)
 
     def __init__(
         self,
