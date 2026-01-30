@@ -60,13 +60,19 @@ class Resources:
                     if handler.is_event_match_handler(event)
                 ),
                 DefaultHandler,
-            )
-
-            return handler.new_handler(
+            ).new_handler(
                 event=event,
                 context=context,
                 logger=self.logger,
-            ).handle()
+            )
+
+            if not handler:
+                return HttpResponse.format_response(
+                    status_code=HttpStatus.BAD_REQUEST.value,
+                    data={"error": f"Unrecognized request:{event}"},
+                )
+
+            return handler.handle()
         except Exception as e:
             return HttpResponse.format_response(
                 status_code=HttpStatus.INTERNAL_SERVER_ERROR.value,
