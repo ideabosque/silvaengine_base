@@ -31,12 +31,12 @@ class LambdaInvocationHandler(Handler):
         )
 
     def _invoke_time_counter(self):
-        started_at = self.event.get("__execution_start_time")
+        start_at = self.event.get("__execution_start_time")
         now = time.time()
-        self.logger.info(f">>>Invocation started at {started_at}, now is {now}")
+        self.logger.info(f">>>Invocation start at {start_at}, now is {now}")
 
-        if isinstance(started_at, (int, float, complex)):
-            self.logger.info(f"Takes {(now - started_at):.6f}s to invoke the function.")
+        if isinstance(start_at, (int, float, complex)):
+            self.logger.info(f"Takes {(now - start_at):.6f}s to invoke the function")
 
     def handle(self) -> Any:
         try:
