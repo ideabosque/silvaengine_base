@@ -56,9 +56,6 @@ class Resources:
 
             cls._initializing = True
 
-            if cls._keep_alive_interval < 60 or cls._keep_alive_interval > 300:
-                cls._keep_alive_interval = 120
-
             def _do_initialization():
                 try:
                     # TODO: Asynchronous initialization + lazy loading mode
@@ -78,6 +75,9 @@ class Resources:
 
     @classmethod
     def _warmup(cls):
+        if cls._keep_alive_interval < 60 or cls._keep_alive_interval > 300:
+            cls._keep_alive_interval = 120
+
         while True:
             time.sleep(cls._keep_alive_interval)
             now = datetime.now(timezone.utc).isoformat()
