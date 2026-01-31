@@ -6,6 +6,7 @@ import traceback
 from typing import Any, Callable, Dict, List, Optional, Union
 
 from silvaengine_dynamodb_base.models import GraphqlSchemaModel
+
 from silvaengine_utility import Debugger
 
 from ..handler import Handler
@@ -14,14 +15,7 @@ from ..handler import Handler
 class DefaultHandler(Handler):
     @classmethod
     def is_event_match_handler(cls, event: Dict[str, Any]) -> bool:
-        required_keys = {
-            "context",
-            "module_name",
-            "class_name",
-            "function_name",
-        }
-
-        return required_keys.issubset(event.keys())
+        return True
 
     def handle(self) -> Any:
         try:

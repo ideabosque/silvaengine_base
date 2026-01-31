@@ -2,7 +2,9 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 
-from typing import Any, Dict, List
+import threading
+from concurrent.futures import ThreadPoolExecutor
+from typing import Any, Callable, Dict, List
 
 from silvaengine_constants import HttpStatus
 from silvaengine_utility import Debugger, HttpResponse
@@ -21,16 +23,13 @@ from .handlers import (
     WebSocketHandler,
 )
 
-print("~" * 40, "Lambda start")
-
-
-def fn():
-    print("*" * 40)
-    return "test"
-
 
 class Resources:
-    _test: str = fn()
+    _initialized = False
+    _initializing = False
+    _initializer_lock = threading.Lock()
+    _executor = ThreadPoolExecutor()
+    _reusable_resource_pool: List
     _event_handlers: List = [
         HttpHandler,
         WebSocketHandler,
@@ -44,19 +43,48 @@ class Resources:
         SQSHandler,
     ]
 
-    def __init__(self, logger: Any) -> None:
-        self.logger = logger
+    @classmethod
+    def _initialize(cls) -> None:
+        with cls._initializer_lock:
+            if cls._initialized or cls._initializing:
+                return
+
+            cls._initializing = True
+
+            def _do_initialization():
+                try:
+                    # Asynchronous initialization + lazy loading mode
+                    while True:
+                        DefaultHandler.invoke_aws_lambda_function(
+                            function_name="gpt_silvaengine_microcore",
+                            payload={},
+                        )
+
+                    cls._initialized = True
+                except Exception as e:
+                    Debugger.info(
+                        variable=f"Error: {e}",
+                        stage=f"{__name__}._initialize",
+                    )
+                finally:
+                    cls._initializing = False
+
+            cls._executor.submit(_do_initialization)
 
     @classmethod
-    def get_handler(cls, *args, **kwargs):
+    def get_handler(cls, *args, **kwargs) -> Callable:
         """
         Generate a handler function for Lambda events.
         """
+        cls._initialize()
 
         def handler(event: Dict[str, Any], context: Any):
             return cls(*args, **kwargs).handle(event, context)
 
         return handler
+
+    def __init__(self, logger: Any) -> None:
+        self.logger = logger
 
     def handle(self, event: Dict[str, Any], context: Any) -> Any:
         try:
