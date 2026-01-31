@@ -8,13 +8,6 @@ import time
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import boto3
-from silvaengine_dynamodb_base.models import (
-    ConfigModel,
-    ConnectionModel,
-    FunctionModel,
-    GraphqlSchemaModel,
-)
-
 from silvaengine_constants import (
     AuthorizationAction,
     AuthorizationType,
@@ -22,6 +15,12 @@ from silvaengine_constants import (
     HttpStatus,
     InvocationType,
     RequestMethod,
+)
+from silvaengine_dynamodb_base.models import (
+    ConfigModel,
+    ConnectionModel,
+    FunctionModel,
+    GraphqlSchemaModel,
 )
 from silvaengine_utility import (
     Authorizer,
@@ -134,6 +133,7 @@ class Handler:
         function_name: str,
         payload: Dict[str, Any],
         invocation_type: InvocationType = InvocationType.EVENT,
+        qualifier: Any = None,
     ) -> Any:
         """
         Invoke another Lambda function.
@@ -167,6 +167,7 @@ class Handler:
                 FunctionName=function_name,
                 InvocationType=invocation_type.value,
                 Payload=function_payload,
+                Qualifier=qualifier,
             )
 
             if "Payload" not in response:
