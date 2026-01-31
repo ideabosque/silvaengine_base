@@ -58,6 +58,7 @@ class Resources:
                     # Asynchronous initialization + lazy loading mode
                     while True:
                         time.sleep(123)
+                        print(f"Service wake up at {time.time()} ...")
                         DefaultHandler.invoke_aws_lambda_function(
                             function_name="gpt_silvaengine_microcore",
                             payload={
