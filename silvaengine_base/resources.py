@@ -5,6 +5,7 @@ from __future__ import print_function
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timezone
 from typing import Any, Callable, Dict, List
 
 from silvaengine_constants import HttpStatus
@@ -59,7 +60,10 @@ class Resources:
                         time.sleep(123)
                         DefaultHandler.invoke_aws_lambda_function(
                             function_name="gpt_silvaengine_microcore",
-                            payload={},
+                            payload={
+                                "timestamp": datetime.now(timezone.utc).isoformat(),
+                                "source": "boto3_invoke",
+                            },
                         )
 
                     cls._initialized = True
