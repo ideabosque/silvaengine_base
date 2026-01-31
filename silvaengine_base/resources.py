@@ -84,11 +84,12 @@ class Resources:
             print(f">>> Service wake up at {now} ...")
 
             if cls._lambda_context:
-                DefaultHandler.invoke_aws_lambda_function(
+                result = DefaultHandler.invoke_aws_lambda_function(
                     qualifier=cls._lambda_context.function_version,
                     function_name=cls._lambda_context.invoked_function_arn,
                     payload={"timestamp": now},
                 )
+                print(f">>> Response: {result}")
 
     @classmethod
     def get_handler(cls, *args, **kwargs) -> Callable:
