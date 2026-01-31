@@ -51,25 +51,16 @@ class Resources:
     @classmethod
     def _initialize(cls) -> None:
         with cls._initializer_lock:
-            if cls._initialized or cls._initializing:
-                return
-
-            cls._initializing = True
 
             def _do_initialization():
                 try:
                     # TODO: Asynchronous initialization + lazy loading mode
-
-                    cls._executor.submit(cls._warmup)
-
-                    cls._initialized = True
+                    cls._warmup()
                 except Exception as e:
                     Debugger.info(
                         variable=f"Error: {e}",
                         stage=f"{__name__}._initialize",
                     )
-                finally:
-                    cls._initializing = False
 
             cls._executor.submit(_do_initialization)
 
