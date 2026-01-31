@@ -89,7 +89,10 @@ class Resources:
                     function_name=cls._lambda_context.invoked_function_arn,
                     payload={"timestamp": now},
                 )
-                print(f">>> Response: {result}")
+
+                print(
+                    f">>> Function name: `{cls._lambda_context.invoked_function_arn}`, qualifier: `{cls._lambda_context.function_version}`, response: {result}"
+                )
 
     @classmethod
     def get_handler(cls, *args, **kwargs) -> Callable:
