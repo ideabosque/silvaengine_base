@@ -63,6 +63,8 @@ class Resources:
                 try:
                     # TODO: Asynchronous initialization + lazy loading mode
 
+                    cls._executor.submit(cls._warmup)
+
                     cls._initialized = True
                 except Exception as e:
                     Debugger.info(
@@ -73,10 +75,9 @@ class Resources:
                     cls._initializing = False
 
             cls._executor.submit(_do_initialization)
-            cls._executor.submit(cls._wake_up)
 
     @classmethod
-    def _wake_up(cls):
+    def _warmup(cls):
         while True:
             time.sleep(cls._keep_alive_interval)
             now = datetime.now(timezone.utc).isoformat()
