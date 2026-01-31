@@ -3,6 +3,7 @@
 from __future__ import print_function
 
 import threading
+import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Callable, Dict, List
 
@@ -55,6 +56,7 @@ class Resources:
                 try:
                     # Asynchronous initialization + lazy loading mode
                     while True:
+                        time.sleep(123)
                         DefaultHandler.invoke_aws_lambda_function(
                             function_name="gpt_silvaengine_microcore",
                             payload={},
