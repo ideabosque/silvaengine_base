@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 
+import os
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -32,6 +33,8 @@ class Resources:
     _initializer_lock = threading.Lock()
     _executor = ThreadPoolExecutor()
     _reusable_resource_pool: List
+    _lambda_context: Any
+    _keep_alive_interval = int(os.getenv("KEEP_ALIVE_INTERVAL", 120))
     _event_handlers: List = [
         HttpHandler,
         WebSocketHandler,
@@ -53,19 +56,12 @@ class Resources:
 
             cls._initializing = True
 
+            if cls._keep_alive_interval < 60 or cls._keep_alive_interval > 300:
+                cls._keep_alive_interval = 120
+
             def _do_initialization():
                 try:
-                    # Asynchronous initialization + lazy loading mode
-                    while True:
-                        time.sleep(123)
-                        print(f"Service wake up at {time.time()} ...")
-                        DefaultHandler.invoke_aws_lambda_function(
-                            function_name="gpt_silvaengine_microcore",
-                            payload={
-                                "timestamp": datetime.now(timezone.utc).isoformat(),
-                                "source": "boto3_invoke",
-                            },
-                        )
+                    # TODO: Asynchronous initialization + lazy loading mode
 
                     cls._initialized = True
                 except Exception as e:
@@ -77,6 +73,21 @@ class Resources:
                     cls._initializing = False
 
             cls._executor.submit(_do_initialization)
+            cls._executor.submit(cls._wake_up)
+
+    @classmethod
+    def _wake_up(cls):
+        while True:
+            time.sleep(cls._keep_alive_interval)
+            now = datetime.now(timezone.utc).isoformat()
+            print(f">>> Service wake up at {now} ...")
+
+            if cls._lambda_context:
+                DefaultHandler.invoke_aws_lambda_function(
+                    qualifier=cls._lambda_context.function_version,
+                    function_name=cls._lambda_context.invoked_function_arn,
+                    payload={"timestamp": now},
+                )
 
     @classmethod
     def get_handler(cls, *args, **kwargs) -> Callable:
@@ -95,6 +106,7 @@ class Resources:
 
     def handle(self, event: Dict[str, Any], context: Any) -> Any:
         try:
+            self.__class__._lambda_context = context
             handler = next(
                 (
                     handler
