@@ -442,10 +442,26 @@ class Handler:
         # TODO: Reusable resource pool
         return {}
 
+    def _get_lambda_function_invoker(
+        self,
+        function_name: str,
+        payload: Dict[str, Any],
+        invocation_type: InvocationType = InvocationType.EVENT,
+    ):
+        if not function_name:
+            function_name = self.context.invoked_function_arn
+
+        return self.__class__.invoke_aws_lambda_function(
+            function_name=function_name,
+            payload=payload,
+            invocation_type=invocation_type,
+            qualifier=self.context.function_version,
+        )
+
     def _get_metadata(self, endpoint_id: Optional[str] = None) -> Dict[str, Any]:
         metadata = {
             "reusable_resource_pool": self._get_reusable_resource_pool(),
-            "aws_lambda_invoker": self.__class__.invoke_aws_lambda_function,
+            "aws_lambda_invoker": self._get_lambda_function_invoker,
             "aws_lambda_context": self.context,
             "graphql_schema_picker": GraphqlSchemaModel.get_schema_picker(
                 endpoint_id or self._get_endpoint_id()
