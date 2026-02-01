@@ -34,7 +34,7 @@ class Resources:
     _executor = ThreadPoolExecutor()
     _reusable_resource_pool: List
     _lambda_context: Any
-    _keep_alive_interval = int(os.getenv("KEEP_ALIVE_INTERVAL", 120))
+    _keep_alive_interval = int(os.getenv("KEEP_ALIVE_INTERVAL", 59))
     _event_handlers: List = [
         HttpHandler,
         WebSocketHandler,
@@ -66,24 +66,34 @@ class Resources:
 
     @classmethod
     def _warmup(cls):
-        if cls._keep_alive_interval < 60 or cls._keep_alive_interval > 300:
-            cls._keep_alive_interval = 120
+        if (
+            not cls._keep_alive_interval
+            or cls._keep_alive_interval < 30
+            or cls._keep_alive_interval > 300
+        ):
+            cls._keep_alive_interval = 59
 
         while True:
             time.sleep(cls._keep_alive_interval)
             now = datetime.now(timezone.utc).isoformat()
             print(f">>> Service wake up at {now} ...")
 
-            if cls._lambda_context:
+            if (
+                cls._lambda_context
+                and cls._lambda_context.invoked_function_arn
+                and cls._lambda_context.function_version
+            ):
+                print(
+                    f">>> Function name: `{cls._lambda_context.invoked_function_arn}`, qualifier: `{cls._lambda_context.function_version}`"
+                )
+
                 result = DefaultHandler.invoke_aws_lambda_function(
                     qualifier=cls._lambda_context.function_version,
                     function_name=cls._lambda_context.invoked_function_arn,
                     payload={"timestamp": now},
                 )
 
-                print(
-                    f">>> Function name: `{cls._lambda_context.invoked_function_arn}`, qualifier: `{cls._lambda_context.function_version}`, response: {result}"
-                )
+                print(f">>> Response: {result}")
 
     @classmethod
     def get_handler(cls, *args, **kwargs) -> Callable:
