@@ -50,19 +50,17 @@ class Resources:
 
     @classmethod
     def _initialize(cls) -> None:
-        with cls._initializer_lock:
+        def _do_initialization():
+            try:
+                # TODO: Asynchronous initialization + lazy loading mode
+                cls._warmup()
+            except Exception as e:
+                Debugger.info(
+                    variable=f"Error: {e}",
+                    stage=f"{__name__}._initialize",
+                )
 
-            def _do_initialization():
-                try:
-                    # TODO: Asynchronous initialization + lazy loading mode
-                    cls._warmup()
-                except Exception as e:
-                    Debugger.info(
-                        variable=f"Error: {e}",
-                        stage=f"{__name__}._initialize",
-                    )
-
-            cls._executor.submit(_do_initialization)
+        cls._executor.submit(_do_initialization)
 
     @classmethod
     def _warmup(cls):
@@ -79,7 +77,8 @@ class Resources:
             print(f">>> Service wake up at {now} ...")
 
             if (
-                cls._lambda_context
+                hasattr(cls, "_lambda_context")
+                and cls._lambda_context
                 and cls._lambda_context.function_name
                 and cls._lambda_context.function_version
             ):
@@ -112,7 +111,13 @@ class Resources:
 
     def handle(self, event: Dict[str, Any], context: Any) -> Any:
         try:
-            self.__class__._lambda_context = context
+            if (
+                hasattr(self.__class__, "_lambda_context")
+                and not self.__class__._lambda_context
+            ):
+                with cls._initializer_lock:
+                    self.__class__._lambda_context = context
+
             handler = next(
                 (
                     handler
