@@ -80,16 +80,16 @@ class Resources:
 
             if (
                 cls._lambda_context
-                and cls._lambda_context.invoked_function_arn
+                and cls._lambda_context.function_name
                 and cls._lambda_context.function_version
             ):
                 print(
-                    f">>> Function name: `{cls._lambda_context.invoked_function_arn}`, qualifier: `{cls._lambda_context.function_version}`"
+                    f">>> Function name: `{cls._lambda_context.function_name}`, qualifier: `{cls._lambda_context.function_version}`"
                 )
 
                 result = DefaultHandler.invoke_aws_lambda_function(
                     qualifier=cls._lambda_context.function_version,
-                    function_name=cls._lambda_context.invoked_function_arn,
+                    function_name=cls._lambda_context.function_name,
                     payload={"timestamp": now},
                 )
 
