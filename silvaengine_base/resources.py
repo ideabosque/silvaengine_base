@@ -3,10 +3,7 @@
 from __future__ import print_function
 
 import os
-import threading
-import time
-from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timezone
+import traceback
 from typing import Any, Callable, Dict, List
 
 from silvaengine_constants import HttpStatus
@@ -28,10 +25,6 @@ from .handlers import (
 
 
 class Resources:
-    # _initialized = False
-    # _initializing = False
-    # _initializer_lock = threading.Lock()
-    # _executor = ThreadPoolExecutor()
     _reusable_resource_pool: List
     _keep_alive_interval = int(os.getenv("KEEP_ALIVE_INTERVAL", 59))
     _event_handlers: List = [
@@ -47,27 +40,11 @@ class Resources:
         SQSHandler,
     ]
 
-    # @classmethod
-    # def _initialize(cls) -> None:
-    #     def _do_initialization():
-    #         try:
-    #             # TODO: Asynchronous initialization + lazy loading mode
-
-    #         except Exception as e:
-    #             Debugger.info(
-    #                 variable=f"Error: {e}",
-    #                 stage=f"{__name__}._initialize",
-    #             )
-
-    #     cls._executor.submit(_do_initialization)
-
     @classmethod
     def get_handler(cls, *args, **kwargs) -> Callable:
         """
         Generate a handler function for Lambda events.
         """
-        # cls._initialize()
-
         def handler(event: Dict[str, Any], context: Any):
             return cls(*args, **kwargs).handle(event, context)
 
@@ -99,6 +76,10 @@ class Resources:
 
             return handler.handle()
         except Exception as e:
+            Debugger.info(
+                variable=f"Error: {e}, Trace: {traceback.format_exc()}",
+                stage=f"{__file__}.handle",
+            )
             return HttpResponse.format_response(
                 status_code=HttpStatus.INTERNAL_SERVER_ERROR.value,
                 data={"error": str(e)},
