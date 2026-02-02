@@ -535,7 +535,9 @@ class Handler:
 
         # Pre-convert header keys to snake_case for comparison
         snake_case_keys = {
-            Utility.to_snake_case(key.strip()): key for key in keys if key.strip()
+            Utility.to_snake_case(key.strip()): key
+            for key in keys
+            if isinstance(key, str) and key.strip()
         }
         snake_case_keys_len = len(snake_case_keys)
 
