@@ -28,12 +28,11 @@ from .handlers import (
 
 
 class Resources:
-    _initialized = False
-    _initializing = False
-    _initializer_lock = threading.Lock()
-    _executor = ThreadPoolExecutor()
+    # _initialized = False
+    # _initializing = False
+    # _initializer_lock = threading.Lock()
+    # _executor = ThreadPoolExecutor()
     _reusable_resource_pool: List
-    _lambda_context: Any
     _keep_alive_interval = int(os.getenv("KEEP_ALIVE_INTERVAL", 59))
     _event_handlers: List = [
         HttpHandler,
@@ -48,58 +47,26 @@ class Resources:
         SQSHandler,
     ]
 
-    @classmethod
-    def _initialize(cls) -> None:
-        def _do_initialization():
-            try:
-                # TODO: Asynchronous initialization + lazy loading mode
-                cls._warmup()
-            except Exception as e:
-                Debugger.info(
-                    variable=f"Error: {e}",
-                    stage=f"{__name__}._initialize",
-                )
+    # @classmethod
+    # def _initialize(cls) -> None:
+    #     def _do_initialization():
+    #         try:
+    #             # TODO: Asynchronous initialization + lazy loading mode
 
-        cls._executor.submit(_do_initialization)
+    #         except Exception as e:
+    #             Debugger.info(
+    #                 variable=f"Error: {e}",
+    #                 stage=f"{__name__}._initialize",
+    #             )
 
-    @classmethod
-    def _warmup(cls):
-        if (
-            not cls._keep_alive_interval
-            or cls._keep_alive_interval < 30
-            or cls._keep_alive_interval > 300
-        ):
-            cls._keep_alive_interval = 59
-
-        while True:
-            time.sleep(cls._keep_alive_interval)
-            now = datetime.now(timezone.utc).isoformat()
-            print(f">>> Service wake up at {now} ...")
-
-            if (
-                hasattr(cls, "_lambda_context")
-                and cls._lambda_context
-                and cls._lambda_context.function_name
-                and cls._lambda_context.function_version
-            ):
-                print(
-                    f">>> Function name: `{cls._lambda_context.function_name}`, qualifier: `{cls._lambda_context.function_version}`"
-                )
-
-                result = DefaultHandler.invoke_aws_lambda_function(
-                    qualifier=cls._lambda_context.function_version,
-                    function_name=cls._lambda_context.function_name,
-                    payload={"timestamp": now},
-                )
-
-                print(f">>> Response: {result}")
+    #     cls._executor.submit(_do_initialization)
 
     @classmethod
     def get_handler(cls, *args, **kwargs) -> Callable:
         """
         Generate a handler function for Lambda events.
         """
-        cls._initialize()
+        # cls._initialize()
 
         def handler(event: Dict[str, Any], context: Any):
             return cls(*args, **kwargs).handle(event, context)
@@ -111,13 +78,6 @@ class Resources:
 
     def handle(self, event: Dict[str, Any], context: Any) -> Any:
         try:
-            if (
-                hasattr(self.__class__, "_lambda_context")
-                and not self.__class__._lambda_context
-            ):
-                with cls._initializer_lock:
-                    self.__class__._lambda_context = context
-
             handler = next(
                 (
                     handler
