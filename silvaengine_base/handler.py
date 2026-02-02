@@ -300,9 +300,15 @@ class Handler:
 
     def _get_request_method(self) -> str:
         """Get the HTTP method from the event."""
-        return self.event["requestContext"].get("http", {}).get("method") or self.event[
-            "requestContext"
-        ].get("httpMethod", RequestMethod.POST.name)
+        default_request_method = RequestMethod.POST.name
+        context = self.event.get("requestContext")
+
+        if not isinstance(context, dict):
+            return default_request_method
+
+        return context.get("http", {}).get("method") or context.get(
+            "httpMethod", default_request_method
+        )
 
     def _get_endpoint_id(self) -> str:
         return (
@@ -315,7 +321,7 @@ class Handler:
         )
 
     def _get_api_stage(self) -> str:
-        return self.event["requestContext"].get("stage") or "beta"
+        return self.event.get("requestContext", {}).get("stage") or "beta"
 
     def _get_api_area(self) -> str:
         return self.event.get("pathParameters", {}).get("area", "core")
@@ -369,7 +375,7 @@ class Handler:
         def is_valid_api_key(value: Optional[str]) -> bool:
             return bool(value and str(value).strip())
 
-        api_key = self.event["requestContext"].get("identity", {}).get("apiKey")
+        api_key = self.event.get("requestContext", {}).get("identity", {}).get("apiKey")
 
         if is_valid_api_key(value=api_key):
             return api_key.strip()
@@ -420,7 +426,7 @@ class Handler:
         )
 
     def _get_authorized_user(self) -> Dict[str, Any]:
-        return self.event["requestContext"].get("authorizer") or {}
+        return self.event.get("requestContext", {}).get("authorizer") or {}
 
     def _get_proxied_callable(
         self,
