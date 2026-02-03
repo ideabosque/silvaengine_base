@@ -455,7 +455,7 @@ class Handler:
         invocation_type: InvocationType = InvocationType.EVENT,
     ):
         if not function_name:
-            function_name = self.context.invoked_function_arn
+            function_name = self.context.function_name
 
         return self.__class__.invoke_aws_lambda_function(
             function_name=function_name,
