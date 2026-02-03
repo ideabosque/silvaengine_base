@@ -450,8 +450,8 @@ class Handler:
 
     def _get_lambda_function_invoker(
         self,
-        function_name: str,
         payload: Dict[str, Any],
+        function_name: Optional[str] = None,
         invocation_type: InvocationType = InvocationType.EVENT,
     ):
         if not function_name:
