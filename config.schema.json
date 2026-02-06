@@ -1,0 +1,426 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SilvaEngine Configuration Schema",
+  "description": "Complete configuration schema for SilvaEngine plugins and connection pools",
+  "type": "object",
+  "properties": {
+    "plugins": {
+      "type": "array",
+      "description": "Plugin configurations list",
+      "items": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": "Plugin type identifier",
+            "enum": ["connection_pool", "cache", "queue", "storage"]
+          },
+          "config": {
+            "type": "object",
+            "description": "Plugin-specific configuration",
+            "additionalProperties": {
+              "$ref": "#/definitions/connectionPoolConfig"
+            }
+          },
+          "resources": {
+            "type": "object",
+            "description": "Legacy format: plugin resources configuration",
+            "additionalProperties": {
+              "$ref": "#/definitions/connectionPoolConfig"
+            }
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "Whether the plugin is enabled",
+            "default": true
+          },
+          "module_name": {
+            "type": "string",
+            "description": "Python module name for dynamic import",
+            "default": ""
+          },
+          "class_name": {
+            "type": ["string", "null"],
+            "description": "Optional class name for instantiation",
+            "default": null
+          },
+          "function_name": {
+            "type": "string",
+            "description": "Function or method name to call for initialization",
+            "default": "init"
+          }
+        },
+        "oneOf": [{ "required": ["type"] }, { "required": ["resources"] }]
+      }
+    }
+  },
+  "definitions": {
+    "connectionPoolConfig": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "Connection type identifier",
+          "enum": ["postgresql", "neo4j", "httpx", "boto3"]
+        },
+        "enabled": {
+          "type": "boolean",
+          "description": "Whether the connection is enabled",
+          "default": true
+        },
+        "settings": {
+          "type": "object",
+          "description": "Connection-specific parameters"
+        },
+        "pool": {
+          "type": "object",
+          "description": "Pool configuration parameters",
+          "$ref": "#/definitions/poolSettings"
+        }
+      },
+      "required": ["type"]
+    },
+    "poolSettings": {
+      "type": "object",
+      "properties": {
+        "min_size": {
+          "type": "integer",
+          "description": "Minimum number of connections in the pool",
+          "default": 2,
+          "minimum": 0
+        },
+        "max_size": {
+          "type": "integer",
+          "description": "Maximum number of connections in the pool",
+          "default": 10,
+          "minimum": 1
+        },
+        "max_idle_time": {
+          "type": "number",
+          "description": "Maximum idle time in seconds before connection is closed",
+          "default": 300.0,
+          "minimum": 0
+        },
+        "max_lifetime": {
+          "type": "number",
+          "description": "Maximum connection lifetime in seconds",
+          "default": 3600.0,
+          "minimum": 0
+        },
+        "wait_timeout": {
+          "type": "number",
+          "description": "Timeout for acquiring a connection from the pool",
+          "default": 10.0,
+          "minimum": 0
+        },
+        "health_check_interval": {
+          "type": "number",
+          "description": "Interval between health checks in seconds",
+          "default": 30.0,
+          "minimum": 0
+        },
+        "enable_dynamic_resize": {
+          "type": "boolean",
+          "description": "Enable dynamic pool resizing",
+          "default": true
+        }
+      }
+    },
+    "postgresqlSettings": {
+      "type": "object",
+      "properties": {
+        "host": {
+          "type": "string",
+          "description": "Database host address"
+        },
+        "port": {
+          "type": "integer",
+          "description": "Database port",
+          "default": 5432
+        },
+        "database": {
+          "type": "string",
+          "description": "Database name"
+        },
+        "username": {
+          "type": "string",
+          "description": "Database username"
+        },
+        "password": {
+          "type": "string",
+          "description": "Database password"
+        },
+        "ssl_mode": {
+          "type": "string",
+          "description": "SSL mode for connection"
+        },
+        "connect_args": {
+          "type": "object",
+          "description": "Additional connection arguments",
+          "default": {}
+        },
+        "disable_pool": {
+          "type": "boolean",
+          "description": "Disable connection pooling",
+          "default": false
+        }
+      },
+      "required": ["host", "database", "username", "password"]
+    },
+    "neo4jSettings": {
+      "type": "object",
+      "properties": {
+        "uri": {
+          "type": "string",
+          "description": "Neo4j connection URI (bolt://host:port or neo4j://host:port)"
+        },
+        "host": {
+          "type": "string",
+          "description": "Database host address (alternative to uri)"
+        },
+        "port": {
+          "type": "integer",
+          "description": "Database port",
+          "default": 7687
+        },
+        "scheme": {
+          "type": "string",
+          "description": "URI scheme",
+          "default": "bolt"
+        },
+        "username": {
+          "type": "string",
+          "description": "Database username"
+        },
+        "password": {
+          "type": "string",
+          "description": "Database password"
+        },
+        "database": {
+          "type": "string",
+          "description": "Default database name"
+        },
+        "encrypted": {
+          "type": "boolean",
+          "description": "Whether to use encrypted connection",
+          "default": true
+        },
+        "trust": {
+          "type": "string",
+          "description": "Certificate trust policy"
+        },
+        "connection_timeout": {
+          "type": "number",
+          "description": "Connection timeout in seconds",
+          "default": 30
+        },
+        "max_connection_lifetime": {
+          "type": "number",
+          "description": "Maximum connection lifetime in seconds",
+          "default": 3600
+        },
+        "driver_kwargs": {
+          "type": "object",
+          "description": "Additional driver parameters",
+          "default": {}
+        }
+      },
+      "oneOf": [{ "required": ["uri"] }, { "required": ["host"] }],
+      "required": ["username", "password"]
+    },
+    "httpxSettings": {
+      "type": "object",
+      "properties": {
+        "base_url": {
+          "type": "string",
+          "description": "Base URL for all requests",
+          "default": ""
+        },
+        "async_mode": {
+          "type": "boolean",
+          "description": "Whether to use async mode",
+          "default": false
+        },
+        "timeout": {
+          "oneOf": [
+            {
+              "type": "number",
+              "description": "Total request timeout in seconds",
+              "default": 30.0
+            },
+            {
+              "type": "object",
+              "properties": {
+                "connect": {
+                  "type": "number",
+                  "default": 5.0
+                },
+                "read": {
+                  "type": "number",
+                  "default": 30.0
+                },
+                "write": {
+                  "type": "number",
+                  "default": 30.0
+                },
+                "pool": {
+                  "type": "number",
+                  "default": 5.0
+                }
+              }
+            }
+          ]
+        },
+        "connect_timeout": {
+          "type": "number",
+          "description": "Connection timeout in seconds",
+          "default": 5.0
+        },
+        "read_timeout": {
+          "type": "number",
+          "description": "Read timeout in seconds",
+          "default": 30.0
+        },
+        "pool_limits": {
+          "type": "object",
+          "properties": {
+            "max_connections": {
+              "type": "integer",
+              "default": 100
+            },
+            "max_keepalive_connections": {
+              "type": "integer",
+              "default": 20
+            }
+          }
+        },
+        "headers": {
+          "type": "object",
+          "description": "Default request headers",
+          "default": {}
+        },
+        "cookies": {
+          "type": "object",
+          "description": "Default cookies"
+        },
+        "verify": {
+          "type": "boolean",
+          "description": "Whether to verify SSL certificates",
+          "default": true
+        },
+        "cert": {
+          "type": "string",
+          "description": "Path to client certificate"
+        },
+        "http2": {
+          "type": "boolean",
+          "description": "Whether to enable HTTP/2",
+          "default": false
+        },
+        "proxy": {
+          "oneOf": [{ "type": "string" }, { "type": "object" }],
+          "description": "Proxy configuration"
+        },
+        "follow_redirects": {
+          "type": "boolean",
+          "description": "Whether to follow redirects",
+          "default": true
+        },
+        "health_check_url": {
+          "type": "string",
+          "description": "URL for health checks"
+        }
+      }
+    },
+    "boto3Settings": {
+      "type": "object",
+      "properties": {
+        "service_name": {
+          "type": "string",
+          "description": "AWS service name",
+          "enum": [
+            "s3",
+            "dynamodb",
+            "sqs",
+            "sns",
+            "lambda",
+            "ec2",
+            "sts",
+            "cloudwatch",
+            "logs",
+            "kinesis",
+            "eventbridge"
+          ]
+        },
+        "region_name": {
+          "type": "string",
+          "description": "AWS region",
+          "default": "us-east-1"
+        },
+        "aws_access_key_id": {
+          "type": "string",
+          "description": "AWS access key ID"
+        },
+        "aws_secret_access_key": {
+          "type": "string",
+          "description": "AWS secret access key"
+        },
+        "aws_session_token": {
+          "type": "string",
+          "description": "AWS session token"
+        },
+        "endpoint_url": {
+          "type": "string",
+          "description": "Custom endpoint URL for local testing"
+        },
+        "use_ssl": {
+          "type": "boolean",
+          "description": "Whether to use SSL",
+          "default": true
+        },
+        "verify": {
+          "oneOf": [{ "type": "boolean" }, { "type": "string" }],
+          "description": "SSL certificate verification",
+          "default": true
+        },
+        "max_pool_connections": {
+          "type": "integer",
+          "description": "Maximum connection pool size",
+          "default": 10
+        },
+        "connect_timeout": {
+          "type": "number",
+          "description": "Connection timeout in seconds",
+          "default": 5
+        },
+        "read_timeout": {
+          "type": "number",
+          "description": "Read timeout in seconds",
+          "default": 60
+        },
+        "retries": {
+          "type": "object",
+          "properties": {
+            "max_attempts": {
+              "type": "integer",
+              "description": "Maximum number of retry attempts",
+              "default": 3
+            },
+            "mode": {
+              "type": "string",
+              "description": "Retry mode",
+              "enum": ["legacy", "standard", "adaptive"],
+              "default": "standard"
+            }
+          }
+        },
+        "config": {
+          "type": "object",
+          "description": "Other Boto3 configuration parameters",
+          "default": {}
+        }
+      },
+      "required": ["service_name"]
+    }
+  }
+}

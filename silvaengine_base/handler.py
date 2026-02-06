@@ -8,6 +8,13 @@ import time
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import boto3
+from silvaengine_dynamodb_base.models import (
+    ConfigModel,
+    ConnectionModel,
+    FunctionModel,
+    GraphqlSchemaModel,
+)
+
 from silvaengine_constants import (
     AuthorizationAction,
     AuthorizationType,
@@ -15,12 +22,6 @@ from silvaengine_constants import (
     HttpStatus,
     InvocationType,
     RequestMethod,
-)
-from silvaengine_dynamodb_base.models import (
-    ConfigModel,
-    ConnectionModel,
-    FunctionModel,
-    GraphqlSchemaModel,
 )
 from silvaengine_utility import (
     Authorizer,
@@ -444,10 +445,6 @@ class Handler:
         except Exception as e:
             raise e
 
-    def _get_reusable_resource_pool(self) -> Dict[str, Any]:
-        # TODO: Reusable resource pool
-        return {}
-
     def _get_lambda_function_invoker(
         self,
         payload: Dict[str, Any],
@@ -466,7 +463,7 @@ class Handler:
 
     def _get_metadata(self, endpoint_id: Optional[str] = None) -> Dict[str, Any]:
         metadata = {
-            "reusable_resource_pool": self._get_reusable_resource_pool(),
+            "reusable_resource_pool": None,
             "aws_lambda_invoker": self._get_lambda_function_invoker,
             "aws_lambda_context": self.context,
             "graphql_schema_picker": GraphqlSchemaModel.get_schema_picker(
