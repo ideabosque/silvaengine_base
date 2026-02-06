@@ -15,6 +15,7 @@ This module is responsible for:
 
 import importlib
 import logging
+import os
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
@@ -167,7 +168,7 @@ class PluginManager:
         self._manager_lock = threading.RLock()
         self._is_initialized = False
         self._parallel_enabled = True  # Enable parallel initialization by default
-        self._max_workers = 5  # Maximum concurrent threads for parallel initialization
+        self._max_workers = (os.process_cpu_count() or 1) * 4
 
     def initialize(self, handler_setting: Dict[str, Any]) -> bool:
         """
