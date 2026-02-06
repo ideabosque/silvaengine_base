@@ -168,7 +168,7 @@ class PluginManager:
         self._manager_lock = threading.RLock()
         self._is_initialized = False
         self._parallel_enabled = True  # Enable parallel initialization by default
-        self._max_workers = (os.process_cpu_count() or 1) * 4
+        self._max_workers = (os.cpu_count() or 1) * 4
 
     def initialize(self, handler_setting: Dict[str, Any]) -> bool:
         """
