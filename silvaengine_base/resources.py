@@ -89,7 +89,7 @@ class Resources:
         Args:
             logger: Logger instance for logging.
         """
-        self.logger = logger
+        self._logger = logger
         self._plugin_manager: Optional[PluginManager] = None
 
     def handle(self, event: Dict[str, Any], context: Any) -> Any:
@@ -117,7 +117,7 @@ class Resources:
             ).new_handler(
                 event=event,
                 context=context,
-                logger=self.logger,
+                logger=self._logger,
             )
 
             if not handler:
@@ -156,7 +156,7 @@ class Resources:
         """
         # Lazy initialization of plugin manager
         if self._plugin_manager is None:
-            self._plugin_manager = PluginManager(logger=self.logger)
+            self._plugin_manager = PluginManager(logger=self._logger)
 
         # Initialize plugins
         self._plugin_manager.initialize(handler_setting=handler.setting)
