@@ -156,11 +156,10 @@ class Resources:
         """
         # Lazy initialization of plugin manager
         if self._plugin_manager is None:
-            self._plugin_manager = PluginManager(handler=handler,logger=self.logger)
+            self._plugin_manager = PluginManager(logger=self.logger)
 
         # Initialize plugins
-        self._plugin_manager.initialize(config)
-
+        self._plugin_manager.initialize(handler_setting=handler.setting)
 
     @property
     def plugin_manager(self) -> Optional[PluginManager]:

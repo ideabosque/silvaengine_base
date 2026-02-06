@@ -198,7 +198,7 @@ class PluginManager:
         Returns:
             bool: Whether initialization succeeded.
         """
-        if not isinstance(handler_setting, dict):
+        if not handler_setting:
             self._logger.error("Invalid handler_setting: must be a dictionary")
             return False
 
@@ -254,7 +254,9 @@ class PluginManager:
             self._logger.debug("Using sequential initialization")
             self._process_plugins_config_sequential(plugins_config)
 
-    def _process_plugins_config_sequential(self, plugins_config: Union[List, Dict]) -> None:
+    def _process_plugins_config_sequential(
+        self, plugins_config: Union[List, Dict]
+    ) -> None:
         """
         Process plugins configuration sequentially.
 
@@ -266,11 +268,15 @@ class PluginManager:
                 if isinstance(plugin_item, dict):
                     self._process_single_plugin(plugin_item, index)
                 else:
-                    self._logger.warning(f"Skipping invalid plugin item at index {index}: {plugin_item}")
+                    self._logger.warning(
+                        f"Skipping invalid plugin item at index {index}: {plugin_item}"
+                    )
         elif isinstance(plugins_config, dict):
             self._process_single_plugin(plugins_config, 0)
         else:
-            self._logger.warning(f"Unsupported plugins config type: {type(plugins_config)}")
+            self._logger.warning(
+                f"Unsupported plugins config type: {type(plugins_config)}"
+            )
 
     def _process_plugins_config_parallel(self, plugins_config: List) -> Dict[str, Any]:
         """
@@ -287,23 +293,29 @@ class PluginManager:
         """
         # Collect all plugin configurations
         all_configs: List[PluginConfiguration] = []
-        
+
         for index, plugin_item in enumerate(plugins_config):
             if isinstance(plugin_item, dict):
                 configs = self._extract_plugin_configurations(plugin_item, index)
                 all_configs.extend(configs)
             else:
-                self._logger.warning(f"Skipping invalid plugin item at index {index}: {plugin_item}")
+                self._logger.warning(
+                    f"Skipping invalid plugin item at index {index}: {plugin_item}"
+                )
 
         if not all_configs:
-            self._logger.warning("No valid plugin configurations found for parallel processing")
+            self._logger.warning(
+                "No valid plugin configurations found for parallel processing"
+            )
             return {}
 
         # Execute initialization in parallel
         results: Dict[str, Any] = {}
         max_workers = min(len(all_configs), self._max_workers)
 
-        self._logger.info(f"Initializing {len(all_configs)} plugins in parallel with {max_workers} workers")
+        self._logger.info(
+            f"Initializing {len(all_configs)} plugins in parallel with {max_workers} workers"
+        )
 
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             # Submit all initialization tasks
@@ -320,12 +332,18 @@ class PluginManager:
                     results[config.plugin_type] = result
 
                     if result["success"]:
-                        self._logger.debug(f"Plugin {config.plugin_type} initialized successfully")
+                        self._logger.debug(
+                            f"Plugin {config.plugin_type} initialized successfully"
+                        )
                     else:
-                        self._logger.warning(f"Plugin {config.plugin_type} initialization failed: {result.get('error')}")
+                        self._logger.warning(
+                            f"Plugin {config.plugin_type} initialization failed: {result.get('error')}"
+                        )
 
                 except Exception as e:
-                    self._logger.error(f"Unexpected error initializing {config.plugin_type}: {e}")
+                    self._logger.error(
+                        f"Unexpected error initializing {config.plugin_type}: {e}"
+                    )
                     results[config.plugin_type] = {
                         "success": False,
                         "plugin_type": config.plugin_type,
@@ -336,7 +354,9 @@ class PluginManager:
         # Log summary
         success_count = sum(1 for r in results.values() if r.get("success"))
         total_count = len(results)
-        self._logger.info(f"Parallel initialization complete: {success_count}/{total_count} plugins succeeded")
+        self._logger.info(
+            f"Parallel initialization complete: {success_count}/{total_count} plugins succeeded"
+        )
 
         return results
 
@@ -362,8 +382,13 @@ class PluginManager:
 
         # Check for legacy nested format (e.g., "connection_pools", "cache", etc.)
         reserved_keys = {
-            "config", "resources", "enabled", "module_name",
-            "class_name", "function_name", "type"
+            "config",
+            "resources",
+            "enabled",
+            "module_name",
+            "class_name",
+            "function_name",
+            "type",
         }
 
         for key, value in plugin_config.items():
@@ -389,10 +414,14 @@ class PluginManager:
         configs = self._extract_plugin_configurations(plugin_config, index)
 
         for config in configs:
-            self._logger.debug(f"Processing plugin {config.plugin_type} at index {index}")
+            self._logger.debug(
+                f"Processing plugin {config.plugin_type} at index {index}"
+            )
             self._initialize_plugin_safe(config)
 
-    def _initialize_plugin_safe(self, plugin_config: PluginConfiguration) -> Dict[str, Any]:
+    def _initialize_plugin_safe(
+        self, plugin_config: PluginConfiguration
+    ) -> Dict[str, Any]:
         """
         Safely initialize a plugin with comprehensive error handling.
 
@@ -437,7 +466,9 @@ class PluginManager:
             except ImportError as import_error:
                 result["error"] = f"Module import failed: {import_error}"
                 result["error_type"] = "ImportError"
-                self._logger.error(f"Plugin {plugin_config.plugin_type}: {result['error']}")
+                self._logger.error(
+                    f"Plugin {plugin_config.plugin_type}: {result['error']}"
+                )
                 return result
 
             # Get initialization callable
@@ -451,7 +482,9 @@ class PluginManager:
                 target = plugin_config.class_name or plugin_config.function_name
                 result["error"] = f"Attribute not found: {target}"
                 result["error_type"] = "AttributeError"
-                self._logger.error(f"Plugin {plugin_config.plugin_type}: {result['error']}")
+                self._logger.error(
+                    f"Plugin {plugin_config.plugin_type}: {result['error']}"
+                )
                 return result
 
             # Execute initialization
@@ -460,7 +493,9 @@ class PluginManager:
             except Exception as init_error:
                 result["error"] = f"Initialization function failed: {init_error}"
                 result["error_type"] = type(init_error).__name__
-                self._logger.error(f"Plugin {plugin_config.plugin_type}: {result['error']}")
+                self._logger.error(
+                    f"Plugin {plugin_config.plugin_type}: {result['error']}"
+                )
                 return result
 
             # Store successful result
@@ -473,12 +508,16 @@ class PluginManager:
 
             result["success"] = True
             result["manager"] = manager
-            self._logger.info(f"Plugin {plugin_config.plugin_type} initialized successfully")
+            self._logger.info(
+                f"Plugin {plugin_config.plugin_type} initialized successfully"
+            )
 
         except Exception as unexpected_error:
             result["error"] = f"Unexpected error: {unexpected_error}"
             result["error_type"] = type(unexpected_error).__name__
-            self._logger.exception(f"Plugin {plugin_config.plugin_type}: {result['error']}")
+            self._logger.exception(
+                f"Plugin {plugin_config.plugin_type}: {result['error']}"
+            )
 
         return result
 
@@ -547,7 +586,9 @@ class PluginManager:
             enabled: True to enable parallel initialization, False for sequential.
         """
         self._parallel_enabled = enabled
-        self._logger.debug(f"Parallel initialization {'enabled' if enabled else 'disabled'}")
+        self._logger.debug(
+            f"Parallel initialization {'enabled' if enabled else 'disabled'}"
+        )
 
     def set_max_workers(self, max_workers: int) -> None:
         """
