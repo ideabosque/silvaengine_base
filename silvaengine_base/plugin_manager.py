@@ -538,7 +538,6 @@ class PluginManager:
         Returns:
             Context dictionary containing initialized plugin objects.
         """
-        print("..." * 30)
         return {
             "plugins": self._initialized_objects,
             "config": self._config,
