@@ -158,7 +158,7 @@ class Resources:
         # Initialize plugins
         self._plugin_manager.initialize(handler_setting=handler.setting)
 
-        if handler and "set_plugin_context" in handler:
+        if hasattr(handler, "set_plugin_context"):
             handler.set_plugin_context(self.get_context())
 
         return handler
