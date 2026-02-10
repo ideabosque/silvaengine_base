@@ -32,6 +32,8 @@ from silvaengine_utility import (
     Utility,
 )
 
+from .plugin_manager import PluginManager
+
 
 class Handler:
     region = os.getenv("REGION_NAME", os.getenv("REGIONNAME", "us-east-1"))
@@ -463,7 +465,7 @@ class Handler:
 
     def _get_metadata(self, endpoint_id: Optional[str] = None) -> Dict[str, Any]:
         metadata = {
-            "reusable_resource_pool": None,
+            "plugin_context": self.get_plugin_context(),
             "aws_lambda_invoker": self._get_lambda_function_invoker,
             "aws_lambda_context": self.context,
             "graphql_schema_picker": GraphqlSchemaModel.get_schema_picker(
@@ -573,3 +575,10 @@ class Handler:
             )
 
         return self
+
+    def set_plugin_context(self, context: Dict[str, Any]):
+        if isinstance(context, dict):
+            self._plugin_context = context
+
+    def get_plugin_context(self) -> Dict[str, Any]:
+        return self._plugin_context or {}

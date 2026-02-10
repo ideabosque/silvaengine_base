@@ -129,9 +129,6 @@ class Resources:
             # Initialize plugins based on handler configuration
             self._initialize_plugins(handler)
 
-            # Pass Resources instance to handler for context access
-            handler._resources_instance = self
-
             return handler.handle()
         except Exception as e:
             Debugger.info(
@@ -143,7 +140,7 @@ class Resources:
                 data={"error": str(e)},
             )
 
-    def _initialize_plugins(self, handler: Any) -> None:
+    def _initialize_plugins(self, handler: Any) -> Any:
         """
         Initialize plugins based on handler configuration.
 
@@ -160,6 +157,11 @@ class Resources:
 
         # Initialize plugins
         self._plugin_manager.initialize(handler_setting=handler.setting)
+
+        if handler and "set_plugin_context" in handler:
+            handler.set_plugin_context(self.get_context())
+
+        return handler
 
     @property
     def plugin_manager(self) -> Optional[PluginManager]:

@@ -17,9 +17,12 @@ import importlib
 import logging
 import os
 import threading
+import traceback
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional, Union
+
+from silvaengine_utility import Invoker
 
 
 @dataclass
@@ -31,7 +34,7 @@ class PluginConfiguration:
     supporting both new standard format and legacy formats.
 
     Attributes:
-        plugin_type: Plugin type identifier (e.g., "connection_pools", "cache")
+        plugin_type: Plugin type identifier (e.g., "connection_pool", "cache")
         config: Plugin-specific configuration dictionary
         enabled: Whether the plugin is enabled
         module_name: Python module name for dynamic import
@@ -95,7 +98,7 @@ class PluginManager:
         {
             "plugins": [
                 {
-                    "type": "connection_pools",
+                    "type": "connection_pool",
                     "config": {
                         "neo4j": {...},
                         "postgresql": {...}
@@ -122,7 +125,7 @@ class PluginManager:
         manager.initialize({
             "plugins": [
                 {
-                    "type": "connection_pools",
+                    "type": "connection_pool",
                     "config": {...},
                     "enabled": True,
                     "module_name": "silvaengine_connections",
@@ -169,6 +172,7 @@ class PluginManager:
         self._is_initialized = False
         self._parallel_enabled = True  # Enable parallel initialization by default
         self._max_workers = (os.cpu_count() or 1) * 4
+        self._logger.info(self._max_workers)
 
     def initialize(self, handler_setting: Dict[str, Any]) -> bool:
         """
@@ -183,7 +187,7 @@ class PluginManager:
                 {
                     "plugins": [
                         {
-                            "type": "connection_pools",
+                            "type": "connection_pool",
                             "config": {
                                 "neo4j": {...},
                                 "postgresql": {...}
@@ -231,7 +235,7 @@ class PluginManager:
                 self._logger.error(f"Failed to initialize PluginManager: {e}")
                 return False
 
-    def _process_plugins_config(self, plugins_config: Union[List, Dict]) -> None:
+    def _process_plugins_config(self, plugins_config: List) -> None:
         """
         Process plugins configuration with optional parallelization.
 
@@ -241,6 +245,9 @@ class PluginManager:
         Args:
             plugins_config: Plugins configuration, can be a list or dict.
         """
+        if not isinstance(plugins_config, list) and not plugins_config:
+            return
+
         # Determine if parallel processing should be used
         use_parallel = (
             self._parallel_enabled
@@ -255,9 +262,7 @@ class PluginManager:
             self._logger.debug("Using sequential initialization")
             self._process_plugins_config_sequential(plugins_config)
 
-    def _process_plugins_config_sequential(
-        self, plugins_config: Union[List, Dict]
-    ) -> None:
+    def _process_plugins_config_sequential(self, plugins_config: List) -> None:
         """
         Process plugins configuration sequentially.
 
@@ -272,8 +277,6 @@ class PluginManager:
                     self._logger.warning(
                         f"Skipping invalid plugin item at index {index}: {plugin_item}"
                     )
-        elif isinstance(plugins_config, dict):
-            self._process_single_plugin(plugins_config, 0)
         else:
             self._logger.warning(
                 f"Unsupported plugins config type: {type(plugins_config)}"
@@ -381,10 +384,9 @@ class PluginManager:
         """
         configs: List[PluginConfiguration] = []
 
-        # Check for legacy nested format (e.g., "connection_pools", "cache", etc.)
+        # Check for legacy nested format (e.g., "connection_pool", "cache", etc.)
         reserved_keys = {
             "config",
-            "resources",
             "enabled",
             "module_name",
             "class_name",
@@ -398,8 +400,8 @@ class PluginManager:
                 configs.append(PluginConfiguration.from_dict(key, value))
 
         # Check for direct config format (new standard)
-        if "config" in plugin_config or "resources" in plugin_config:
-            plugin_type = plugin_config.get("type", "connection_pools")
+        if "config" in plugin_config and "type" in plugin_config:
+            plugin_type = str(plugin_config.get("type")).strip().lower()
             configs.append(PluginConfiguration.from_dict(plugin_type, plugin_config))
 
         return configs
@@ -449,6 +451,11 @@ class PluginManager:
         }
 
         # Validation
+        if not plugin_config.plugin_type:
+            result["error"] = "Invalid plugin type"
+            self._logger.debug(f"Plugin {plugin_config.plugin_type}: {result['error']}")
+            return result
+
         if not plugin_config.enabled:
             result["error"] = "Plugin disabled by configuration"
             self._logger.debug(f"Plugin {plugin_config.plugin_type}: {result['error']}")
@@ -460,47 +467,28 @@ class PluginManager:
             self._logger.error(f"Plugin {plugin_config.plugin_type}: {result['error']}")
             return result
 
+        plugin_type = str(plugin_config.plugin_type).strip().lower()
+
         try:
             # Attempt dynamic import
-            try:
-                module = importlib.import_module(plugin_config.module_name)
-            except ImportError as import_error:
-                result["error"] = f"Module import failed: {import_error}"
-                result["error_type"] = "ImportError"
-                self._logger.error(
-                    f"Plugin {plugin_config.plugin_type}: {result['error']}"
-                )
-                return result
-
-            # Get initialization callable
-            try:
-                if plugin_config.class_name:
-                    plugin_class = getattr(module, plugin_config.class_name)
-                    init_callable = getattr(plugin_class(), plugin_config.function_name)
-                else:
-                    init_callable = getattr(module, plugin_config.function_name)
-            except AttributeError:
-                target = plugin_config.class_name or plugin_config.function_name
-                result["error"] = f"Attribute not found: {target}"
-                result["error_type"] = "AttributeError"
-                self._logger.error(
-                    f"Plugin {plugin_config.plugin_type}: {result['error']}"
-                )
-                return result
+            proxied_callable = Invoker.resolve_proxied_callable(
+                module_name=plugin_config.module_name,
+                function_name=plugin_config.function_name,
+                class_name=plugin_config.class_name,
+                constructor_parameters=None,
+            )
 
             # Execute initialization
             try:
-                manager = init_callable(plugin_config.config)
+                manager = proxied_callable(plugin_config.config)
             except Exception as init_error:
                 result["error"] = f"Initialization function failed: {init_error}"
                 result["error_type"] = type(init_error).__name__
-                self._logger.error(
-                    f"Plugin {plugin_config.plugin_type}: {result['error']}"
-                )
+                self._logger.error(f"Plugin {plugin_type}: {result['error']}")
                 return result
 
             # Store successful result
-            self._initialized_objects[plugin_config.plugin_type] = {
+            self._initialized_objects[plugin_type] = {
                 "manager": manager,
                 "module_name": plugin_config.module_name,
                 "class_name": plugin_config.class_name,
@@ -509,16 +497,12 @@ class PluginManager:
 
             result["success"] = True
             result["manager"] = manager
-            self._logger.info(
-                f"Plugin {plugin_config.plugin_type} initialized successfully"
-            )
+            self._logger.info(f"Plugin {plugin_type} initialized successfully")
 
         except Exception as unexpected_error:
             result["error"] = f"Unexpected error: {unexpected_error}"
             result["error_type"] = type(unexpected_error).__name__
-            self._logger.exception(
-                f"Plugin {plugin_config.plugin_type}: {result['error']}"
-            )
+            self._logger.exception(f"Plugin {plugin_type}: {result['error']}")
 
         return result
 
@@ -531,7 +515,7 @@ class PluginManager:
         """
         return self._initialized_objects.copy()
 
-    def get_initialized_object(self, name: str) -> Optional[Any]:
+    def get_initialized_object(self, plugin_type: str) -> Optional[Any]:
         """
         Get initialized plugin object by name.
 
@@ -541,19 +525,11 @@ class PluginManager:
         Returns:
             Initialized plugin object or None.
         """
-        return self._initialized_objects.get(name)
+        if not plugin_type:
+            self._logger.exception(f"Invalid plugin type `{plugin_type}`")
+            return None
 
-    def get_connection_pool_manager(self) -> Optional[Any]:
-        """
-        Get the connection pool manager if initialized.
-
-        Returns:
-            ConnectionPoolManager instance or None.
-        """
-        connection_pools = self._initialized_objects.get("connection_pools")
-        if connection_pools:
-            return connection_pools.get("manager")
-        return None
+        return self._initialized_objects.get(str(plugin_type).strip().lower())
 
     def get_context(self) -> Dict[str, Any]:
         """
@@ -562,18 +538,11 @@ class PluginManager:
         Returns:
             Context dictionary containing initialized plugin objects.
         """
-        context = {
-            "initialized_plugins": self._initialized_objects,
+        print("..." * 30)
+        return {
+            "plugins": self._initialized_objects,
             "config": self._config,
         }
-
-        # Add connection pool manager to context if available
-        pool_manager = self.get_connection_pool_manager()
-        if pool_manager:
-            context["pool_manager"] = pool_manager
-            context["pools"] = pool_manager.get_all_pools()
-
-        return context
 
     def is_initialized(self) -> bool:
         """Check if initialized."""
