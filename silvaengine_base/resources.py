@@ -130,6 +130,9 @@ class Resources:
             self._configure_plugin_manager()
 
         if self._plugin_manager.initialize(setting=handler.setting):
+            print(">>>>>>>>>>>>>>>>>>>>>>>>>")
+            print(handler.setting)
+            print("<<<<<<<<<<<<<<<<<<<<<<<<<")
             self._logger.info(f"Setting: {handler.setting}")
             plugin_context = self._plugin_manager.get_context()
 
