@@ -141,7 +141,7 @@ class Handler:
             raise
 
     @classmethod
-    def _get_aws_client(cls, client_type: str = "lambda") -> boto3.BaseClient:
+    def _get_aws_client(cls, client_type: str = "lambda") -> Any:
         if not cls.aws_client:
             region = os.getenv("REGION_NAME", os.getenv("REGIONNAME", "us-east-1"))
             cls.aws_client = boto3.client(
