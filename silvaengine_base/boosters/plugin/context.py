@@ -7,9 +7,10 @@ import threading
 import time
 from contextlib import contextmanager
 from enum import Enum
-from typing import Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Dict, Optional
 
-from . import PluginManager
+if TYPE_CHECKING:
+    from . import PluginManager
 
 
 class PluginState(Enum):
@@ -163,7 +164,7 @@ class PluginContext:
 
 @contextmanager
 def get_plugin_context(
-    plugin_manager: PluginManager,
+    plugin_manager: "PluginManager",
     timeout: float = 30.0,
 ) -> "PluginContext":
     """Get a plugin context with optional timeout."""
