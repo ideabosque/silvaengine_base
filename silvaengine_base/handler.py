@@ -42,7 +42,7 @@ from .boosters.plugin.injector import (
 
 
 class Handler:
-    aws_client: Optional[boto3.BaseClient] = None
+    aws_client: Any = None
     plugin_context: PluginContextDescriptor = PluginContextDescriptor()
 
     def __init__(
