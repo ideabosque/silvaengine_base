@@ -141,21 +141,21 @@ class Resources:
 
         plugin_timeout = self._get_config_value(
             self._plugin_init_timeout,
-            "SILVAENGINE_PLUGIN_INIT_TIMEOUT",
+            "PLUGIN_INIT_TIMEOUT",
             30.0,
         )
         self._plugin_manager.set_plugin_init_timeout(float(plugin_timeout))
 
         global_timeout = self._get_config_value(
             self._global_init_timeout,
-            "SILVAENGINE_GLOBAL_INIT_TIMEOUT",
+            "PLUGIN_GLOBAL_INIT_TIMEOUT",
             120.0,
         )
         self._plugin_manager.set_global_init_timeout(float(global_timeout))
 
         circuit_breaker = self._get_config_value(
             self._circuit_breaker_enabled,
-            "SILVAENGINE_CIRCUIT_BREAKER_ENABLED",
+            "PLUGIN_CIRCUIT_BREAKER_ENABLED",
             True,
         )
         self._plugin_manager.set_circuit_breaker_enabled(
@@ -164,8 +164,8 @@ class Resources:
 
         lazy_loading = self._get_config_value(
             self._lazy_loading_enabled,
-            "SILVAENGINE_LAZY_LOADING_ENABLED",
-            False,
+            "PLUGIN_LAZY_LOADING_ENABLED",
+            True,
         )
         self._plugin_manager.set_lazy_loading_enabled(
             Utility.parse_bool(lazy_loading, False)
@@ -173,7 +173,7 @@ class Resources:
 
         parallel_enabled = self._get_config_value(
             self._parallel_enabled,
-            "SILVAENGINE_PARALLEL_INIT_ENABLED",
+            "PLUGIN_PARALLEL_INIT_ENABLED",
             True,
         )
         self._plugin_manager.set_parallel_enabled(
@@ -182,7 +182,7 @@ class Resources:
 
         max_workers = self._get_config_value(
             self._max_workers,
-            "SILVAENGINE_MAX_WORKERS",
+            "PLUGIN_MAX_WORKERS",
             None,
         )
         if max_workers is not None:
@@ -209,6 +209,7 @@ class Resources:
             return constructor_value
 
         env_value = os.environ.get(env_var)
+
         if env_value is not None:
             return env_value
 

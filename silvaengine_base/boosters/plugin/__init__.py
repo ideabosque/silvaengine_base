@@ -131,8 +131,14 @@ class PluginManager:
 
     def initialize(self, setting: Dict[str, Any]) -> bool:
         """Initialize plugins from handler settings."""
-        if not setting:
-            self._logger.error("Invalid setting: must be a dictionary")
+        if setting is None:
+            self._logger.error("Invalid setting: setting cannot be None")
+            return False
+
+        if not isinstance(setting, dict):
+            self._logger.error(
+                f"Invalid setting: must be a dictionary, got {type(setting).__name__}"
+            )
             return False
 
         plugins_config = setting.get("plugins")
