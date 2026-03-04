@@ -42,10 +42,8 @@ from .boosters.plugin.injector import (
 
 
 class Handler:
-    region = os.getenv("REGION_NAME", os.getenv("REGIONNAME", "us-east-1"))
-    aws_lambda = boto3.client("lambda", region_name=region)
-
-    plugin_context = PluginContextDescriptor()
+    aws_client: Optional[boto3.BaseClient] = None
+    plugin_context: PluginContextDescriptor = PluginContextDescriptor()
 
     def __init__(
         self,
@@ -143,6 +141,16 @@ class Handler:
             raise
 
     @classmethod
+    def _get_aws_client(cls, client_type: str = "lambda") -> boto3.BaseClient:
+        if not cls.aws_client:
+            region = os.getenv("REGION_NAME", os.getenv("REGIONNAME", "us-east-1"))
+            cls.aws_client = boto3.client(
+                str(client_type).strip().lower(),
+                region_name=region,
+            )
+        return cls.aws_client
+
+    @classmethod
     def invoke_aws_lambda_function(
         cls,
         function_name: str,
@@ -172,7 +180,7 @@ class Handler:
             )
 
             function_payload = Serializer.json_dumps(payload, separators=(",", ":"))
-            response = cls.aws_lambda.invoke(
+            response = cls._get_aws_client().invoke(
                 FunctionName=function_name,
                 InvocationType=invocation_type.value,
                 Payload=function_payload,

@@ -100,9 +100,7 @@ class Resources:
                 logger=self._logger,
             )
 
-            plugin_context = self._initialize_plugins(handler)
-
-            with PluginContextInjector(plugin_context):
+            with PluginContextInjector(self._initialize_plugins(handler)):
                 return handler.handle()
         except ValueError as e:
             self._logger.warning(f"Invalid request: {e}")
@@ -132,6 +130,7 @@ class Resources:
             self._configure_plugin_manager()
 
         if self._plugin_manager.initialize(setting=handler.setting):
+            self._logger.info(f"Setting: {handler.setting}")
             plugin_context = self._plugin_manager.get_context()
 
             handler.set_plugin_context(plugin_context)
