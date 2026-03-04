@@ -89,7 +89,7 @@ class Handler:
         Returns:
             A new Handler instance
         """
-        return cls(event=event, context=context, logger=logger)
+        return cls(event=event, context=context, logger=logger)._initialize()
 
     def _merge_setting_to_default(self, setting: Dict[str, Any]):
         if isinstance(setting, dict):
@@ -652,7 +652,7 @@ class Handler:
             f"{self._get_api_stage()}_{self._get_api_area()}_{self._get_endpoint_id()}"
         )
 
-    def _initialize(self) -> Any:
+    def _initialize(self) -> "Handler":
         # Get default setting
         if not self.setting:
             self.setting = ConfigModel.find(
