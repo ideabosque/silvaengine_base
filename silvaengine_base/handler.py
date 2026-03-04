@@ -237,7 +237,7 @@ class Handler:
                 or not hasattr(middleman, "setting")
             ):
                 raise ValueError(
-                    f"Cannot find the function({function_name}) with endpoint_id({endpoint_id}) and api_key({api_key})."
+                    f"Cannot find the function({function_name}) with endpoint_id({endpoint_id})."
                 )
 
             function = FunctionModel.get(
@@ -483,6 +483,85 @@ class Handler:
             metadata.update(extra)
 
         return metadata
+
+    def _validate_required_string(
+        self,
+        value: Any,
+        field_name: str,
+        max_length: Optional[int] = None,
+    ) -> str:
+        """Validate a required string field."""
+        if value is None:
+            raise ValueError(f"{field_name} is required")
+
+        value = str(value).strip()
+
+        if not value:
+            raise ValueError(f"{field_name} cannot be empty")
+
+        if max_length and len(value) > max_length:
+            raise ValueError(f"{field_name} exceeds maximum length of {max_length}")
+
+        return value
+
+    def _validate_optional_string(
+        self,
+        value: Any,
+        field_name: str,
+        max_length: Optional[int] = None,
+        default: Optional[str] = None,
+    ) -> Optional[str]:
+        """Validate an optional string field."""
+        if value is None:
+            return default
+
+        value = str(value).strip()
+
+        if not value:
+            return default
+
+        if max_length and len(value) > max_length:
+            raise ValueError(f"{field_name} exceeds maximum length of {max_length}")
+
+        return value
+
+    def _validate_dict(
+        self,
+        value: Any,
+        field_name: str,
+        required: bool = False,
+    ) -> Optional[Dict[str, Any]]:
+        """Validate a dictionary field."""
+        if value is None:
+            if required:
+                raise ValueError(f"{field_name} is required")
+            return None
+
+        if not isinstance(value, dict):
+            raise ValueError(f"{field_name} must be a dictionary")
+
+        return value
+
+    def _validate_list(
+        self,
+        value: Any,
+        field_name: str,
+        required: bool = False,
+        min_length: Optional[int] = None,
+    ) -> Optional[List[Any]]:
+        """Validate a list field."""
+        if value is None:
+            if required:
+                raise ValueError(f"{field_name} is required")
+            return None
+
+        if not isinstance(value, list):
+            raise ValueError(f"{field_name} must be a list")
+
+        if min_length is not None and len(value) < min_length:
+            raise ValueError(f"{field_name} must have at least {min_length} items")
+
+        return value
 
     def _extract_core_parameters(self) -> Tuple[str, str, Dict[str, Any]]:
         """Extract and organize event-related data."""

@@ -25,6 +25,10 @@ __all__ = [
     "CircuitBreaker",
     "CircuitState",
     "PluginNotFoundError",
+    "PluginInitializationTimeoutError",
+    "PluginState",
+    "AbstractPluginContext",
+    "EagerPluginContext",
 ]
 
 from .boosters.plugin import (
@@ -36,6 +40,10 @@ from .boosters.plugin import (
     PluginContextInjector,
     PluginManager,
     PluginNotFoundError,
+    PluginInitializationTimeoutError,
+    PluginState,
+    AbstractPluginContext,
+    EagerPluginContext,
     get_current_plugin_context,
     inject_plugin_context,
 )

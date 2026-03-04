@@ -6,7 +6,10 @@ import threading
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any, Optional
 
-from .context import PluginContext
+from .context import AbstractPluginContext
+
+if TYPE_CHECKING:
+    from .context import PluginContext
 
 _context_storage: Optional["PluginContextStorage"] = None
 _storage_lock = threading.Lock()
@@ -18,11 +21,11 @@ class PluginContextStorage:
     def __init__(self):
         self._local = threading.local()
 
-    def set(self, context: Optional["PluginContext"]) -> None:
+    def set(self, context: Optional[AbstractPluginContext]) -> None:
         """Set the plugin context for current thread."""
         self._local.context = context
 
-    def get(self) -> Optional["PluginContext"]:
+    def get(self) -> Optional[AbstractPluginContext]:
         """Get the plugin context for current thread."""
         return getattr(self._local, "context", None)
 
@@ -41,7 +44,7 @@ class PluginContextDescriptor:
 
     def __get__(
         self, obj: Any, objtype: Optional[type] = None
-    ) -> Optional["PluginContext"]:
+    ) -> Optional[AbstractPluginContext]:
         """Get the plugin context from thread-local storage."""
         if obj is None:
             return self
@@ -49,7 +52,7 @@ class PluginContextDescriptor:
         storage = _get_context_storage()
         return storage.get()
 
-    def __set__(self, obj: Any, value: Optional["PluginContext"]) -> None:
+    def __set__(self, obj: Any, value: Optional[AbstractPluginContext]) -> None:
         """Set the plugin context in thread-local storage."""
         storage = _get_context_storage()
         storage.set(value)
@@ -63,10 +66,10 @@ class PluginContextDescriptor:
 class PluginContextInjector:
     """Context manager for automatic plugin context injection and cleanup."""
 
-    def __init__(self, context: Optional["PluginContext"] = None):
+    def __init__(self, context: Optional[AbstractPluginContext] = None):
         """Initialize the plugin context injector."""
         self.context = context
-        self._previous_context: Optional["PluginContext"] = None
+        self._previous_context: Optional[AbstractPluginContext] = None
         self._storage = _get_context_storage()
 
     def __enter__(self) -> "PluginContextInjector":
@@ -86,7 +89,7 @@ class PluginContextInjector:
 
 
 @contextmanager
-def inject_plugin_context(context: Optional["PluginContext"] = None):
+def inject_plugin_context(context: Optional[AbstractPluginContext] = None):
     """Context manager for plugin context injection."""
     storage = _get_context_storage()
     previous_context = storage.get()
@@ -98,13 +101,13 @@ def inject_plugin_context(context: Optional["PluginContext"] = None):
         storage.set(previous_context)
 
 
-def get_current_plugin_context() -> Optional["PluginContext"]:
+def get_current_plugin_context() -> Optional[AbstractPluginContext]:
     """Get the current plugin context from thread-local storage."""
     storage = _get_context_storage()
     return storage.get()
 
 
-def set_current_plugin_context(context: Optional["PluginContext"]) -> None:
+def set_current_plugin_context(context: Optional[AbstractPluginContext]) -> None:
     """Set the current plugin context in thread-local storage."""
     storage = _get_context_storage()
     storage.set(context)

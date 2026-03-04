@@ -2,11 +2,11 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any, Dict
 
 from silvaengine_constants import AuthorizationAction
 from silvaengine_dynamodb_base.models import FunctionModel
-from silvaengine_utility import Authorizer, Debugger
+from silvaengine_utility import Authorizer
 
 from ..handler import Handler
 
@@ -28,79 +28,72 @@ class HttpHandler(Handler):
         """
         Process regular HTTP API requests when the event is not related to WebSocket.
         """
-        try:
-            api_key, endpoint_id, parameters = self._extract_core_parameters()
+        api_key, endpoint_id, parameters = self._extract_core_parameters()
 
-            if not endpoint_id:
-                raise ValueError("missing `endpoint_id` in request")
+        if not endpoint_id:
+            raise ValueError("missing `endpoint_id` in request")
 
-            function_name, proxy_path = self._get_proxy_function_and_path()
+        function_name, proxy_path = self._get_proxy_function_and_path()
 
-            if not function_name:
-                raise ValueError("missing `function_name` in request")
-            elif proxy_path:
-                parameters.update(path=proxy_path)
+        if not function_name:
+            raise ValueError("missing `function_name` in request")
+        elif proxy_path:
+            parameters.update(path=proxy_path)
 
-            setting, function = self._get_function_and_setting(
-                endpoint_id,
-                function_name,
-                api_key=api_key,
-                method=self._get_request_method(),
-            )
+        setting, function = self._get_function_and_setting(
+            endpoint_id,
+            function_name,
+            api_key=api_key,
+            method=self._get_request_method(),
+        )
 
-            if not isinstance(function, FunctionModel) or not hasattr(
-                function, "config"
-            ):
-                raise ValueError("Invalid function")
-            elif hasattr(function, "area"):
-                self._validate_function_area(function.area)
+        if not isinstance(function, FunctionModel) or not hasattr(
+            function, "config"
+        ):
+            raise ValueError("Invalid function")
+        elif hasattr(function, "area"):
+            self._validate_function_area(function.area)
 
-            if isinstance(setting, dict):
-                self._merge_setting_to_default(setting)
+        if isinstance(setting, dict):
+            self._merge_setting_to_default(setting)
 
-            self._merge_metadata_to_event(
-                {
-                    "function": function,
-                    "endpoint_id": endpoint_id,
-                }
-            )
+        self._merge_metadata_to_event(
+            {
+                "function": function,
+                "endpoint_id": endpoint_id,
+            }
+        )
 
-            # Add authorization for http event
-            is_authorization_required = bool(
-                hasattr(function.config, "auth_required")
-                and bool(function.config.auth_required)
-            )
+        is_authorization_required = bool(
+            hasattr(function.config, "auth_required")
+            and bool(function.config.auth_required)
+        )
 
-            if self._is_authorization_event():
-                if is_authorization_required:
-                    try:
-                        return self._invoke_authorization(
-                            action=AuthorizationAction.AUTHORIZE
-                        )
-                    except Exception as e:
-                        raise e
-
-                return Authorizer(self.event).authorize(is_allow=True)
-            elif self.event.get("body") and is_authorization_required:
-                permission = self._invoke_authorization(
-                    action=AuthorizationAction.VERIFY_PERMISSION
+        if self._is_authorization_event():
+            if is_authorization_required:
+                return self._invoke_authorization(
+                    action=AuthorizationAction.AUTHORIZE
                 )
 
-                if isinstance(permission, dict):
-                    self._merge_metadata_to_event(permission)
+            return Authorizer(self.event).authorize(is_allow=True)
+        elif self.event.get("body") and is_authorization_required:
+            permission = self._invoke_authorization(
+                action=AuthorizationAction.VERIFY_PERMISSION
+            )
 
-            if (
-                not hasattr(function.config, "module_name")
-                or not hasattr(function.config, "class_name")
-                or not hasattr(function, "function")
-                or not hasattr(function, "aws_lambda_arn")
-            ):
-                raise ValueError("Missing function config")
+            if isinstance(permission, dict):
+                self._merge_metadata_to_event(permission)
 
-            return self._get_proxied_callable(
-                module_name=function.config.module_name,
-                class_name=function.config.class_name,
-                function_name=function.function,
-            )(aws_lambda_arn=function.aws_lambda_arn, **parameters)
-        except Exception as e:
-            raise e
+        if (
+            not hasattr(function.config, "module_name")
+            or not hasattr(function.config, "class_name")
+            or not hasattr(function, "function")
+            or not hasattr(function, "aws_lambda_arn")
+        ):
+            raise ValueError("Missing function config")
+
+        return self._get_proxied_callable(
+            module_name=function.config.module_name,
+            class_name=function.config.class_name,
+            function_name=function.function,
+        )(aws_lambda_arn=function.aws_lambda_arn, **parameters)

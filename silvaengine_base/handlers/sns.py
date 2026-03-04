@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any, Dict
 
 from ..handler import Handler
 
@@ -17,4 +17,19 @@ class SNSHandler(Handler):
         )
 
     def handle(self) -> Any:
-        return {}
+        records = self.event.get("Records") or []
+        self.logger.info(f"SNS event received with {len(records)} record(s)")
+        
+        for index, record in enumerate(records):
+            sns_data = record.get("Sns", {})
+            message_id = sns_data.get("MessageId", "unknown")
+            subject = sns_data.get("Subject", "")
+            self.logger.debug(
+                f"SNS record {index}: MessageId={message_id}, Subject={subject}"
+            )
+        
+        self.logger.warning(
+            "SNSHandler.handle() is not implemented. "
+            "Please extend this handler to process SNS events."
+        )
+        return {"status": "not_implemented", "records_received": len(records)}

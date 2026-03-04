@@ -16,7 +16,10 @@ class DefaultHandler(Handler):
         return True
 
     def handle(self) -> Any:
+        event_type = type(self.event).__name__
+        event_keys = list(self.event.keys()) if isinstance(self.event, dict) else []
+        self.logger.warning(f"Unrecognized event: type={event_type}, keys={event_keys}")
         return HttpResponse.format_response(
             status_code=HttpStatus.BAD_REQUEST.value,
-            data={"error": f"Unrecognized request:{self.event}"},
+            data={"error": "Unrecognized request format"},
         )

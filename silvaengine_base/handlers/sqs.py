@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 from silvaengine_dynamodb_base.models import FunctionModel
 from silvaengine_utility import Serializer
@@ -34,46 +34,90 @@ class SQSHandler(Handler):
             return record.get("messageAttributes", {}).get(str(attribute).strip(), {})
         return {}
 
-    def handle(self) -> Any:
+    def _validate_function(self, function: Any) -> FunctionModel:
+        if not isinstance(function, FunctionModel):
+            raise ValueError("Function must be a FunctionModel instance")
+
+        required_attrs = ["config", "function", "aws_lambda_arn"]
+        for attr in required_attrs:
+            if not hasattr(function, attr):
+                raise ValueError(f"Function missing required attribute: {attr}")
+
+        config_attrs = ["module_name", "class_name"]
+        for attr in config_attrs:
+            if not hasattr(function.config, attr):
+                raise ValueError(f"Function config missing required attribute: {attr}")
+
+        return function
+
+    def _process_single_record(self, record: Dict[str, Any]) -> Dict[str, Any]:
+        message_id = record.get("messageId", "unknown")
+
         try:
-            for record in self.event.get("Records", []):
-                endpoint_id = (
-                    self._get_message_attribute(
-                        record=record, attribute="endpoint_id"
-                    ).get("stringValue")
-                    or self._get_endpoint_id()
-                )
-                function_name = self._get_message_attribute(
-                    record=record, attribute="funct"
-                ).get("stringValue")
-                parameters = {
-                    **self._get_event_body(record=record).get("params", {}),
-                    "endpoint_id": endpoint_id,
-                    "logger": self.logger,
-                }
-                setting, function = self._get_function_and_setting(
-                    endpoint_id=endpoint_id,
-                    function_name=str(function_name).strip(),
-                )
+            endpoint_id = (
+                self._get_message_attribute(record=record, attribute="endpoint_id").get("stringValue")
+                or self._get_endpoint_id()
+            )
+            function_name = self._get_message_attribute(
+                record=record, attribute="funct"
+            ).get("stringValue")
 
-                if (
-                    not isinstance(function, FunctionModel)
-                    or not hasattr(function, "config")
-                    or not hasattr(function.config, "module_name")
-                    or not hasattr(function.config, "class_name")
-                    or not hasattr(function, "function")
-                    or not hasattr(function, "aws_lambda_arn")
-                ):
-                    raise ValueError("Invalid function")
+            if not function_name:
+                self.logger.warning(f"Missing function_name for message {message_id}")
+                return {"message_id": message_id, "status": "skipped", "reason": "missing_function_name"}
 
-                self._merge_setting_to_default(setting=setting)
+            parameters = {
+                **self._get_event_body(record=record).get("params", {}),
+                "endpoint_id": endpoint_id,
+                "logger": self.logger,
+            }
 
-                return self._get_proxied_callable(
-                    module_name=function.config.module_name,
-                    function_name=function.function,
-                    class_name=function.config.class_name,
-                )(aws_lambda_arn=function.aws_lambda_arn, **parameters)
+            setting, function = self._get_function_and_setting(
+                endpoint_id=endpoint_id,
+                function_name=str(function_name).strip(),
+            )
 
-            return {}
+            self._validate_function(function)
+            self._merge_setting_to_default(setting=setting)
+
+            result = self._get_proxied_callable(
+                module_name=function.config.module_name,
+                function_name=function.function,
+                class_name=function.config.class_name,
+            )(aws_lambda_arn=function.aws_lambda_arn, **parameters)
+
+            return {"message_id": message_id, "status": "success", "result": result}
+
         except Exception as e:
-            raise e
+            self.logger.error(f"Failed to process message {message_id}: {e}")
+            return {"message_id": message_id, "status": "failed", "error": str(e)}
+
+    def handle(self) -> Any:
+        records = self.event.get("Records", [])
+
+        if not records:
+            self.logger.warning("No records found in SQS event")
+            return {"processed": 0, "results": []}
+
+        self.logger.info(f"Processing {len(records)} SQS messages")
+
+        results: List[Dict[str, Any]] = []
+
+        for index, record in enumerate(records):
+            self.logger.debug(f"Processing record {index + 1}/{len(records)}")
+            result = self._process_single_record(record)
+            results.append(result)
+
+        success_count = sum(1 for r in results if r.get("status") == "success")
+        failed_count = sum(1 for r in results if r.get("status") == "failed")
+
+        self.logger.info(
+            f"SQS processing complete: {success_count} succeeded, {failed_count} failed"
+        )
+
+        return {
+            "processed": len(results),
+            "succeeded": success_count,
+            "failed": failed_count,
+            "results": results,
+        }

@@ -36,6 +36,13 @@ from .plugin.circuit_breaker import (
     CircuitState,
     get_circuit_breaker_registry,
 )
+from .plugin.context import (
+    AbstractPluginContext,
+    EagerPluginContext,
+    PluginState,
+    PluginInitializationTimeoutError,
+    get_plugin_context,
+)
 
 __all__ = [
     "PluginManager",
@@ -52,9 +59,14 @@ __all__ = [
     "CircuitState",
     "CircuitBreakerRegistry",
     "PluginNotFoundError",
+    "PluginInitializationTimeoutError",
+    "PluginState",
+    "AbstractPluginContext",
+    "EagerPluginContext",
     "get_circuit_breaker_registry",
     "get_current_plugin_context",
     "set_current_plugin_context",
     "clear_current_plugin_context",
     "inject_plugin_context",
+    "get_plugin_context",
 ]

@@ -22,7 +22,16 @@ from .config_validator import (
     ValidationResult,
     get_config_validator,
 )
-from .context import PluginContext, PluginNotFoundError
+from .context import (
+    AbstractPluginContext,
+    EagerPluginContext,
+    LazyPluginContext,
+    PluginContext,
+    PluginInitializationTimeoutError,
+    PluginNotFoundError,
+    PluginState,
+    get_plugin_context,
+)
 from .dependency import (
     DependencyResolver,
     PluginDependency,
@@ -35,10 +44,18 @@ from .injector import (
     inject_plugin_context,
     set_current_plugin_context,
 )
-from .lazy_context import LazyPluginContext
+
+DEFAULT_WORKERS_PER_CPU = 4
+DEFAULT_PLUGIN_INIT_TIMEOUT = 30.0
+DEFAULT_GLOBAL_INIT_TIMEOUT = 120.0
+DEFAULT_CIRCUIT_BREAKER_FAILURE_THRESHOLD = 3
+DEFAULT_CIRCUIT_BREAKER_RECOVERY_TIMEOUT = 60.0
 
 __all__ = [
+    "AbstractPluginContext",
     "PluginContext",
+    "EagerPluginContext",
+    "LazyPluginContext",
     "PluginManager",
     "PluginConfiguration",
     "DependencyResolver",
@@ -46,14 +63,16 @@ __all__ = [
     "ConfigValidator",
     "ValidationResult",
     "CircuitBreaker",
-    "LazyPluginContext",
     "PluginContextDescriptor",
     "PluginContextInjector",
     "PluginNotFoundError",
+    "PluginInitializationTimeoutError",
+    "PluginState",
     "get_current_plugin_context",
     "set_current_plugin_context",
     "clear_current_plugin_context",
     "inject_plugin_context",
+    "get_plugin_context",
 ]
 
 
@@ -96,38 +115,36 @@ class PluginManager:
         return cls._instance
 
     def __init__(self, logger: Optional[logging.Logger] = None):
-        if getattr(self, "_is_initialized", False):
-            return
+        with self._lock:
+            if getattr(self, "_is_initialized", False):
+                return
 
-        self._initialized_objects: Dict[str, Any] = {}
-        self._config: Dict[str, Any] = {}
-        self._logger = logger or logging.getLogger(__name__)
-        self._manager_lock = threading.RLock()
-        self._is_initialized = False
-        self._parallel_enabled = True
-        self._max_workers = (os.cpu_count() or 1) * 4
-        self._dependency_resolver = DependencyResolver(self._logger)
-        self._config_validator = get_config_validator()
-        self._validation_strict_mode = False
+            self._initialized_objects: Dict[str, Any] = {}
+            self._config: Dict[str, Any] = {}
+            self._logger = logger or logging.getLogger(__name__)
+            self._manager_lock = threading.RLock()
+            self._is_initialized = False
+            self._parallel_enabled = True
+            self._max_workers = (os.cpu_count() or 1) * DEFAULT_WORKERS_PER_CPU
+            self._dependency_resolver = DependencyResolver(self._logger)
+            self._config_validator = get_config_validator()
+            self._validation_strict_mode = False
 
-        # Timeout configuration
-        self._plugin_init_timeout = 30.0
-        self._global_init_timeout = 120.0
+            self._plugin_init_timeout = DEFAULT_PLUGIN_INIT_TIMEOUT
+            self._global_init_timeout = DEFAULT_GLOBAL_INIT_TIMEOUT
 
-        # Circuit breaker configuration
-        self._circuit_breaker_enabled = True
-        self._circuit_breaker_failure_threshold = 3
-        self._circuit_breaker_recovery_timeout = 60.0
+            self._circuit_breaker_enabled = True
+            self._circuit_breaker_failure_threshold = DEFAULT_CIRCUIT_BREAKER_FAILURE_THRESHOLD
+            self._circuit_breaker_recovery_timeout = DEFAULT_CIRCUIT_BREAKER_RECOVERY_TIMEOUT
 
-        # Lazy loading configuration
-        self._lazy_loading_enabled = False
-        self._lazy_context: Optional[LazyPluginContext] = None
+            self._lazy_loading_enabled = False
+            self._lazy_context: Optional[LazyPluginContext] = None
 
-        self._logger.info(
-            f"PluginManager initialized with max_workers={self._max_workers}, "
-            f"plugin_timeout={self._plugin_init_timeout}s, "
-            f"global_timeout={self._global_init_timeout}s"
-        )
+            self._logger.info(
+                f"PluginManager initialized with max_workers={self._max_workers}, "
+                f"plugin_timeout={self._plugin_init_timeout}s, "
+                f"global_timeout={self._global_init_timeout}s"
+            )
 
     def initialize(self, setting: Dict[str, Any]) -> bool:
         """Initialize plugins from handler settings."""
@@ -147,7 +164,6 @@ class PluginManager:
             self._logger.warning("No plugins configuration found")
             return False
 
-        # Validate plugins configuration before processing
         validation_result = self._config_validator.validate_plugins_config(
             plugins_config
         )
@@ -185,7 +201,6 @@ class PluginManager:
             try:
                 self._config = setting
 
-                # If lazy loading is enabled, store configs and defer initialization
                 if self._lazy_loading_enabled:
                     self._setup_lazy_loading(plugins_config)
                 else:
@@ -225,20 +240,32 @@ class PluginManager:
         if not isinstance(plugins_config, list) and not plugins_config:
             return
 
-        import concurrent.futures
+        import threading
 
-        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-            future = executor.submit(self._do_process_plugins_config, plugins_config)
+        timeout_exception = []
+        start_time = time.time()
 
+        def run_with_timeout():
             try:
-                future.result(timeout=self._global_init_timeout)
-            except FutureTimeoutError:
-                self._logger.error(
-                    f"Global plugin initialization timed out after {self._global_init_timeout}s"
-                )
-                raise TimeoutError(
-                    f"Plugin initialization exceeded global timeout of {self._global_init_timeout}s"
-                )
+                self._do_process_plugins_config(plugins_config)
+            except Exception as e:
+                timeout_exception.append(e)
+
+        thread = threading.Thread(target=run_with_timeout)
+        thread.daemon = True
+        thread.start()
+        thread.join(timeout=self._global_init_timeout)
+
+        if thread.is_alive():
+            self._logger.error(
+                f"Global plugin initialization timed out after {self._global_init_timeout}s"
+            )
+            raise TimeoutError(
+                f"Plugin initialization exceeded global timeout of {self._global_init_timeout}s"
+            )
+
+        if timeout_exception:
+            raise timeout_exception[0]
 
     def _do_process_plugins_config(self, plugins_config: List) -> None:
         """Actual plugin configuration processing."""
@@ -481,7 +508,6 @@ class PluginManager:
 
         plugin_type = str(plugin_config.plugin_type).strip().lower()
 
-        # Use circuit breaker if enabled
         if self._circuit_breaker_enabled:
             circuit_breaker = get_circuit_breaker_registry().get_or_create(
                 name=plugin_type,
@@ -542,6 +568,9 @@ class PluginManager:
             constructor_parameters=None,
         )
 
+        if self._parallel_enabled:
+            return proxied_callable(plugin_config.config)
+
         with ThreadPoolExecutor(max_workers=1) as executor:
             future = executor.submit(proxied_callable, plugin_config.config)
 
@@ -563,19 +592,19 @@ class PluginManager:
 
         plugin_type = str(plugin_type).strip().lower()
 
-        # If lazy loading is enabled, use lazy context
         if self._lazy_loading_enabled and self._lazy_context:
             return self._lazy_context.get(plugin_type)
 
         return self._initialized_objects.get(plugin_type)
 
-    def get_context(self, timeout: float = 30.0) -> PluginContext:
-        # If lazy loading is enabled, return lazy context wrapper
+    def get_context(self, timeout: float = 10.0) -> AbstractPluginContext:
+        """Get plugin context (returns appropriate type based on configuration)."""
         if self._lazy_loading_enabled and self._lazy_context:
-            return LazyPluginContextWrapper(self._lazy_context)
+            return self._lazy_context
 
         if not self._is_initialized and timeout > 0:
             start_time = time.time()
+
             while not self._is_initialized:
                 if time.time() - start_time >= timeout:
                     self._logger.warning(
@@ -584,7 +613,7 @@ class PluginManager:
                     break
                 time.sleep(0.1)
 
-        return PluginContext(self)
+        return EagerPluginContext(self)
 
     def is_initialized(self) -> bool:
         return self._is_initialized
@@ -625,10 +654,34 @@ class PluginManager:
 
     @classmethod
     def reset_instance(cls) -> None:
-        """Reset the PluginManager singleton instance."""
+        """Reset the PluginManager singleton instance with proper cleanup."""
         with cls._lock:
             if cls._instance:
-                cls._instance = None
+                instance = cls._instance
+                try:
+                    if hasattr(instance, "_manager_lock"):
+                        with instance._manager_lock:
+                            if hasattr(instance, "_initialized_objects"):
+                                for plugin_type, plugin_data in instance._initialized_objects.items():
+                                    try:
+                                        manager = plugin_data.get("manager")
+                                        if manager and hasattr(manager, "cleanup"):
+                                            manager.cleanup()
+                                    except Exception as e:
+                                        if hasattr(instance, "_logger"):
+                                            instance._logger.warning(
+                                                f"Error cleaning up plugin {plugin_type}: {e}"
+                                            )
+                                instance._initialized_objects.clear()
+                            instance._is_initialized = False
+                            instance._config = {}
+                            if hasattr(instance, "_lazy_context"):
+                                instance._lazy_context = None
+                except Exception as e:
+                    if hasattr(instance, "_logger"):
+                        instance._logger.error(f"Error during PluginManager reset: {e}")
+                finally:
+                    cls._instance = None
 
     def set_validation_strict_mode(self, strict: bool) -> None:
         """Set the validation strict mode."""
@@ -647,7 +700,6 @@ class PluginManager:
         """Get the status of a specific plugin."""
         plugin_type = str(plugin_type).strip().lower()
 
-        # Check lazy context if enabled
         if self._lazy_loading_enabled and self._lazy_context:
             is_init = self._lazy_context.is_initialized(plugin_type)
             return {
@@ -684,22 +736,3 @@ class PluginManager:
             plugin_type: self.get_plugin_status(plugin_type)
             for plugin_type in self._initialized_objects.keys()
         }
-
-
-class LazyPluginContextWrapper:
-    """Wrapper to make LazyPluginContext compatible with PluginContext interface."""
-
-    def __init__(self, lazy_context: LazyPluginContext):
-        self._lazy_context = lazy_context
-
-    def get(self, plugin_name: str) -> Optional[Any]:
-        return self._lazy_context.get(plugin_name)
-
-    def get_or_raise(self, plugin_name: str) -> Any:
-        return self._lazy_context.get_or_raise(plugin_name)
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        pass

@@ -4,12 +4,9 @@ from __future__ import print_function
 
 import time
 import traceback
-from typing import Any, Callable, Dict, List, Optional, Set, Union
-
-from silvaengine_dynamodb_base.models import GraphqlSchemaModel
+from typing import Any, Dict, Optional, Set
 
 from silvaengine_constants import EventType
-from silvaengine_utility import Debugger
 
 from ..handler import Handler
 
@@ -38,10 +35,8 @@ class LambdaInvocationHandler(Handler):
         if isinstance(start_at, (int, float, complex)):
             detail = f", it takes {(now - start_at):.6f}s to invoke the function"
 
-        Debugger.info(
-            variable=f"> Invocation start at {start_at}, now is {now} {detail}",
-            stage=f"{__file__}._invoke_time_counter",
-            setting=self.setting,
+        self.logger.debug(
+            f"> Invocation start at {start_at}, now is {now} {detail}"
         )
 
     def handle(self) -> Any:
@@ -74,9 +69,8 @@ class LambdaInvocationHandler(Handler):
                 class_name=class_name,
             )(**parameters)
         except Exception as e:
-            Debugger.info(
-                variable=f"Error: {e}, Trace: {traceback.format_exc()}",
-                stage=f"{__file__}.handle",
+            self.logger.error(
+                f"Error in {__file__}.handle: {e}\n{traceback.format_exc()}"
             )
             raise
 

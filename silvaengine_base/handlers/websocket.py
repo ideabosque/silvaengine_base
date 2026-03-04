@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 
-import traceback
 from typing import Any, Dict, Optional
 
 import pendulum
@@ -12,8 +11,8 @@ from silvaengine_dynamodb_base.models import (
     WSSConnectionModel,
 )
 
-from silvaengine_constants import AuthorizationAction, HttpStatus, SwitchStatus
-from silvaengine_utility import Debugger, Serializer
+from silvaengine_constants import AuthorizationAction, HttpStatus
+from silvaengine_utility import Serializer
 
 from ..handler import Handler
 
@@ -60,7 +59,7 @@ class WebSocketHandler(Handler):
             connection_id = self._get_connection_id()
             route_key = self._get_route_key()
 
-            if not connection_id and not route_key:
+            if not connection_id or not route_key:
                 return self._generate_response(
                     status_code=HttpStatus.BAD_REQUEST.value,
                     body={"data": "Missing required `connection_id` or `route_key`"},
@@ -71,13 +70,7 @@ class WebSocketHandler(Handler):
             if isinstance(e, DoesNotExist):
                 e = "The connection has been terminated, please establish a new connection."
 
-            Debugger.info(
-                variable=e,
-                stage="WEBSOCKET TEST(handle)",
-                delimiter="#",
-                setting=self.setting,
-                logger=self.logger,
-            )
+            self.logger.warning(f"WebSocket error: {e}")
             return self._generate_response(
                 status_code=HttpStatus.OK.value,
                 body={"data": str(e)},
@@ -247,4 +240,8 @@ class WebSocketHandler(Handler):
                 function_name=function.function,
             )(aws_lambda_arn=function.aws_lambda_arn, **parameters)
         except Exception as e:
-            raise e
+            self.logger.error(f"WebSocket message processing failed: {e}")
+            return self._generate_response(
+                status_code=HttpStatus.OK.value,
+                body={"data": f"Error processing message: {str(e)}"},
+            )

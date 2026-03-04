@@ -15,7 +15,7 @@ import traceback
 from typing import Any, Callable, Dict, List, Optional
 
 from silvaengine_constants import HttpStatus
-from silvaengine_utility import Debugger, HttpResponse, Utility
+from silvaengine_utility import HttpResponse, Utility
 
 from .boosters.plugin import PluginContext, PluginManager
 from .boosters.plugin.injector import PluginContextInjector
@@ -100,39 +100,42 @@ class Resources:
                 logger=self._logger,
             )
 
-            if not handler:
-                return HttpResponse.format_response(
-                    status_code=HttpStatus.BAD_REQUEST.value,
-                    data={"error": f"Unrecognized request:{event}"},
-                )
-
             plugin_context = self._initialize_plugins(handler)
 
             with PluginContextInjector(plugin_context):
                 return handler.handle()
+        except ValueError as e:
+            self._logger.warning(f"Invalid request: {e}")
+            return HttpResponse.format_response(
+                status_code=HttpStatus.BAD_REQUEST.value,
+                data={"error": "Invalid request parameters"},
+            )
+        except PermissionError as e:
+            self._logger.warning(f"Permission denied: {e}")
+            return HttpResponse.format_response(
+                status_code=HttpStatus.FORBIDDEN.value,
+                data={"error": "Permission denied"},
+            )
         except Exception as e:
-            Debugger.info(
-                variable=f"Error: {e}, Trace: {traceback.format_exc()}",
-                stage=f"{__file__}.handle",
+            self._logger.error(
+                f"Internal error in {__file__}.handle: {e}\n{traceback.format_exc()}"
             )
             return HttpResponse.format_response(
                 status_code=HttpStatus.INTERNAL_SERVER_ERROR.value,
-                data={"error": str(e)},
+                data={"error": "Internal server error"},
             )
 
-    def _initialize_plugins(self, handler: Any) -> PluginContext:
+    def _initialize_plugins(self, handler: Any) -> Optional[PluginContext]:
         """Initialize plugins based on handler configuration."""
         if self._plugin_manager is None:
             self._plugin_manager = PluginManager(logger=self._logger)
             self._configure_plugin_manager()
 
-        self._plugin_manager.initialize(setting=handler.setting)
+        if self._plugin_manager.initialize(setting=handler.setting):
+            plugin_context = self._plugin_manager.get_context()
 
-        plugin_context = self._plugin_manager.get_context()
-
-        handler.set_plugin_context(plugin_context)
-
-        return plugin_context
+            handler.set_plugin_context(plugin_context)
+            return plugin_context
 
     def _configure_plugin_manager(self) -> None:
         """Configure PluginManager with optimization settings."""
