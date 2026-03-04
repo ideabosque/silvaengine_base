@@ -6,34 +6,36 @@ import logging
 import os
 import threading
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed, TimeoutError as FutureTimeoutError
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import TimeoutError as FutureTimeoutError
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional, Union
 
-from silvaengine_base.boosters.plugin.config_validator import (
+from silvaengine_utility import Invoker
+
+from .circuit_breaker import (
+    CircuitBreaker,
+    get_circuit_breaker_registry,
+)
+from .config_validator import (
     ConfigValidator,
     ValidationResult,
     get_config_validator,
 )
-from silvaengine_base.boosters.plugin.context import PluginContext, PluginNotFoundError
-from silvaengine_base.boosters.plugin.dependency import (
+from .context import PluginContext, PluginNotFoundError
+from .dependency import (
     DependencyResolver,
     PluginDependency,
 )
-from silvaengine_base.boosters.plugin.circuit_breaker import (
-    CircuitBreaker,
-    get_circuit_breaker_registry,
-)
-from silvaengine_base.boosters.plugin.lazy_context import LazyPluginContext
-from silvaengine_base.boosters.plugin.injector import (
+from .injector import (
     PluginContextDescriptor,
     PluginContextInjector,
-    get_current_plugin_context,
-    set_current_plugin_context,
     clear_current_plugin_context,
+    get_current_plugin_context,
     inject_plugin_context,
+    set_current_plugin_context,
 )
-from silvaengine_utility import Invoker
+from .lazy_context import LazyPluginContext
 
 __all__ = [
     "PluginContext",
@@ -220,9 +222,7 @@ class PluginManager:
         import concurrent.futures
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-            future = executor.submit(
-                self._do_process_plugins_config, plugins_config
-            )
+            future = executor.submit(self._do_process_plugins_config, plugins_config)
 
             try:
                 future.result(timeout=self._global_init_timeout)
@@ -527,9 +527,7 @@ class PluginManager:
 
         return result
 
-    def _do_initialize_plugin(
-        self, plugin_config: PluginConfiguration
-    ) -> Any:
+    def _do_initialize_plugin(self, plugin_config: PluginConfiguration) -> Any:
         """Perform actual plugin initialization with timeout."""
         proxied_callable = Invoker.resolve_proxied_callable(
             module_name=plugin_config.module_name,
@@ -598,12 +596,16 @@ class PluginManager:
     def set_plugin_init_timeout(self, timeout: float) -> None:
         """Set timeout for individual plugin initialization."""
         self._plugin_init_timeout = max(1.0, timeout)
-        self._logger.debug(f"Plugin initialization timeout set to {self._plugin_init_timeout}s")
+        self._logger.debug(
+            f"Plugin initialization timeout set to {self._plugin_init_timeout}s"
+        )
 
     def set_global_init_timeout(self, timeout: float) -> None:
         """Set global timeout for entire initialization process."""
         self._global_init_timeout = max(1.0, timeout)
-        self._logger.debug(f"Global initialization timeout set to {self._global_init_timeout}s")
+        self._logger.debug(
+            f"Global initialization timeout set to {self._global_init_timeout}s"
+        )
 
     def set_circuit_breaker_enabled(self, enabled: bool) -> None:
         """Enable or disable circuit breaker."""

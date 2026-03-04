@@ -7,14 +7,14 @@ import threading
 import time
 from contextlib import contextmanager
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Dict, Optional
+from typing import Any, Dict, Optional
 
-if TYPE_CHECKING:
-    from .plugin import PluginManager
+from . import PluginManager
 
 
 class PluginState(Enum):
     """Plugin lifecycle states."""
+
     INITIALIZING = "initializing"
     READY = "ready"
     FAILED = "failed"
@@ -23,11 +23,13 @@ class PluginState(Enum):
 
 class PluginNotFoundError(Exception):
     """Raised when a requested plugin is not found."""
+
     pass
 
 
 class PluginInitializationTimeoutError(Exception):
     """Raised when plugin initialization times out."""
+
     pass
 
 
@@ -67,7 +69,9 @@ class PluginContext:
             plugin_data = initialized_objects.get(plugin_name)
 
             if plugin_data is None:
-                self._logger.debug(f"Plugin '{plugin_name}' not found or not initialized")
+                self._logger.debug(
+                    f"Plugin '{plugin_name}' not found or not initialized"
+                )
                 return None
 
             return plugin_data.get("manager")
@@ -97,7 +101,9 @@ class PluginContext:
             return False
 
         if timeout <= 0:
-            self._logger.warning(f"Invalid timeout value: {timeout}, using default 30.0")
+            self._logger.warning(
+                f"Invalid timeout value: {timeout}, using default 30.0"
+            )
             timeout = 30.0
 
         plugin_name = str(plugin_name).strip().lower()
@@ -115,8 +121,7 @@ class PluginContext:
             elapsed = time.time() - start_time
             if elapsed >= timeout:
                 self._logger.warning(
-                    f"Timeout waiting for plugin '{plugin_name}' "
-                    f"after {elapsed:.2f}s"
+                    f"Timeout waiting for plugin '{plugin_name}' after {elapsed:.2f}s"
                 )
                 return False
 

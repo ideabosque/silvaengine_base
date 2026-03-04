@@ -6,9 +6,7 @@ import threading
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any, Optional
 
-if TYPE_CHECKING:
-    from .context import PluginContext
-
+from .context import PluginContext
 
 _context_storage: Optional["PluginContextStorage"] = None
 _storage_lock = threading.Lock()
@@ -41,7 +39,9 @@ class PluginContextStorage:
 class PluginContextDescriptor:
     """Descriptor for automatic plugin context injection."""
 
-    def __get__(self, obj: Any, objtype: Optional[type] = None) -> Optional["PluginContext"]:
+    def __get__(
+        self, obj: Any, objtype: Optional[type] = None
+    ) -> Optional["PluginContext"]:
         """Get the plugin context from thread-local storage."""
         if obj is None:
             return self
