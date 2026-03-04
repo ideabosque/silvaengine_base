@@ -95,8 +95,8 @@ class WebSocketHandler(Handler):
                     return self._invoke_authorization(
                         action=AuthorizationAction.AUTHORIZE
                     )
-                except Exception as e:
-                    raise e
+                except Exception:
+                    raise
 
             try:
                 url_parameters = self._get_query_string_parameters()

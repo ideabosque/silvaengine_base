@@ -32,12 +32,20 @@ from silvaengine_utility import (
     Utility,
 )
 
-from .plugin_manager import PluginManager
+from .boosters.plugin import PluginContext, PluginManager
+from .boosters.plugin.injector import (
+    PluginContextDescriptor,
+    PluginContextInjector,
+    get_current_plugin_context,
+    set_current_plugin_context,
+)
 
 
 class Handler:
     region = os.getenv("REGION_NAME", os.getenv("REGIONNAME", "us-east-1"))
     aws_lambda = boto3.client("lambda", region_name=region)
+
+    plugin_context = PluginContextDescriptor()
 
     def __init__(
         self,
@@ -67,19 +75,23 @@ class Handler:
         event: Dict[str, Any],
         context: Any,
         logger: logging.Logger,
-    ):
-        if cls.is_event_match_handler(event):
-            return cls(
-                logger=logger,
-                event=event,
-                context=context,
-            )._initialize()
-        return None
+    ) -> "Handler":
+        """
+        Factory method to create a new handler instance.
 
-    @classmethod
-    def _generate_response(cls, status_code: int, body: Any) -> Dict[str, Any]:
-        """Generate a standard HTTP response."""
-        return HttpResponse.format_response(status_code=status_code, data=body)
+        This method creates and returns a handler instance with the provided
+        event, context, and logger. Subclasses can override this method to
+        customize handler creation behavior.
+
+        Args:
+            event: The Lambda event dictionary
+            context: The Lambda context object
+            logger: The logger instance for logging
+
+        Returns:
+            A new Handler instance
+        """
+        return cls(event=event, context=context, logger=logger)
 
     def _merge_setting_to_default(self, setting: Dict[str, Any]):
         if isinstance(setting, dict):
@@ -127,8 +139,8 @@ class Handler:
                 )(self.event, self.context)
 
             raise Exception("Invalid authorization action")
-        except Exception as e:
-            raise e
+        except Exception:
+            raise
 
     @classmethod
     def invoke_aws_lambda_function(
@@ -138,13 +150,7 @@ class Handler:
         invocation_type: InvocationType = InvocationType.EVENT,
         qualifier: Any = None,
     ) -> Any:
-        """
-        Invoke another Lambda function.
-        :param function_name: Name of the Lambda function to invoke.
-        :param payload: The payload to send to the Lambda function.
-        :param invocation_type: Invocation type, default is "Event".
-        :return: The response of the invoked Lambda function.
-        """
+        """Invoke another Lambda function."""
         if not function_name:
             raise ValueError("Function name is required")
         elif not isinstance(payload, dict):
@@ -175,7 +181,7 @@ class Handler:
 
             if "Payload" not in response:
                 raise Exception("Invalid response structure")
-            elif invocation_type == "RequestResponse":
+            elif invocation_type == InvocationType.REQUEST_RESPONSE:
                 try:
                     payload_content = response["Payload"].read()
 
@@ -184,10 +190,10 @@ class Handler:
                         if payload_content
                         else {}
                     )
-                except Exception as e:
-                    raise e
-        except Exception as e:
-            raise e
+                except Exception:
+                    raise
+        except Exception:
+            raise
 
     @classmethod
     def _get_function_and_setting(
@@ -197,14 +203,7 @@ class Handler:
         api_key: str = "#####",
         method: str | None = None,
     ) -> Tuple[Dict[str, Any], FunctionModel]:
-        """
-        Fetch the function configuration for a given endpoint.
-        :param endpoint_id: ID of the endpoint.
-        :param function_name: Name of the function to retrieve.
-        :param api_key: The API key, default is "#####".
-        :param method: The HTTP method if applicable.
-        :return: A tuple containing the merged settings and the function object.
-        """
+        """Fetch the function configuration for a given endpoint."""
         try:
             endpoint_id = str(endpoint_id).strip()
 
@@ -444,8 +443,8 @@ class Handler:
                 function_name=function_name,
                 constructor_parameters={"logger": self.logger, **self.setting},
             )
-        except Exception as e:
-            raise e
+        except Exception:
+            raise
 
     def _get_lambda_function_invoker(
         self,
@@ -576,9 +575,13 @@ class Handler:
 
         return self
 
-    def set_plugin_context(self, context: Dict[str, Any]):
+    def set_plugin_context(self, context: PluginContext):
+        """Set plugin context for backward compatibility."""
         if isinstance(context, dict):
-            self._plugin_context = context
+            set_current_plugin_context(context)
+        elif hasattr(context, "get"):
+            set_current_plugin_context(context)
 
-    def get_plugin_context(self) -> Dict[str, Any]:
-        return self._plugin_context or {}
+    def get_plugin_context(self) -> Optional[PluginContext]:
+        """Get plugin context for backward compatibility."""
+        return get_current_plugin_context()
