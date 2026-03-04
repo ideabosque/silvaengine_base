@@ -125,15 +125,12 @@ class Resources:
 
     def _initialize_plugins(self, handler: Any) -> Optional[PluginContext]:
         """Initialize plugins based on handler configuration."""
+        self._logger.info(f"Setting: {handler.setting}")
         if self._plugin_manager is None:
             self._plugin_manager = PluginManager(logger=self._logger)
             self._configure_plugin_manager()
 
         if self._plugin_manager.initialize(setting=handler.setting):
-            print(">>>>>>>>>>>>>>>>>>>>>>>>>")
-            print(handler.setting)
-            print("<<<<<<<<<<<<<<<<<<<<<<<<<")
-            self._logger.info(f"Setting: {handler.setting}")
             plugin_context = self._plugin_manager.get_context()
 
             handler.set_plugin_context(plugin_context)
