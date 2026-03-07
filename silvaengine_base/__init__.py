@@ -10,6 +10,8 @@ This module provides the core infrastructure for:
 - Context propagation to business modules
 - Circuit breaker pattern for fault tolerance
 - Lazy loading for improved cold start performance
+- Centralized configuration management
+- Asynchronous plugin initialization framework
 
 Pool management functionality has been migrated to silvaengine_connections module.
 """
@@ -24,15 +26,32 @@ __all__ = [
     "LazyPluginContext",
     "CircuitBreaker",
     "CircuitState",
+    "CircuitBreakerRegistry",
     "PluginNotFoundError",
     "PluginInitializationTimeoutError",
     "PluginState",
     "AbstractPluginContext",
     "EagerPluginContext",
+    "PluginConfigManager",
+    "PluginInitializer",
+    "get_config_manager",
+    "reset_config_manager",
+    # Async initialization framework
+    "AsyncPluginInitializer",
+    "InitializationState",
+    "InitializationStatus",
+    "InitializationTracker",
+    "PluginFuture",
+    # Parallel scheduler
+    "ParallelInitializationScheduler",
+    "InitializationTask",
+    "InitializationMetrics",
 ]
 
-from .boosters.plugin import (
+from .boosters import (
     CircuitBreaker,
+    CircuitBreakerRegistry,
+    CircuitState,
     LazyPluginContext,
     PluginConfiguration,
     PluginContext,
@@ -44,8 +63,26 @@ from .boosters.plugin import (
     PluginState,
     AbstractPluginContext,
     EagerPluginContext,
+    PluginConfigManager,
+    PluginInitializer,
+    get_config_manager,
+    reset_config_manager,
     get_current_plugin_context,
+    set_current_plugin_context,
+    clear_current_plugin_context,
     inject_plugin_context,
+    get_plugin_context,
 )
-from .boosters.plugin.circuit_breaker import CircuitState
+from .boosters.plugin.async_initializer import (
+    AsyncPluginInitializer,
+    InitializationState,
+    InitializationStatus,
+    InitializationTracker,
+    PluginFuture,
+)
+from .boosters.plugin.parallel_scheduler import (
+    ParallelInitializationScheduler,
+    InitializationTask,
+    InitializationMetrics,
+)
 from .resources import Resources

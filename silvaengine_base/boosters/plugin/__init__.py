@@ -44,6 +44,15 @@ from .injector import (
     inject_plugin_context,
     set_current_plugin_context,
 )
+from .config_manager import (
+    PluginConfigManager,
+    get_config_manager,
+    reset_config_manager,
+)
+from .initializer_utils import (
+    PluginInitializationError,
+    PluginInitializerUtils,
+)
 
 DEFAULT_WORKERS_PER_CPU = 4
 DEFAULT_PLUGIN_INIT_TIMEOUT = 30.0
@@ -68,6 +77,11 @@ __all__ = [
     "PluginNotFoundError",
     "PluginInitializationTimeoutError",
     "PluginState",
+    "PluginConfigManager",
+    "PluginInitializationError",
+    "PluginInitializerUtils",
+    "get_config_manager",
+    "reset_config_manager",
     "get_current_plugin_context",
     "set_current_plugin_context",
     "clear_current_plugin_context",
@@ -124,6 +138,7 @@ class PluginManager:
             self._logger = logger or logging.getLogger(__name__)
             self._manager_lock = threading.RLock()
             self._is_initialized = False
+            self._initialized_event = threading.Event()
             self._parallel_enabled = True
             self._max_workers = (os.cpu_count() or 1) * DEFAULT_WORKERS_PER_CPU
             self._dependency_resolver = DependencyResolver(self._logger)
@@ -207,6 +222,7 @@ class PluginManager:
                     self._process_plugins_config(plugins_config)
 
                 self._is_initialized = True
+                self._initialized_event.set()
                 self._logger.info("PluginManager initialized successfully")
                 return True
 
@@ -236,36 +252,47 @@ class PluginManager:
         )
 
     def _process_plugins_config(self, plugins_config: List) -> None:
-        """Process plugins configuration with global timeout."""
-        if not isinstance(plugins_config, list) and not plugins_config:
+        """Process plugins configuration without blocking.
+
+        [OPTIMIZATION] Non-blocking plugin processing
+
+        Problem: Original implementation used thread.join() which blocked
+        the main thread for up to global_init_timeout (default 120s).
+
+        Solution: Use AsyncPluginInitializer for background initialization.
+        The method returns immediately while plugins initialize in background.
+        Initialization status can be queried via get_initialization_status().
+
+        Performance Impact:
+        - Blocking time: Reduced from ~120s max to 0ms
+        - Main thread: Never blocked
+
+        Thread Safety: Uses AsyncPluginInitializer with proper synchronization.
+
+        @since 2.0.0
+        """
+        if not isinstance(plugins_config, list) or not plugins_config:
             return
 
-        import threading
-
-        timeout_exception = []
-        start_time = time.time()
-
-        def run_with_timeout():
-            try:
-                self._do_process_plugins_config(plugins_config)
-            except Exception as e:
-                timeout_exception.append(e)
-
-        thread = threading.Thread(target=run_with_timeout)
-        thread.daemon = True
-        thread.start()
-        thread.join(timeout=self._global_init_timeout)
-
-        if thread.is_alive():
-            self._logger.error(
-                f"Global plugin initialization timed out after {self._global_init_timeout}s"
-            )
-            raise TimeoutError(
-                f"Plugin initialization exceeded global timeout of {self._global_init_timeout}s"
+        if self._async_initializer is None:
+            self._async_initializer = AsyncPluginInitializer(
+                plugin_manager=self,
+                logger=self._logger,
+                max_workers=self._max_workers,
             )
 
-        if timeout_exception:
-            raise timeout_exception[0]
+        if self._async_initializer.is_shutdown():
+            self._async_initializer = AsyncPluginInitializer(
+                plugin_manager=self,
+                logger=self._logger,
+                max_workers=self._max_workers,
+            )
+
+        self._async_initializer.initialize_plugins(plugins_config)
+
+        self._logger.info(
+            f"Started background initialization for {len(plugins_config)} plugins"
+        )
 
     def _do_process_plugins_config(self, plugins_config: List) -> None:
         """Actual plugin configuration processing."""
@@ -393,26 +420,31 @@ class PluginManager:
             f"Initializing {len(all_configs)} plugins in parallel with {max_workers} workers"
         )
 
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            future_to_config = {
-                executor.submit(self._initialize_plugin_safe, config): config
-                for config in all_configs
-            }
+        from .thread_pool_manager import get_thread_pool_manager
+        executor = get_thread_pool_manager().get_executor(
+            "plugin_manager_parallel",
+            max_workers=max_workers,
+        )
+        
+        future_to_config = {
+            executor.submit(self._initialize_plugin_safe, config): config
+            for config in all_configs
+        }
 
-            for future in as_completed(future_to_config):
-                config = future_to_config[future]
-                try:
-                    result = future.result(timeout=self._plugin_init_timeout)
-                    results[config.plugin_type] = result
+        for future in as_completed(future_to_config):
+            config = future_to_config[future]
+            try:
+                result = future.result(timeout=self._plugin_init_timeout)
+                results[config.plugin_type] = result
 
-                    if result["success"]:
-                        self._logger.debug(
-                            f"Plugin {config.plugin_type} initialized successfully"
-                        )
-                    else:
-                        self._logger.warning(
-                            f"Plugin {config.plugin_type} initialization failed: {result.get('error')}"
-                        )
+                if result["success"]:
+                    self._logger.debug(
+                        f"Plugin {config.plugin_type} initialized successfully"
+                    )
+                else:
+                    self._logger.warning(
+                        f"Plugin {config.plugin_type} initialization failed: {result.get('error')}"
+                    )
 
                 except FutureTimeoutError:
                     error_msg = f"Plugin {config.plugin_type} initialization timed out after {self._plugin_init_timeout}s"
@@ -560,34 +592,53 @@ class PluginManager:
         return result
 
     def _do_initialize_plugin(self, plugin_config: PluginConfiguration) -> Any:
-        """Perform actual plugin initialization with timeout."""
-        proxied_callable = Invoker.resolve_proxied_callable(
+        """Perform actual plugin initialization with timeout.
+        
+        [OPTIMIZATION] Unified initialization logic with timeout protection
+        
+        This method now uses PluginInitializerUtils for consistent initialization
+        across all modules, and adds timeout protection for parallel mode.
+        
+        Performance Characteristics:
+        - Sequential mode: O(n) with per-plugin timeout
+        - Parallel mode: O(1) for submission + O(n) for execution with timeout
+        
+        Thread Safety: Uses ThreadPoolExecutor for isolated execution.
+        
+        @since 2.0.0
+        """
+        success, result, error_msg = PluginInitializerUtils.invoke_plugin_init(
             module_name=plugin_config.module_name,
             function_name=plugin_config.function_name,
+            plugin_config=plugin_config.config,
             class_name=plugin_config.class_name,
-            constructor_parameters=None,
+            timeout=self._plugin_init_timeout,
+        )
+        
+        if success:
+            return result
+        
+        if error_msg:
+            raise PluginInitializationError(error_msg)
+        
+        raise PluginInitializationError(
+            f"Plugin '{plugin_config.plugin_type}' initialization failed"
         )
 
-        if self._parallel_enabled:
-            return proxied_callable(plugin_config.config)
+    def get_async_initializer(self) -> Optional[AsyncPluginInitializer]:
+        """Get the async initializer instance.
 
-        with ThreadPoolExecutor(max_workers=1) as executor:
-            future = executor.submit(proxied_callable, plugin_config.config)
-
-            try:
-                return future.result(timeout=self._plugin_init_timeout)
-            except FutureTimeoutError:
-                raise TimeoutError(
-                    f"Plugin '{plugin_config.plugin_type}' initialization timed out "
-                    f"after {self._plugin_init_timeout}s"
-                )
+        Returns:
+            AsyncPluginInitializer instance or None if not available.
+        """
+        return self._async_initializer
 
     def get_initialized_objects(self) -> Dict[str, Any]:
         return self._initialized_objects.copy()
 
     def get_initialized_object(self, plugin_type: str) -> Optional[Any]:
         if not plugin_type:
-            self._logger.exception(f"Invalid plugin type `{plugin_type}`")
+            self._logger.warning(f"Invalid plugin type `{plugin_type}`")
             return None
 
         plugin_type = str(plugin_type).strip().lower()
@@ -598,20 +649,20 @@ class PluginManager:
         return self._initialized_objects.get(plugin_type)
 
     def get_context(self, timeout: float = 10.0) -> AbstractPluginContext:
-        """Get plugin context (returns appropriate type based on configuration)."""
+        """Get plugin context (returns appropriate type based on configuration).
+        
+        [OPTIMIZATION] Event-based waiting instead of polling
+        
+        Uses threading.Event.wait() for efficient waiting without CPU polling.
+        """
         if self._lazy_loading_enabled and self._lazy_context:
             return self._lazy_context
 
         if not self._is_initialized and timeout > 0:
-            start_time = time.time()
-
-            while not self._is_initialized:
-                if time.time() - start_time >= timeout:
-                    self._logger.warning(
-                        f"PluginManager not initialized within {timeout}s timeout"
-                    )
-                    break
-                time.sleep(0.1)
+            if not self._initialized_event.wait(timeout=timeout):
+                self._logger.warning(
+                    f"PluginManager not initialized within {timeout}s timeout"
+                )
 
         return EagerPluginContext(self)
 
@@ -674,6 +725,8 @@ class PluginManager:
                                             )
                                 instance._initialized_objects.clear()
                             instance._is_initialized = False
+                            if hasattr(instance, "_initialized_event"):
+                                instance._initialized_event.clear()
                             instance._config = {}
                             if hasattr(instance, "_lazy_context"):
                                 instance._lazy_context = None
@@ -735,4 +788,156 @@ class PluginManager:
         return {
             plugin_type: self.get_plugin_status(plugin_type)
             for plugin_type in self._initialized_objects.keys()
+        }
+
+    def initialize_async(
+        self, setting: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Initialize plugins asynchronously and return futures.
+
+        This method starts background initialization and immediately returns
+        PluginFuture objects for each plugin.
+
+        Args:
+            setting: Configuration dictionary containing plugins settings.
+
+        Returns:
+            Dictionary mapping plugin types to their PluginFuture objects.
+        """
+        if setting is None:
+            self._logger.error("Invalid setting: setting cannot be None")
+            return {}
+
+        if not isinstance(setting, dict):
+            self._logger.error(
+                f"Invalid setting: must be a dictionary, got {type(setting).__name__}"
+            )
+            return {}
+
+        plugins_config = setting.get("plugins")
+
+        if not plugins_config:
+            self._logger.warning("No plugins configuration found")
+            return {}
+
+        self._config = setting
+
+        # Initialize the async initializer if needed
+        if not hasattr(self, '_async_initializer') or self._async_initializer is None:
+            from .async_initializer import AsyncPluginInitializer
+            self._async_initializer = AsyncPluginInitializer(
+                plugin_manager=self,
+                logger=self._logger,
+                max_workers=self._max_workers,
+            )
+
+        # Start async initialization
+        futures = self._async_initializer.initialize_async(plugins_config)
+
+        self._is_initialized = True
+        self._initialized_event.set()
+        self._logger.info("PluginManager async initialization started")
+
+        return futures
+
+    def initialize_background(
+        self,
+        setting: Dict[str, Any],
+        callback: Optional[Callable[[Dict[str, bool]], None]] = None,
+    ) -> None:
+        """Initialize plugins in background without blocking.
+
+        This method starts background initialization and returns immediately.
+        Use wait_for_initialization() or check initialization status to monitor progress.
+
+        Args:
+            setting: Configuration dictionary containing plugins settings.
+            callback: Optional callback function called when initialization completes.
+        """
+        if setting is None:
+            self._logger.error("Invalid setting: setting cannot be None")
+            return
+
+        if not isinstance(setting, dict):
+            self._logger.error(
+                f"Invalid setting: must be a dictionary, got {type(setting).__name__}"
+            )
+            return
+
+        plugins_config = setting.get("plugins")
+
+        if not plugins_config:
+            self._logger.warning("No plugins configuration found")
+            return
+
+        self._config = setting
+
+        # Use lazy loading if enabled
+        if self._lazy_loading_enabled:
+            self._setup_lazy_loading(plugins_config)
+            self._is_initialized = True
+            self._initialized_event.set()
+            self._logger.info("PluginManager lazy loading setup complete")
+            return
+
+        # Initialize the async initializer if needed
+        if not hasattr(self, '_async_initializer') or self._async_initializer is None:
+            from .async_initializer import AsyncPluginInitializer
+            self._async_initializer = AsyncPluginInitializer(
+                plugin_manager=self,
+                logger=self._logger,
+                max_workers=self._max_workers,
+            )
+
+        # Start background initialization
+        self._async_initializer.initialize_background(
+            plugins_config=plugins_config,
+            timeout=self._global_init_timeout,
+        )
+
+        # Store callback for later invocation
+        if callback is not None:
+            self._stored_initialization_callback = callback
+
+        self._is_initialized = True
+        self._initialized_event.set()
+        self._logger.info("PluginManager background initialization started")
+
+    def wait_for_initialization(self, timeout: float = 120.0) -> Dict[str, bool]:
+        """Wait for all plugins to complete initialization.
+
+        Args:
+            timeout: Maximum time to wait in seconds.
+
+        Returns:
+            Dictionary mapping plugin types to their success status.
+        """
+        if hasattr(self, '_async_initializer') and self._async_initializer is not None:
+            result = self._async_initializer.wait_all(timeout=timeout)
+            if hasattr(self, '_stored_initialization_callback') and self._stored_initialization_callback is not None:
+                try:
+                    self._stored_initialization_callback(result)
+                except Exception as exception:
+                    self._logger.error(f"Error in initialization callback: {exception}")
+            return result
+
+        return {
+            plugin_type: True
+            for plugin_type in self._initialized_objects.keys()
+        }
+
+    def get_initialization_status(self) -> Dict[str, Any]:
+        """Get current initialization status.
+
+        Returns:
+            Dictionary containing initialization status information.
+        """
+        if hasattr(self, '_async_initializer') and self._async_initializer is not None:
+            return self._async_initializer.get_initialization_summary()
+
+        # Fallback: return basic status
+        return {
+            "initialized": self._is_initialized,
+            "status": "ready" if self._is_initialized else "not_initialized",
+            "total_plugins": len(self._initialized_objects),
         }

@@ -8,6 +8,11 @@ from enum import Enum
 from typing import Any, Callable, Dict, List, Optional, Set, Union
 
 
+SENSITIVE_VALUE_MIN_LENGTH = 8
+DEFAULT_PLUGIN_NAME_MIN_LENGTH = 1
+DEFAULT_PLUGIN_NAME_MAX_LENGTH = 64
+
+
 class ValidationSeverity(Enum):
     """Validation severity levels."""
     ERROR = "error"
@@ -397,7 +402,7 @@ class ConfigValidator:
 
             if is_sensitive and isinstance(value, str) and value:
                 # Check if value looks like a hardcoded secret
-                if len(value) > 8 and not value.startswith("$"):
+                if len(value) > SENSITIVE_VALUE_MIN_LENGTH and not value.startswith("$"):
                     result.add_warning(
                         current_path,
                         f"Field '{key}' may contain a hardcoded secret. Consider using environment variables",

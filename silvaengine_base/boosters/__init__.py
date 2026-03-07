@@ -11,6 +11,7 @@ This module provides plugin management functionality including:
 - Configuration validation
 - Circuit breaker pattern for fault tolerance
 - Lazy loading for improved cold start performance
+- Centralized configuration management
 """
 
 from .plugin import (
@@ -43,8 +44,15 @@ from .plugin.context import (
     PluginInitializationTimeoutError,
     get_plugin_context,
 )
+from .plugin.config_manager import (
+    PluginConfigManager,
+    get_config_manager,
+    reset_config_manager,
+)
+from .plugin_initializer import PluginInitializer
 
 __all__ = [
+    # Core plugin classes
     "PluginManager",
     "PluginConfiguration",
     "PluginContext",
@@ -63,6 +71,16 @@ __all__ = [
     "PluginState",
     "AbstractPluginContext",
     "EagerPluginContext",
+    
+    # Configuration management
+    "PluginConfigManager",
+    "get_config_manager",
+    "reset_config_manager",
+    
+    # Plugin initializer
+    "PluginInitializer",
+    
+    # Utility functions
     "get_circuit_breaker_registry",
     "get_current_plugin_context",
     "set_current_plugin_context",

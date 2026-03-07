@@ -49,6 +49,7 @@ class Handler:
         self,
         event: Dict[str, Any],
         context: Any,
+        setting: Dict[str, Any],
         logger: logging.Logger,
     ) -> None:
         self.logger = (
@@ -58,7 +59,7 @@ class Handler:
         )
         self.event = event or {}
         self.context = context
-        self.setting = {}
+        self.setting = setting or {}
 
     def handle(self) -> Any:
         raise NotImplementedError("Subclasses must implement the handle method.")
@@ -72,6 +73,7 @@ class Handler:
         cls,
         event: Dict[str, Any],
         context: Any,
+        setting: Dict[str, Any],
         logger: logging.Logger,
     ) -> "Handler":
         """
@@ -89,56 +91,58 @@ class Handler:
         Returns:
             A new Handler instance
         """
-        return cls(event=event, context=context, logger=logger)._initialize()
+        return cls(
+            event=event,
+            context=context,
+            setting=setting,
+            logger=logger,
+        )._initialize()
 
-    def _merge_setting_to_default(self, setting: Dict[str, Any]):
+    def _merge_setting_to_default(self, setting: Dict[str, Any]) -> "Handler":
         if isinstance(setting, dict):
             self.setting.update(setting)
         return self
 
-    def _merge_metadata_to_event(self, metadata: Any):
+    def _merge_metadata_to_event(self, metadata: Any) -> "Handler":
         if isinstance(metadata, dict):
             self.event.update(metadata)
         return self
 
     def _invoke_authorization(self, action: AuthorizationAction) -> Any:
         """Dynamically handle authorization and permission checks."""
-        try:
-            module_name = self.setting.get(
-                "authorizer_module_name",
-                "silvaengine_authorizer",
+        module_name = self.setting.get(
+            "authorizer_module_name",
+            "silvaengine_authorizer",
+        )
+        class_name = self.setting.get(
+            "authorizer_class_name",
+            "Authorizer",
+        )
+
+        if action == AuthorizationAction.AUTHORIZE:
+            function_name = self.setting.get(
+                "authorizer_authorize_function_name",
+                "authorize",
             )
-            class_name = self.setting.get(
-                "authorizer_class_name",
-                "Authorizer",
+
+            return self._get_proxied_callable(
+                module_name=module_name,
+                function_name=function_name,
+                class_name=class_name,
+            )(self.event, self.context)
+        elif action == AuthorizationAction.VERIFY_PERMISSION:
+            function_name = self.setting.get(
+                "authorizer_verify_permission_function_name",
+                "verify_permission",
             )
 
-            if action == AuthorizationAction.AUTHORIZE:
-                function_name = self.setting.get(
-                    "authorizer_authorize_function_name",
-                    "authorize",
-                )
+            return self._get_proxied_callable(
+                module_name=module_name,
+                function_name=function_name,
+                class_name=class_name,
+            )(self.event, self.context)
 
-                return self._get_proxied_callable(
-                    module_name=module_name,
-                    function_name=function_name,
-                    class_name=class_name,
-                )(self.event, self.context)
-            elif action == AuthorizationAction.VERIFY_PERMISSION:
-                function_name = self.setting.get(
-                    "authorizer_verify_permission_function_name",
-                    "verify_permission",
-                )
-
-                return self._get_proxied_callable(
-                    module_name=module_name,
-                    function_name=function_name,
-                    class_name=class_name,
-                )(self.event, self.context)
-
-            raise Exception("Invalid authorization action")
-        except Exception:
-            raise
+        raise Exception("Invalid authorization action")
 
     @classmethod
     def _get_aws_client(cls, client_type: str = "lambda") -> Any:
@@ -209,7 +213,7 @@ class Handler:
         endpoint_id: str,
         function_name: str,
         api_key: str = "#####",
-        method: str | None = None,
+        method: Optional[str] = None,
     ) -> Tuple[Dict[str, Any], FunctionModel]:
         """Fetch the function configuration for a given endpoint."""
         try:
@@ -357,10 +361,10 @@ class Handler:
 
         return function_name, path
 
-    def _get_header(self, key: str) -> str:
+    def _get_header(self, key: str) -> Optional[str]:
         return self.event.get("headers", {}).get(str(key).strip())
 
-    def _get_query_string_parameter(self, key: str) -> str:
+    def _get_query_string_parameter(self, key: str) -> Optional[str]:
         return self.event.get("queryStringParameters", {}).get(str(key).strip())
 
     def _get_request_context(self) -> Dict[str, Any]:
@@ -459,7 +463,7 @@ class Handler:
         payload: Dict[str, Any],
         function_name: Optional[str] = None,
         invocation_type: InvocationType = InvocationType.EVENT,
-    ):
+    ) -> Any:
         if not function_name:
             function_name = self.context.function_name
 
