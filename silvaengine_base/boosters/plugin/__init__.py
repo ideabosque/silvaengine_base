@@ -9,7 +9,10 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from concurrent.futures import TimeoutError as FutureTimeoutError
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Union
+
+if TYPE_CHECKING:
+    from .async_initializer import AsyncPluginInitializer
 
 from silvaengine_utility import Invoker
 
@@ -158,6 +161,7 @@ class PluginManager:
 
             self._lazy_loading_enabled = False
             self._lazy_context: Optional[LazyPluginContext] = None
+            self._async_initializer: Optional["AsyncPluginInitializer"] = None
 
             self._logger.info(
                 f"PluginManager initialized with max_workers={self._max_workers}, "
@@ -278,6 +282,8 @@ class PluginManager:
         if not isinstance(plugins_config, list) or not plugins_config:
             return
 
+        from .async_initializer import AsyncPluginInitializer
+
         if self._async_initializer is None:
             self._async_initializer = AsyncPluginInitializer(
                 plugin_manager=self,
@@ -292,7 +298,7 @@ class PluginManager:
                 max_workers=self._max_workers,
             )
 
-        self._async_initializer.initialize_plugins(plugins_config)
+        self._async_initializer.initialize_background(plugins_config)
 
         self._logger.info(
             f"Started background initialization for {len(plugins_config)} plugins"
@@ -630,7 +636,7 @@ class PluginManager:
             f"Plugin '{plugin_config.plugin_type}' initialization failed"
         )
 
-    def get_async_initializer(self) -> Optional[AsyncPluginInitializer]:
+    def get_async_initializer(self) -> Optional["AsyncPluginInitializer"]:
         """Get the async initializer instance.
 
         Returns:

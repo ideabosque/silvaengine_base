@@ -580,9 +580,9 @@ class AsyncPluginInitializer:
         """
         if self._shutdown_event.is_set():
             self._logger.warning(
-            "Cannot initialize plugins: initializer has been shut down"
-        )
-        return {}
+                "Cannot initialize plugins: initializer has been shut down"
+            )
+            return {}
 
         for config in plugins_config:
             plugin_type = config.get("type", "")
@@ -662,9 +662,8 @@ class AsyncPluginInitializer:
         self._shutdown_event.set()
 
         with self._executor_lock:
-            if self._executor is not None:
-                self._executor.shutdown(wait=wait)
-                self._executor = None
+            from .thread_pool_manager import get_thread_pool_manager
+            get_thread_pool_manager().shutdown_executor(self._executor_name, wait=wait)
 
         _unregister_initializer(self)
 
@@ -722,7 +721,6 @@ class AsyncPluginInitializer:
         @since 2.0.0
         """
         import time
-        from .async_initializer import InitializationState
         
         cleaned = 0
         current_time = time.time()
