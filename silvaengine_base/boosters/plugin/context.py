@@ -17,7 +17,7 @@ import time
 from abc import ABC, abstractmethod
 from contextlib import contextmanager
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Dict, Optional, Set
+from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Set
 
 if TYPE_CHECKING:
     from . import PluginManager
@@ -284,9 +284,7 @@ class EagerPluginContext(AbstractPluginContext):
         plugin_data = initialized_objects.get(plugin_name)
 
         if plugin_data is None:
-            self._logger.debug(
-                f"Plugin '{plugin_name}' not found or not initialized"
-            )
+            self._logger.debug(f"Plugin '{plugin_name}' not found or not initialized")
             return None
 
         return plugin_data.get("manager")
@@ -367,7 +365,9 @@ class EagerPluginContext(AbstractPluginContext):
             try:
                 return async_initializer.wait_for_plugin(plugin_name, timeout=timeout)
             except Exception as error:
-                self._logger.warning(f"Error waiting for plugin via async initializer: {error}")
+                self._logger.warning(
+                    f"Error waiting for plugin via async initializer: {error}"
+                )
 
         while True:
             initialized_objects = self._plugin_manager.get_initialized_objects()
@@ -522,16 +522,16 @@ class LazyPluginContext(AbstractPluginContext):
         """Initialize plugin on first access.
 
         [OPTIMIZATION] Deadlock prevention with timeout protection
-        
+
         Problem: Original implementation had potential deadlock risk when:
         1. Thread A holds _lock and waits for _init_locks[plugin_name]
         2. Thread B holds _init_locks[plugin_name] and waits for _lock
-        
-        Solution: 
+
+        Solution:
         1. Use timeout when acquiring init_lock to prevent indefinite blocking
         2. Release _lock before acquiring init_lock
         3. Use double-checked locking pattern
-        
+
         Thread Safety: Lock acquisition order is always _lock -> init_lock,
         with timeout protection on init_lock acquisition.
 
@@ -544,7 +544,7 @@ class LazyPluginContext(AbstractPluginContext):
         @since 2.0.0
         """
         init_lock = None
-        
+
         with self._lock:
             if plugin_name in self._initialized_plugins:
                 return self._initialized_plugins[plugin_name]
@@ -590,7 +590,9 @@ class LazyPluginContext(AbstractPluginContext):
 
             config = self._plugin_configs.get(plugin_name)
             if not config:
-                self._logger.warning(f"Plugin '{plugin_name}' not found in configuration")
+                self._logger.warning(
+                    f"Plugin '{plugin_name}' not found in configuration"
+                )
                 with self._lock:
                     self._initializing_plugins.discard(plugin_name)
                 return None
@@ -604,7 +606,9 @@ class LazyPluginContext(AbstractPluginContext):
                     self._initialized_plugins[plugin_name] = manager
                     self._initializing_plugins.discard(plugin_name)
 
-                self._logger.info(f"Plugin '{plugin_name}' lazy initialized successfully")
+                self._logger.info(
+                    f"Plugin '{plugin_name}' lazy initialized successfully"
+                )
                 return manager
 
             except Exception as e:
@@ -620,13 +624,11 @@ class LazyPluginContext(AbstractPluginContext):
         finally:
             init_lock.release()
 
-    def _do_initialize_plugin(
-        self, plugin_name: str, config: Dict[str, Any]
-    ) -> Any:
+    def _do_initialize_plugin(self, plugin_name: str, config: Dict[str, Any]) -> Any:
         """Perform actual plugin initialization.
-        
+
         [OPTIMIZATION] Unified initialization logic using PluginInitializerUtils
-        
+
         This method now uses the centralized PluginInitializerUtils for
         consistent initialization behavior across all modules.
 
@@ -641,8 +643,8 @@ class LazyPluginContext(AbstractPluginContext):
             ValueError: If module_name is missing.
             TimeoutError: If initialization times out.
         """
-        from .initializer_utils import PluginInitializerUtils, PluginInitializationError
-        
+        from .initializer_utils import PluginInitializationError, PluginInitializerUtils
+
         module_name = config.get("module_name", "")
         function_name = config.get("function_name", "init")
         class_name = config.get("class_name")
@@ -652,6 +654,7 @@ class LazyPluginContext(AbstractPluginContext):
             raise ValueError(f"Plugin '{plugin_name}' missing module_name")
 
         from .thread_pool_manager import get_thread_pool_manager
+
         executor = get_thread_pool_manager().get_executor(
             "lazy_context_init",
             max_workers=1,
@@ -772,8 +775,9 @@ class LazyPluginContext(AbstractPluginContext):
                 return future
 
         # Schedule initialization in background
-        if not hasattr(self, '_async_executor'):
+        if not hasattr(self, "_async_executor"):
             import concurrent.futures
+
             self._async_executor = concurrent.futures.ThreadPoolExecutor(max_workers=2)
 
         tracker = InitializationTracker(logger=self._logger)
@@ -826,8 +830,9 @@ class LazyPluginContext(AbstractPluginContext):
         This method starts initialization of all configured plugins
         in background threads and returns immediately.
         """
-        if not hasattr(self, '_async_executor'):
+        if not hasattr(self, "_async_executor"):
             import concurrent.futures
+
             self._async_executor = concurrent.futures.ThreadPoolExecutor(max_workers=4)
 
         for plugin_name in self._plugin_configs.keys():
@@ -859,7 +864,7 @@ class LazyPluginContext(AbstractPluginContext):
         Args:
             wait: If True, wait for pending tasks to complete.
         """
-        if hasattr(self, '_async_executor') and self._async_executor is not None:
+        if hasattr(self, "_async_executor") and self._async_executor is not None:
             self._async_executor.shutdown(wait=wait)
 
 
@@ -869,9 +874,9 @@ def get_plugin_context(
     timeout: float = 30.0,
 ) -> AbstractPluginContext:
     """Get a plugin context with optional timeout.
-    
+
     [OPTIMIZATION] Event-based waiting instead of polling
-    
+
     Uses threading.Event.wait() for efficient waiting without CPU polling.
     This reduces CPU usage and provides immediate response when initialized.
 
@@ -885,7 +890,7 @@ def get_plugin_context(
     context = EagerPluginContext(plugin_manager)
 
     if not plugin_manager.is_initialized():
-        if hasattr(plugin_manager, '_initialized_event'):
+        if hasattr(plugin_manager, "_initialized_event"):
             if not plugin_manager._initialized_event.wait(timeout=timeout):
                 logging.getLogger(__name__).warning(
                     f"PluginManager not initialized within {timeout}s timeout"
