@@ -51,7 +51,6 @@ class Handler:
         context: Any,
         setting: Dict[str, Any],
         logger: logging.Logger,
-        region: str,
     ) -> None:
         self.logger = (
             logger
@@ -61,7 +60,6 @@ class Handler:
         self.event = event or {}
         self.context = context
         self.setting = setting or {}
-        self.region = ""
 
     def handle(self) -> Any:
         raise NotImplementedError("Subclasses must implement the handle method.")
@@ -77,7 +75,6 @@ class Handler:
         context: Any,
         setting: Dict[str, Any],
         logger: logging.Logger,
-        region: str,
     ) -> "Handler":
         """
         Factory method to create a new handler instance.
@@ -99,7 +96,6 @@ class Handler:
             context=context,
             setting=setting,
             logger=logger,
-            region=region,
         )._initialize()
 
     def _generate_response(self, status_code: int, body: Any) -> Dict[str, Any]:

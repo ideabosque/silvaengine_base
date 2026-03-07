@@ -188,7 +188,6 @@ class Resources:
                 context=context,
                 setting=self.__class__._get_runtime_config(),
                 logger=self.__class__._get_logger(),
-                region=self.__class__._get_runtime_region(),
             )
 
             with PluginContextInjector(PluginInitializer().get_plugin_context()):
