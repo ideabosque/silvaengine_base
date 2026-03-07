@@ -17,6 +17,11 @@ from .circuit_breaker import (
     CircuitBreaker,
     get_circuit_breaker_registry,
 )
+from .config_manager import (
+    PluginConfigManager,
+    get_config_manager,
+    reset_config_manager,
+)
 from .config_validator import (
     ConfigValidator,
     ValidationResult,
@@ -36,6 +41,10 @@ from .dependency import (
     DependencyResolver,
     PluginDependency,
 )
+from .initializer_utils import (
+    PluginInitializationError,
+    PluginInitializerUtils,
+)
 from .injector import (
     PluginContextDescriptor,
     PluginContextInjector,
@@ -43,15 +52,6 @@ from .injector import (
     get_current_plugin_context,
     inject_plugin_context,
     set_current_plugin_context,
-)
-from .config_manager import (
-    PluginConfigManager,
-    get_config_manager,
-    reset_config_manager,
-)
-from .initializer_utils import (
-    PluginInitializationError,
-    PluginInitializerUtils,
 )
 
 DEFAULT_WORKERS_PER_CPU = 4
@@ -149,8 +149,12 @@ class PluginManager:
             self._global_init_timeout = DEFAULT_GLOBAL_INIT_TIMEOUT
 
             self._circuit_breaker_enabled = True
-            self._circuit_breaker_failure_threshold = DEFAULT_CIRCUIT_BREAKER_FAILURE_THRESHOLD
-            self._circuit_breaker_recovery_timeout = DEFAULT_CIRCUIT_BREAKER_RECOVERY_TIMEOUT
+            self._circuit_breaker_failure_threshold = (
+                DEFAULT_CIRCUIT_BREAKER_FAILURE_THRESHOLD
+            )
+            self._circuit_breaker_recovery_timeout = (
+                DEFAULT_CIRCUIT_BREAKER_RECOVERY_TIMEOUT
+            )
 
             self._lazy_loading_enabled = False
             self._lazy_context: Optional[LazyPluginContext] = None
@@ -421,11 +425,12 @@ class PluginManager:
         )
 
         from .thread_pool_manager import get_thread_pool_manager
+
         executor = get_thread_pool_manager().get_executor(
             "plugin_manager_parallel",
             max_workers=max_workers,
         )
-        
+
         future_to_config = {
             executor.submit(self._initialize_plugin_safe, config): config
             for config in all_configs
@@ -446,26 +451,26 @@ class PluginManager:
                         f"Plugin {config.plugin_type} initialization failed: {result.get('error')}"
                     )
 
-                except FutureTimeoutError:
-                    error_msg = f"Plugin {config.plugin_type} initialization timed out after {self._plugin_init_timeout}s"
-                    self._logger.error(error_msg)
-                    results[config.plugin_type] = {
-                        "success": False,
-                        "plugin_type": config.plugin_type,
-                        "error": error_msg,
-                        "error_type": "TimeoutError",
-                    }
+            except FutureTimeoutError:
+                error_msg = f"Plugin {config.plugin_type} initialization timed out after {self._plugin_init_timeout}s"
+                self._logger.error(error_msg)
+                results[config.plugin_type] = {
+                    "success": False,
+                    "plugin_type": config.plugin_type,
+                    "error": error_msg,
+                    "error_type": "TimeoutError",
+                }
 
-                except Exception as e:
-                    self._logger.error(
-                        f"Unexpected error initializing {config.plugin_type}: {e}"
-                    )
-                    results[config.plugin_type] = {
-                        "success": False,
-                        "plugin_type": config.plugin_type,
-                        "error": str(e),
-                        "error_type": type(e).__name__,
-                    }
+            except Exception as e:
+                self._logger.error(
+                    f"Unexpected error initializing {config.plugin_type}: {e}"
+                )
+                results[config.plugin_type] = {
+                    "success": False,
+                    "plugin_type": config.plugin_type,
+                    "error": str(e),
+                    "error_type": type(e).__name__,
+                }
 
         success_count = sum(1 for r in results.values() if r.get("success"))
         total_count = len(results)
@@ -593,18 +598,18 @@ class PluginManager:
 
     def _do_initialize_plugin(self, plugin_config: PluginConfiguration) -> Any:
         """Perform actual plugin initialization with timeout.
-        
+
         [OPTIMIZATION] Unified initialization logic with timeout protection
-        
+
         This method now uses PluginInitializerUtils for consistent initialization
         across all modules, and adds timeout protection for parallel mode.
-        
+
         Performance Characteristics:
         - Sequential mode: O(n) with per-plugin timeout
         - Parallel mode: O(1) for submission + O(n) for execution with timeout
-        
+
         Thread Safety: Uses ThreadPoolExecutor for isolated execution.
-        
+
         @since 2.0.0
         """
         success, result, error_msg = PluginInitializerUtils.invoke_plugin_init(
@@ -614,13 +619,13 @@ class PluginManager:
             class_name=plugin_config.class_name,
             timeout=self._plugin_init_timeout,
         )
-        
+
         if success:
             return result
-        
+
         if error_msg:
             raise PluginInitializationError(error_msg)
-        
+
         raise PluginInitializationError(
             f"Plugin '{plugin_config.plugin_type}' initialization failed"
         )
@@ -650,9 +655,9 @@ class PluginManager:
 
     def get_context(self, timeout: float = 10.0) -> AbstractPluginContext:
         """Get plugin context (returns appropriate type based on configuration).
-        
+
         [OPTIMIZATION] Event-based waiting instead of polling
-        
+
         Uses threading.Event.wait() for efficient waiting without CPU polling.
         """
         if self._lazy_loading_enabled and self._lazy_context:
@@ -713,7 +718,10 @@ class PluginManager:
                     if hasattr(instance, "_manager_lock"):
                         with instance._manager_lock:
                             if hasattr(instance, "_initialized_objects"):
-                                for plugin_type, plugin_data in instance._initialized_objects.items():
+                                for (
+                                    plugin_type,
+                                    plugin_data,
+                                ) in instance._initialized_objects.items():
                                     try:
                                         manager = plugin_data.get("manager")
                                         if manager and hasattr(manager, "cleanup"):
@@ -790,9 +798,7 @@ class PluginManager:
             for plugin_type in self._initialized_objects.keys()
         }
 
-    def initialize_async(
-        self, setting: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    def initialize_async(self, setting: Dict[str, Any]) -> Dict[str, Any]:
         """Initialize plugins asynchronously and return futures.
 
         This method starts background initialization and immediately returns
@@ -823,8 +829,9 @@ class PluginManager:
         self._config = setting
 
         # Initialize the async initializer if needed
-        if not hasattr(self, '_async_initializer') or self._async_initializer is None:
+        if not hasattr(self, "_async_initializer") or self._async_initializer is None:
             from .async_initializer import AsyncPluginInitializer
+
             self._async_initializer = AsyncPluginInitializer(
                 plugin_manager=self,
                 logger=self._logger,
@@ -881,8 +888,9 @@ class PluginManager:
             return
 
         # Initialize the async initializer if needed
-        if not hasattr(self, '_async_initializer') or self._async_initializer is None:
+        if not hasattr(self, "_async_initializer") or self._async_initializer is None:
             from .async_initializer import AsyncPluginInitializer
+
             self._async_initializer = AsyncPluginInitializer(
                 plugin_manager=self,
                 logger=self._logger,
@@ -912,19 +920,19 @@ class PluginManager:
         Returns:
             Dictionary mapping plugin types to their success status.
         """
-        if hasattr(self, '_async_initializer') and self._async_initializer is not None:
+        if hasattr(self, "_async_initializer") and self._async_initializer is not None:
             result = self._async_initializer.wait_all(timeout=timeout)
-            if hasattr(self, '_stored_initialization_callback') and self._stored_initialization_callback is not None:
+            if (
+                hasattr(self, "_stored_initialization_callback")
+                and self._stored_initialization_callback is not None
+            ):
                 try:
                     self._stored_initialization_callback(result)
                 except Exception as exception:
                     self._logger.error(f"Error in initialization callback: {exception}")
             return result
 
-        return {
-            plugin_type: True
-            for plugin_type in self._initialized_objects.keys()
-        }
+        return {plugin_type: True for plugin_type in self._initialized_objects.keys()}
 
     def get_initialization_status(self) -> Dict[str, Any]:
         """Get current initialization status.
@@ -932,7 +940,7 @@ class PluginManager:
         Returns:
             Dictionary containing initialization status information.
         """
-        if hasattr(self, '_async_initializer') and self._async_initializer is not None:
+        if hasattr(self, "_async_initializer") and self._async_initializer is not None:
             return self._async_initializer.get_initialization_summary()
 
         # Fallback: return basic status
