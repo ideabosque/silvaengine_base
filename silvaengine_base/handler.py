@@ -51,6 +51,7 @@ class Handler:
         context: Any,
         setting: Dict[str, Any],
         logger: logging.Logger,
+        region: str,
     ) -> None:
         self.logger = (
             logger
@@ -60,6 +61,7 @@ class Handler:
         self.event = event or {}
         self.context = context
         self.setting = setting or {}
+        self.region = ""
 
     def handle(self) -> Any:
         raise NotImplementedError("Subclasses must implement the handle method.")
@@ -75,6 +77,7 @@ class Handler:
         context: Any,
         setting: Dict[str, Any],
         logger: logging.Logger,
+        region: str,
     ) -> "Handler":
         """
         Factory method to create a new handler instance.
@@ -96,7 +99,12 @@ class Handler:
             context=context,
             setting=setting,
             logger=logger,
+            region=region,
         )._initialize()
+
+    def _generate_response(self, status_code: int, body: Any) -> Dict[str, Any]:
+        """Generate a standard HTTP response."""
+        return HttpResponse.format_response(status_code=status_code, data=body)
 
     def _merge_setting_to_default(self, setting: Dict[str, Any]) -> "Handler":
         if isinstance(setting, dict):
