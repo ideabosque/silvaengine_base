@@ -47,9 +47,7 @@ class HttpHandler(Handler):
             method=self._get_request_method(),
         )
 
-        if not isinstance(function, FunctionModel) or not hasattr(
-            function, "config"
-        ):
+        if not isinstance(function, FunctionModel) or not hasattr(function, "config"):
             raise ValueError("Invalid function")
         elif hasattr(function, "area"):
             self._validate_function_area(function.area)
@@ -71,9 +69,7 @@ class HttpHandler(Handler):
 
         if self._is_authorization_event():
             if is_authorization_required:
-                return self._invoke_authorization(
-                    action=AuthorizationAction.AUTHORIZE
-                )
+                return self._invoke_authorization(action=AuthorizationAction.AUTHORIZE)
 
             return Authorizer(self.event).authorize(is_allow=True)
         elif self.event.get("body") and is_authorization_required:

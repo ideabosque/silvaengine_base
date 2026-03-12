@@ -436,8 +436,6 @@ class PluginFuture:
         Args:
             result: The plugin initialization result.
         """
-        import time
-        
         with self._result_lock:
             self._result = result
             self._completion_time = time.time()
@@ -694,6 +692,21 @@ class AsyncPluginInitializer:
         with self._active_tasks_lock:
             return set(self._active_tasks)
 
+    def wait_for_plugin(self, plugin_type: str, timeout: float = 30.0) -> bool:
+        """Wait for a specific plugin to complete initialization.
+
+        This is an alias for wait_for_initialization() to provide a consistent
+        API with PluginManager.wait_for_plugin().
+
+        Args:
+            plugin_type: The type identifier of the plugin.
+            timeout: Maximum time to wait in seconds.
+
+        Returns:
+            True if the plugin completed initialization, False if timeout.
+        """
+        return self._tracker.wait_for_initialization(plugin_type, timeout=timeout)
+
     def cleanup_completed_futures(self, max_age_seconds: float = 300.0) -> int:
         """Clean up completed futures to prevent memory growth.
         
@@ -717,11 +730,9 @@ class AsyncPluginInitializer:
                             
         Returns:
             Number of futures cleaned up.
-            
+
         @since 2.0.0
         """
-        import time
-        
         cleaned = 0
         current_time = time.time()
         
@@ -767,6 +778,7 @@ class AsyncPluginInitializer:
             return
 
         self._tracker.start_initialization(plugin_type)
+        start_time = time.time()
 
         try:
             result = self._do_initialize(plugin_type, config, timeout)
@@ -775,17 +787,47 @@ class AsyncPluginInitializer:
             if future is not None:
                 future.set_result(result)
 
+            self._plugin_manager._store_initialized_plugin(
+                plugin_type=plugin_type,
+                manager=result,
+                config=config,
+            )
+
             self._tracker.complete_initialization(plugin_type)
 
+            duration = time.time() - start_time
             self._logger.info(
-                f"Successfully initialized plugin '{plugin_type}'"
+                f"Successfully initialized plugin '{plugin_type}'",
+                extra={
+                    "plugin_type": plugin_type,
+                    "module_name": config.get("module_name"),
+                    "duration_seconds": round(duration, 3),
+                }
+            )
+
+        except ModuleNotFoundError as exception:
+            error_msg = f"Missing dependency for plugin '{plugin_type}': {exception.name}"
+            self._tracker.fail_initialization(plugin_type, Exception(error_msg))
+            self._logger.error(
+                error_msg,
+                extra={
+                    "plugin_type": plugin_type,
+                    "missing_module": exception.name,
+                    "suggestion": f"Install missing dependency: pip install {exception.name}",
+                    "config_keys": list(config.keys()),
+                }
             )
 
         except Exception as exception:
             self._tracker.fail_initialization(plugin_type, exception)
-
             self._logger.error(
-                f"Failed to initialize plugin '{plugin_type}': {exception}"
+                f"Failed to initialize plugin '{plugin_type}': {exception}",
+                exc_info=True,
+                extra={
+                    "plugin_type": plugin_type,
+                    "config_keys": list(config.keys()),
+                    "error_type": type(exception).__name__,
+                }
             )
 
         finally:

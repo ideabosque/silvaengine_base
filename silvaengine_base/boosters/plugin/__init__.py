@@ -162,6 +162,7 @@ class PluginManager:
             self._lazy_loading_enabled = False
             self._lazy_context: Optional[LazyPluginContext] = None
             self._async_initializer: Optional["AsyncPluginInitializer"] = None
+            self._stored_initialization_callback: Optional[Callable[[Dict[str, bool]], None]] = None
 
             self._logger.info(
                 f"PluginManager initialized with max_workers={self._max_workers}, "
@@ -171,6 +172,7 @@ class PluginManager:
 
     def initialize(self, setting: Dict[str, Any]) -> bool:
         """Initialize plugins from handler settings."""
+        self._logger.debug(f"Setting: {setting}")
         if setting is None:
             self._logger.error("Invalid setting: setting cannot be None")
             return False
@@ -644,6 +646,35 @@ class PluginManager:
         """
         return self._async_initializer
 
+    def _store_initialized_plugin(
+        self,
+        plugin_type: str,
+        manager: Any,
+        config: Dict[str, Any],
+    ) -> None:
+        """Store an initialized plugin in the initialized objects dictionary.
+
+        This method is called by AsyncPluginInitializer after successful
+        plugin initialization to ensure the plugin is accessible via
+        get_initialized_objects() and EagerPluginContext.
+
+        Args:
+            plugin_type: The type identifier of the plugin.
+            manager: The initialized plugin manager instance.
+            config: The plugin configuration dictionary.
+        """
+        plugin_type = str(plugin_type).strip().lower()
+
+        with self._manager_lock:
+            self._initialized_objects[plugin_type] = {
+                "manager": manager,
+                "module_name": config.get("module_name"),
+                "class_name": config.get("class_name"),
+                "config": config.get("config"),
+            }
+
+        self._logger.debug(f"Stored initialized plugin: {plugin_type}")
+
     def get_initialized_objects(self) -> Dict[str, Any]:
         return self._initialized_objects.copy()
 
@@ -816,6 +847,7 @@ class PluginManager:
         Returns:
             Dictionary mapping plugin types to their PluginFuture objects.
         """
+        self._logger.debug(f"Setting async: {setting}")
         if setting is None:
             self._logger.error("Invalid setting: setting cannot be None")
             return {}
@@ -867,6 +899,8 @@ class PluginManager:
             setting: Configuration dictionary containing plugins settings.
             callback: Optional callback function called when initialization completes.
         """
+        self._logger.debug(f"Setting background: {setting}")
+
         if setting is None:
             self._logger.error("Invalid setting: setting cannot be None")
             return

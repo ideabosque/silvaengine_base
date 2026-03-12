@@ -9,7 +9,7 @@ in the Resources class. All plugin-related operations are now centralized here.
 
 import logging
 import os
-import re
+import threading
 from typing import Any, Callable, Dict, Optional, Set
 
 from .plugin import PluginContext, PluginManager
@@ -68,21 +68,25 @@ def sanitize_config(config: Dict[str, Any], mask: str = "***") -> Dict[str, Any]
 
 class PluginInitializer:
     """Handler for plugin-related resources operations.
-    
+
     This class encapsulates all plugin initialization and management logic,
     keeping the Resources class clean and focused on event handling.
     """
-    
+
     _instance: Optional["PluginInitializer"] = None
+    _lock = threading.Lock()
     _config: Dict[str, Any] = {}
     _plugin_manager: Optional[PluginManager] = None
     _plugin_context: Optional[PluginContext] = None
     _initialization_callback: Optional[Callable[[Dict[str, bool]], None]] = None
     _logger: Optional[logging.Logger] = None
-    
+
     def __new__(cls):
         if cls._instance is None:
-            cls._instance = super().__new__(cls)
+            with cls._lock:
+                if cls._instance is None:
+                    instance = super().__new__(cls)
+                    cls._instance = instance
         return cls._instance
     
     @classmethod
@@ -292,10 +296,14 @@ class PluginInitializer:
     @classmethod
     def reset(cls) -> None:
         """Reset the handler state."""
-        cls._config = {}
-        cls._plugin_manager = None
-        cls._plugin_context = None
-        cls._initialization_callback = None
+        with cls._lock:
+            cls._config = {}
+            if cls._plugin_manager is not None:
+                cls._plugin_manager.reset_instance()
+            cls._plugin_manager = None
+            cls._plugin_context = None
+            cls._initialization_callback = None
+            cls._instance = None
 
 
 __all__ = ["PluginInitializer"]

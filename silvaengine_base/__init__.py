@@ -46,6 +46,14 @@ __all__ = [
     "ParallelInitializationScheduler",
     "InitializationTask",
     "InitializationMetrics",
+    # New async plugin manager
+    "AsyncPluginManager",
+    "AsyncPluginContext",
+    "PluginLoadingState",
+    "PluginLoadResult",
+    "LoadingMetrics",
+    "get_async_plugin_manager",
+    "reset_async_plugin_manager",
 ]
 
 from .boosters import (
@@ -84,5 +92,14 @@ from .boosters.plugin.parallel_scheduler import (
     ParallelInitializationScheduler,
     InitializationTask,
     InitializationMetrics,
+)
+from .boosters.plugin.async_plugin_manager import (
+    AsyncPluginManager,
+    AsyncPluginContext,
+    PluginLoadingState,
+    PluginLoadResult,
+    LoadingMetrics,
+    get_async_plugin_manager,
+    reset_async_plugin_manager,
 )
 from .resources import Resources

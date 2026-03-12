@@ -120,7 +120,7 @@ class PluginInitializerUtils:
     def extract_plugin_metadata(
         plugin_item: Dict[str, Any],
         index: int,
-    ) -> Tuple[str, str, Optional[str], Dict[str, Any]]:
+    ) -> Tuple[str, str, str, Optional[str], Dict[str, Any]]:
         """Extract plugin metadata from configuration item.
         
         Args:

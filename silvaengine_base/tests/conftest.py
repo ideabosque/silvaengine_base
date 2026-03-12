@@ -33,13 +33,36 @@ class MockInvoker:
         return mock_callable
 
 
-mock_invoker_module = MagicMock()
-mock_invoker_module.Invoker = MockInvoker
+class MockModule:
+    """Mock module that supports both attribute access and from imports."""
+    
+    Invoker = MockInvoker
+    
+    @staticmethod
+    def HttpResponse():
+        """Mock HttpResponse."""
+        return MagicMock()
+
+
+# Setup mocks BEFORE any imports happen
+mock_invoker_module = MockModule()
 sys.modules['silvaengine_utility'] = mock_invoker_module
 
 mock_dynamodb_module = MagicMock()
+mock_dynamodb_models = MagicMock()
+mock_dynamodb_models.ConfigModel = MagicMock()
+mock_dynamodb_models.ConfigModel.find = MagicMock(return_value={})
 sys.modules['silvaengine_dynamodb_base'] = mock_dynamodb_module
-sys.modules['silvaengine_dynamodb_base.models'] = MagicMock()
+sys.modules['silvaengine_dynamodb_base.models'] = mock_dynamodb_models
 
 mock_constants_module = MagicMock()
+mock_constants_module.HttpStatus = MagicMock()
+mock_constants_module.HttpStatus.BAD_REQUEST = MagicMock(value=400)
+mock_constants_module.HttpStatus.FORBIDDEN = MagicMock(value=403)
+mock_constants_module.HttpStatus.INTERNAL_SERVER_ERROR = MagicMock(value=500)
 sys.modules['silvaengine_constants'] = mock_constants_module
+
+
+def pytest_configure(config):
+    """Configure pytest with mocks before any tests are collected."""
+    pass

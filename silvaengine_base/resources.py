@@ -17,12 +17,11 @@ import os
 import traceback
 from typing import Any, Callable, Dict, List, Optional
 
-from silvaengine_dynamodb_base.models import ConfigModel
-
 from silvaengine_constants import HttpStatus
+from silvaengine_dynamodb_base.models import ConfigModel
 from silvaengine_utility import HttpResponse
 
-from .boosters import PluginInitializer
+from .boosters import AbstractPluginContext, PluginInitializer
 from .boosters.plugin.injector import PluginContextInjector
 from .handlers import (
     CloudWatchHandler,
@@ -37,6 +36,9 @@ from .handlers import (
     SQSHandler,
     WebSocketHandler,
 )
+
+DEBUG_SEPARATOR_WIDTH = 100
+DEFAULT_LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 
 
 class Resources:
@@ -71,6 +73,20 @@ class Resources:
 
     @classmethod
     def _get_logger(cls) -> logging.Logger:
+        """
+        Get or create the logger instance.
+
+        This method implements lazy initialization of the class-level logger.
+        The logging level is determined by the LOGGING_LEVEL environment variable,
+        defaulting to INFO if not set.
+
+        Returns:
+            logging.Logger: The configured logger instance.
+
+        Example:
+            >>> logger = Resources._get_logger()
+            >>> logger.info("Message logged")
+        """
         if cls._logger is None:
             level_name = str(os.getenv("LOGGING_LEVEL", "INFO")).strip().upper()
             cls._logger = logging.getLogger()
@@ -79,12 +95,38 @@ class Resources:
 
     @classmethod
     def _get_runtime_region(cls) -> str:
+        """
+        Get the runtime AWS region from environment variable.
+
+        The region name is cached after first retrieval for performance.
+        Reads from REGION_NAME environment variable.
+
+        Returns:
+            str: The AWS region name in lowercase, or empty string if not set.
+
+        Example:
+            >>> region = Resources._get_runtime_region()
+            >>> print(region)  # 'us-east-1'
+        """
         if not cls._runtime_region:
             cls._runtime_region = str(os.getenv("REGION_NAME", "")).strip().lower()
         return cls._runtime_region
 
     @classmethod
     def _get_runtime_config_index(cls) -> str:
+        """
+        Get the runtime configuration index from environment variable.
+
+        The configuration index is used to retrieve settings from DynamoDB.
+        Reads from CONFIG_INDEX environment variable.
+
+        Returns:
+            str: The configuration index in lowercase, or empty string if not set.
+
+        Example:
+            >>> index = Resources._get_runtime_config_index()
+            >>> print(index)  # 'production-config'
+        """
         if not cls._runtime_config_index:
             cls._runtime_config_index = (
                 str(os.getenv("CONFIG_INDEX", "")).strip().lower()
@@ -93,12 +135,86 @@ class Resources:
 
     @classmethod
     def _get_plugin_initializer(cls) -> PluginInitializer:
+        """
+        Get or create the PluginInitializer singleton instance.
+
+        This method implements lazy initialization of the plugin initializer,
+        which manages plugin lifecycle and configuration.
+
+        Returns:
+            PluginInitializer: The plugin initializer instance.
+
+        Example:
+            >>> initializer = Resources._get_plugin_initializer()
+            >>> initializer.initialize(logger=logger)
+        """
         if cls._plugin_initializer is None:
             cls._plugin_initializer = PluginInitializer()
         return cls._plugin_initializer
 
     @classmethod
+    def _get_plugin_context(cls) -> Optional[AbstractPluginContext]:
+        """
+        Get the plugin context from the initializer.
+
+        The plugin context provides access to shared resources and services
+        registered by plugins, such as connection pools and external clients.
+
+        Returns:
+            Optional[AbstractPluginContext]: The plugin context instance,
+                or None if not initialized.
+
+        Example:
+            >>> context = Resources._get_plugin_context()
+            >>> if context:
+            ...     pool = context.get("connection_pool")
+        """
+        return cls._get_plugin_initializer().get_plugin_context()
+
+    @classmethod
+    def _get_plugin_context_safe(cls) -> Optional[AbstractPluginContext]:
+        """Safely get plugin context with error handling.
+
+        This method wraps _get_plugin_context with exception handling,
+        returning None instead of raising exceptions when plugin context
+        retrieval fails.
+
+        Returns:
+            PluginContext instance or None if not available or on error.
+
+        Example:
+            >>> context = Resources._get_plugin_context_safe()
+            >>> if context:
+            ...     connection_pool = context.get("connection_pool")
+        """
+        try:
+            return cls._get_plugin_initializer().get_plugin_context()
+        except Exception as exception:
+            cls._get_logger().warning(f"Failed to get plugin context: {exception}")
+            return None
+
+    @classmethod
     def _get_runtime_config(cls, config_index: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Get the runtime configuration from DynamoDB.
+
+        Configuration is cached after first retrieval. If a different config_index
+        is provided, the cache is invalidated and a new configuration is loaded.
+
+        Args:
+            config_index: Optional configuration index to load. If not provided,
+                uses the value from CONFIG_INDEX environment variable.
+
+        Returns:
+            Dict[str, Any]: The configuration dictionary, or empty dict if not found.
+
+        Example:
+            >>> config = Resources._get_runtime_config()
+            >>> print(config.get("setting_key"))
+
+            >>> config = Resources._get_runtime_config("custom-index")
+            >>> print(config.get("setting_key"))
+        """
         cached_index = cls._get_runtime_config_index()
         index = config_index or cached_index
 
@@ -178,6 +294,10 @@ class Resources:
 
         Returns:
             Response object
+
+        Note:
+            Plugin context injection is performed when available.
+            Connection pool availability is logged for debugging purposes.
         """
         try:
             handler = next(
@@ -190,7 +310,15 @@ class Resources:
                 logger=self.__class__._get_logger(),
             )
 
-            with PluginContextInjector(PluginInitializer().get_plugin_context()):
+            plugin_context = self.__class__._get_plugin_context_safe()
+
+            if plugin_context is None:
+                self.__class__._get_logger().warning(
+                    "Plugin context not available, proceeding without plugin injection"
+                )
+                return handler.handle()
+
+            with PluginContextInjector(plugin_context):
                 return handler.handle()
         except ValueError as e:
             self.__class__._get_logger().warning(f"Invalid request: {e}")
