@@ -5,6 +5,7 @@ from __future__ import print_function
 import logging
 import os
 import time
+from functools import lru_cache
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import boto3
@@ -44,6 +45,8 @@ from .boosters.plugin.injector import (
 class Handler:
     aws_client: Any = None
     plugin_context: PluginContextDescriptor = PluginContextDescriptor()
+    # Class-level cache for proxied callables to avoid repeated module resolution
+    _callable_cache: Dict[str, Callable] = {}
 
     def __init__(
         self,
@@ -164,9 +167,23 @@ class Handler:
         function_name: str,
         payload: Dict[str, Any],
         invocation_type: InvocationType = InvocationType.EVENT,
-        qualifier: Any = None,
-    ) -> Any:
-        """Invoke another Lambda function."""
+        qualifier: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Invoke another Lambda function.
+
+        Args:
+            function_name: The name of the Lambda function to invoke.
+            payload: The payload to pass to the function.
+            invocation_type: The invocation type (EVENT, REQUEST_RESPONSE, or DRY_RUN).
+            qualifier: The function version or alias (optional).
+
+        Returns:
+            The response from the invoked function, or an empty dict if EVENT type.
+
+        Raises:
+            ValueError: If function_name is empty or invocation_type is invalid.
+            Exception: If the invocation fails or response is invalid.
+        """
         if not function_name:
             raise ValueError("Function name is required")
         elif not isinstance(payload, dict):
@@ -384,9 +401,40 @@ class Handler:
         return self.event.get("queryStringParameters", {}) or {}
 
     def _parse_event_body(self) -> Dict[str, Any]:
+        """Parse the event body as JSON with proper validation.
+
+        This method safely parses the event body, handling various edge cases
+        including empty bodies, invalid JSON, and non-dictionary results.
+
+        Returns:
+            A dictionary parsed from the event body, or an empty dict if parsing fails.
+        """
+        body = self.event.get("body")
+
+        # Handle None or empty body
+        if body is None:
+            return {}
+
+        # Handle empty string
+        if isinstance(body, str) and not body.strip():
+            return {}
+
         try:
-            return Serializer.json_loads(self.event.get("body", "{}"))
-        except Exception:
+            result = Serializer.json_loads(body)
+
+            # Ensure result is a dictionary
+            if not isinstance(result, dict):
+                self.logger.warning(
+                    f"Event body parsed to non-dictionary type: {type(result).__name__}"
+                )
+                return {}
+
+            return result
+        except (ValueError, TypeError) as e:
+            self.logger.debug(f"Failed to parse event body as JSON: {e}")
+            return {}
+        except Exception as e:
+            self.logger.warning(f"Unexpected error parsing event body: {e}")
             return {}
 
     def _get_api_key(self) -> str:
@@ -452,13 +500,42 @@ class Handler:
         class_name: Optional[str],
         function_name: Optional[str],
     ) -> Callable:
+        """Get a proxied callable with caching for performance optimization.
+
+        This method uses a class-level cache to avoid repeated module resolution
+        and class instantiation, significantly improving performance for
+        frequently accessed handlers.
+
+        Args:
+            module_name: The module name to resolve.
+            class_name: The class name within the module (optional).
+            function_name: The function name to call (optional).
+
+        Returns:
+            A callable that can be invoked.
+
+        Raises:
+            Exception: If the callable cannot be resolved.
+        """
+        # Create a unique cache key based on all parameters
+        cache_key = f"{module_name}:{class_name or ''}:{function_name or ''}"
+
+        # Check cache first
+        if cache_key in self._callable_cache:
+            self.logger.debug(f"Cache hit for callable: {cache_key}")
+            return self._callable_cache[cache_key]
+
         try:
-            return Invoker.resolve_proxied_callable(
+            callable_obj = Invoker.resolve_proxied_callable(
                 module_name=module_name,
                 class_name=class_name,
                 function_name=function_name,
                 constructor_parameters={"logger": self.logger, **self.setting},
             )
+            # Store in cache for future use
+            self._callable_cache[cache_key] = callable_obj
+            self.logger.debug(f"Cached callable: {cache_key}")
+            return callable_obj
         except Exception:
             raise
 

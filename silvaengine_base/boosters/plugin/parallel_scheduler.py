@@ -532,28 +532,31 @@ class ParallelInitializationScheduler:
     ) -> None:
         """Schedule initialization by levels.
         
+        [OPTIMIZATION] Changed from recursive to iterative implementation
+        
         Each level is initialized in parallel after the previous level completes.
+        This prevents stack overflow for large numbers of levels.
         
         Args:
             levels: List of plugin type levels.
             task_map: Mapping of plugin types to their tasks.
         """
-        def initialize_level(level_index: int) -> None:
-            if level_index >= len(levels):
-                return
-            
-            level = levels[level_index]
-            self._logger.debug(
-                f"Initializing level {level_index} with {len(level)} plugins"
-            )
-            
-            self._initialize_level(level, task_map)
-            
-            initialize_level(level_index + 1)
+        def initialize_all_levels() -> None:
+            # Iterative implementation instead of recursive
+            for level_index, level in enumerate(levels):
+                if self._shutdown_event.is_set():
+                    self._logger.warning("Scheduler shutdown - stopping level initialization")
+                    break
+                
+                self._logger.debug(
+                    f"Initializing level {level_index} with {len(level)} plugins"
+                )
+                
+                self._initialize_level(level, task_map)
         
         with self._executor_lock:
             if self._executor is not None:
-                self._executor.submit(initialize_level, 0)
+                self._executor.submit(initialize_all_levels)
     
     def _initialize_level(
         self,

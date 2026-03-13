@@ -23,9 +23,11 @@ if TYPE_CHECKING:
     from . import PluginManager
 
 
-DEFAULT_WAIT_SLEEP_INTERVAL = 0.1
+DEFAULT_WAIT_SLEEP_INTERVAL = 0.01  # Start with very short interval for fast response
 DEFAULT_WAIT_TIMEOUT = 30.0
-MAX_SLEEP_INTERVAL = 1.0
+MAX_SLEEP_INTERVAL = 0.5  # Cap at 500ms to maintain responsiveness
+BACKOFF_MULTIPLIER = 2.0  # Exponential backoff multiplier
+MAX_BACKOFF_ATTEMPTS = 5  # Number of attempts before reaching max interval
 
 
 class PluginState(Enum):
@@ -369,6 +371,10 @@ class EagerPluginContext(AbstractPluginContext):
                     f"Error waiting for plugin via async initializer: {error}"
                 )
 
+        # Use exponential backoff for polling to balance responsiveness and CPU usage
+        sleep_interval = DEFAULT_WAIT_SLEEP_INTERVAL
+        attempt = 0
+
         while True:
             initialized_objects = self._plugin_manager.get_initialized_objects()
             if plugin_name in initialized_objects:
@@ -383,8 +389,17 @@ class EagerPluginContext(AbstractPluginContext):
                 return False
 
             remaining = timeout - elapsed
-            sleep_time = min(DEFAULT_WAIT_SLEEP_INTERVAL, remaining, MAX_SLEEP_INTERVAL)
+            # Use exponential backoff, capped at MAX_SLEEP_INTERVAL
+            sleep_time = min(sleep_interval, remaining)
             time.sleep(sleep_time)
+
+            # Exponential backoff: increase interval up to MAX_SLEEP_INTERVAL
+            attempt += 1
+            if attempt < MAX_BACKOFF_ATTEMPTS:
+                sleep_interval = min(
+                    sleep_interval * BACKOFF_MULTIPLIER,
+                    MAX_SLEEP_INTERVAL
+                )
 
 
 class LazyPluginContext(AbstractPluginContext):
