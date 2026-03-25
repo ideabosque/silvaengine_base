@@ -600,6 +600,7 @@ class Handler:
             "api_key": api_key,
             "stage": self._get_api_stage(),
             "metadata": self._get_metadata(endpoint_id=endpoint_id),
+            "event": self.event,
         }
 
         return (
