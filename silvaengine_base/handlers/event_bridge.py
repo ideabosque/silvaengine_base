@@ -12,7 +12,6 @@ class EventBridgeHandler(Handler):
     @classmethod
     def is_event_match_handler(cls, event: Dict[str, Any]) -> bool:
         if all(key in event for key in ["funct", "endpoint_id", "params"]):
-            cls.logger.info("Lambda Test")
             return True
         return all(key in event for key in ["source", "detail-type", "detail"])
 
@@ -28,7 +27,7 @@ class EventBridgeHandler(Handler):
         self.logger.info(
             f"EventBridge event received: source={event_source}, detail-type={detail_type}"
         )
-        
+        self.logger.info(self.event)
         # detail = self.event.get("detail", {})
         payload = self._extract_payload(self.event)
         self.logger.info(payload)
