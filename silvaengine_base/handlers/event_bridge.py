@@ -8,11 +8,20 @@ from ..handler import Handler
 
 
 class EventBridgeHandler(Handler):
+
     @classmethod
     def is_event_match_handler(cls, event: Dict[str, Any]) -> bool:
+        if all(key in event for key in ["funct", "endpoint_id", "params"]):
+            cls.logger.info("Lambda Test")
+            return True
         return all(key in event for key in ["source", "detail-type", "detail"])
 
+    def _extract_payload(self, event) -> Any:
+        # EventBridge And Lambda Test
+        return event.get("detail", event)
+    
     def handle(self) -> Any:
+
         event_source = self.event.get("source", "unknown")
         detail_type = self.event.get("detail-type", "unknown")
         
@@ -20,16 +29,38 @@ class EventBridgeHandler(Handler):
             f"EventBridge event received: source={event_source}, detail-type={detail_type}"
         )
         
-        detail = self.event.get("detail", {})
-        if isinstance(detail, dict):
-            self.logger.debug(f"EventBridge detail keys: {list(detail.keys())}")
+        # detail = self.event.get("detail", {})
+        payload = self._extract_payload(self.event)
+        self.logger.info(payload)
         
-        self.logger.warning(
-            "EventBridgeHandler.handle() is not implemented. "
-            "Please extend this handler to process EventBridge events."
+        if isinstance(payload, dict):
+            self.logger.debug(f"EventBridge detail keys: {list(payload.keys())}")
+        
+
+        endpoint_id = payload.get("endpoint_id")
+        funct = payload.get("funct")
+        params = payload.get("params")
+        setting, function = self._get_function_and_setting(
+            endpoint_id,
+            funct,
         )
-        return {
-            "status": "not_implemented",
-            "source": event_source,
-            "detail_type": detail_type,
-        }
+
+        if hasattr(function, "area"):
+            self._validate_function_area(function.area)
+
+        if isinstance(setting, dict):
+            self._merge_setting_to_default(setting)
+
+        if (
+            not hasattr(function.config, "module_name")
+            or not hasattr(function.config, "class_name")
+            or not hasattr(function, "function")
+            or not hasattr(function, "aws_lambda_arn")
+        ):
+            raise ValueError("Missing function config")
+        
+        return self._get_proxied_callable(
+            module_name=function.config.module_name,
+            class_name=function.config.class_name,
+            function_name=function.function,
+        )(aws_lambda_arn=function.aws_lambda_arn, **params)

@@ -21,7 +21,7 @@ from silvaengine_constants import HttpStatus
 from silvaengine_dynamodb_base.models import ConfigModel
 from silvaengine_utility import HttpResponse
 
-from .boosters import AbstractPluginContext, PluginInitializer
+from .boosters import PluginInitializer
 from .boosters.plugin.injector import PluginContextInjector
 from .handlers import (
     CloudWatchHandler,
@@ -37,9 +37,6 @@ from .handlers import (
     WebSocketHandler,
 )
 
-DEBUG_SEPARATOR_WIDTH = 100
-DEFAULT_LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-
 
 class Resources:
     """
@@ -48,7 +45,7 @@ class Resources:
     This is a facade class that provides:
     1. Lambda handler entry point (get_handler)
     2. Event routing (handle)
-    3. Plugin pre-initialization (pre_initialize)
+    3. Plugin pre-initialization (pre_initialize_plugins)
 
     For plugin configuration, status queries, and management, use PluginInitializer directly.
     """
@@ -153,47 +150,6 @@ class Resources:
         return cls._plugin_initializer
 
     @classmethod
-    def _get_plugin_context(cls) -> Optional[AbstractPluginContext]:
-        """
-        Get the plugin context from the initializer.
-
-        The plugin context provides access to shared resources and services
-        registered by plugins, such as connection pools and external clients.
-
-        Returns:
-            Optional[AbstractPluginContext]: The plugin context instance,
-                or None if not initialized.
-
-        Example:
-            >>> context = Resources._get_plugin_context()
-            >>> if context:
-            ...     pool = context.get("connection_pool")
-        """
-        return cls._get_plugin_initializer().get_plugin_context()
-
-    @classmethod
-    def _get_plugin_context_safe(cls) -> Optional[AbstractPluginContext]:
-        """Safely get plugin context with error handling.
-
-        This method wraps _get_plugin_context with exception handling,
-        returning None instead of raising exceptions when plugin context
-        retrieval fails.
-
-        Returns:
-            PluginContext instance or None if not available or on error.
-
-        Example:
-            >>> context = Resources._get_plugin_context_safe()
-            >>> if context:
-            ...     connection_pool = context.get("connection_pool")
-        """
-        try:
-            return cls._get_plugin_initializer().get_plugin_context()
-        except Exception as exception:
-            cls._get_logger().warning(f"Failed to get plugin context: {exception}")
-            return None
-
-    @classmethod
     def _get_runtime_config(cls, config_index: Optional[str] = None) -> Dict[str, Any]:
         """
         Get the runtime configuration from DynamoDB.
@@ -242,7 +198,7 @@ class Resources:
         if not cls._get_runtime_region():
             raise RuntimeError("Unable to read environment variable `REGION_NAME`")
 
-        cls.pre_initialize()
+        cls.pre_initialize_plugins()
 
         def handler(event: Dict[str, Any], context: Any):
             return cls(*args, **kwargs).handle(event, context)
@@ -250,7 +206,11 @@ class Resources:
         return handler
 
     @classmethod
-    def pre_initialize(cls, config_index: Optional[str] = None) -> None:
+    def pre_initialize_plugins(
+        cls,
+        config_index: Optional[str] = None,
+        timeout: float = 30,
+    ) -> bool:
         """Pre-initialize plugins for Lambda cold start optimization.
 
         Args:
@@ -271,7 +231,11 @@ class Resources:
         config = cls._get_runtime_config(config_index)
 
         cls._get_plugin_initializer().initialize(logger=cls._get_logger())
-        cls._get_plugin_initializer().pre_initialize(setting=config)
+        cls._get_plugin_initializer().setup_plugins(config=config)
+
+        # Wait for critical plugins to be ready before returning handler
+        # This ensures connection pool and other critical resources are available
+        return cls._get_plugin_initializer().wait_for_plugins_ready(timeout=timeout)
 
     def __init__(self, logger: Optional[logging.Logger] = None) -> None:
         """Initialize Resources instance.
@@ -310,12 +274,11 @@ class Resources:
                 logger=self.__class__._get_logger(),
             )
 
-            plugin_context = self.__class__._get_plugin_context_safe()
+            plugin_context = (
+                self.__class__._get_plugin_initializer().get_plugin_context()
+            )
 
             if plugin_context is None:
-                self.__class__._get_logger().warning(
-                    "Plugin context not available, proceeding without plugin injection"
-                )
                 return handler.handle()
 
             with PluginContextInjector(plugin_context):

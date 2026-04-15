@@ -18,6 +18,7 @@ import time
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Set
+from weakref import WeakValueDictionary
 
 if TYPE_CHECKING:
     from . import PluginManager
@@ -489,7 +490,9 @@ class AsyncPluginInitializer:
         self._max_workers = max_workers
 
         self._tracker = InitializationTracker(logger=self._logger)
-        self._futures: Dict[str, PluginFuture] = {}
+        # Use WeakValueDictionary to allow automatic cleanup of completed futures
+        # This prevents memory leaks from accumulating completed futures over time
+        self._futures: WeakValueDictionary[str, PluginFuture] = WeakValueDictionary()
         self._executor_name = "async_plugin_initializer"
         self._executor_lock = threading.Lock()
         self._shutdown_event = threading.Event()
