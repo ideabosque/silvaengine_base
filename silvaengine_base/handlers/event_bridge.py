@@ -27,10 +27,8 @@ class EventBridgeHandler(Handler):
         self.logger.info(
             f"EventBridge event received: source={event_source}, detail-type={detail_type}"
         )
-        self.logger.info(self.event)
-        # detail = self.event.get("detail", {})
+        
         payload = self._extract_payload(self.event)
-        self.logger.info(payload)
         
         if isinstance(payload, dict):
             self.logger.debug(f"EventBridge detail keys: {list(payload.keys())}")
