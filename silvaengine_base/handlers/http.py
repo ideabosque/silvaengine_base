@@ -72,13 +72,21 @@ class HttpHandler(Handler):
                 return self._invoke_authorization(action=AuthorizationAction.AUTHORIZE)
 
             return Authorizer(self.event).authorize(is_allow=True)
-        elif self.event.get("body") and is_authorization_required:
-            permission = self._invoke_authorization(
-                action=AuthorizationAction.VERIFY_PERMISSION
-            )
+        elif is_authorization_required:
+            # Per AWS API Gateway authorizer contract: an explicit Allow
+            # (dict returned) is required to proceed; anything else (None,
+            # non-dict, or raised exception) is a denial and must yield 403.
+            try:
+                permission = self._invoke_authorization(
+                    action=AuthorizationAction.VERIFY_PERMISSION
+                )
+            except Exception as e:
+                raise PermissionError(f"Permission denied: {e}") from e
 
             if isinstance(permission, dict):
                 self._merge_metadata_to_event(permission)
+            else:
+                raise PermissionError("Permission denied")
 
         if (
             not hasattr(function.config, "module_name")
