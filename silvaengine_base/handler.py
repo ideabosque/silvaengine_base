@@ -41,12 +41,27 @@ from .boosters.plugin.injector import (
     set_current_plugin_context,
 )
 
+# Runtime config keys that must never be overwritten by function/connection
+# level settings merged via _merge_setting_to_default. These are endpoint-wide
+# critical values loaded from se-configdata at cold start.
+_RUNTIME_RESERVED_KEYS = frozenset(
+    {
+        "plugins",
+        "endpoint_id",
+        "region_name",
+        "aws_access_key_id",
+        "aws_secret_access_key",
+        "authorizer_module_name",
+        "authorizer_class_name",
+        "authorizer_authorize_function_name",
+        "authorizer_verify_permission_function_name",
+    }
+)
+
 
 class Handler:
     aws_client: Any = None
     plugin_context: PluginContextDescriptor = PluginContextDescriptor()
-    # Class-level cache for proxied callables to avoid repeated module resolution
-    _callable_cache: Dict[str, Callable] = {}
 
     def __init__(
         self,
@@ -109,7 +124,9 @@ class Handler:
 
     def _merge_setting_to_default(self, setting: Dict[str, Any]) -> "Handler":
         if isinstance(setting, dict):
-            self.setting.update(setting)
+            for key, value in setting.items():
+                if key not in _RUNTIME_RESERVED_KEYS:
+                    self.setting[key] = value
         return self
 
     def _merge_metadata_to_event(self, metadata: Any) -> "Handler":
@@ -364,10 +381,18 @@ class Handler:
         )
 
     def _get_api_stage(self) -> str:
-        return (self.event.get("requestContext") or {}).get("stage") or "beta"
+        return (
+            ((self.event.get("requestContext") or {}).get("stage") or "beta")
+            .strip()
+            .lower()
+        )
 
     def _get_api_area(self) -> str:
-        return (self.event.get("pathParameters") or {}).get("area", "core")
+        return (
+            ((self.event.get("pathParameters") or {}).get("area", "core"))
+            .strip()
+            .lower()
+        )
 
     def _get_api_proxy(self) -> str:
         return (self.event.get("pathParameters") or {}).get("proxy", "")
@@ -517,42 +542,20 @@ class Handler:
         class_name: Optional[str],
         function_name: Optional[str],
     ) -> Callable:
-        """Get a proxied callable with caching for performance optimization.
+        """Get a proxied callable for the given module/class/function.
 
-        This method uses a class-level cache to avoid repeated module resolution
-        and class instantiation, significantly improving performance for
-        frequently accessed handlers.
-
-        Args:
-            module_name: The module name to resolve.
-            class_name: The class name within the module (optional).
-            function_name: The function name to call (optional).
-
-        Returns:
-            A callable that can be invoked.
-
-        Raises:
-            Exception: If the callable cannot be resolved.
+        Delegates to Invoker.resolve_proxied_callable which is wrapped by
+        @object_cache — that decorator caches the instance AND re-calls
+        __init__ with the current constructor_parameters on each invocation,
+        ensuring per-request setting/logger are always applied.
         """
-        # Create a unique cache key based on all parameters
-        cache_key = f"{module_name}:{class_name or ''}:{function_name or ''}"
-
-        # Check cache first
-        if cache_key in self._callable_cache:
-            self.logger.debug(f"Cache hit for callable: {cache_key}")
-            return self._callable_cache[cache_key]
-
         try:
-            callable_obj = Invoker.resolve_proxied_callable(
+            return Invoker.resolve_proxied_callable(
                 module_name=module_name,
                 class_name=class_name,
                 function_name=function_name,
                 constructor_parameters={"logger": self.logger, **self.setting},
             )
-            # Store in cache for future use
-            self._callable_cache[cache_key] = callable_obj
-            self.logger.debug(f"Cached callable: {cache_key}")
-            return callable_obj
         except Exception:
             raise
 
@@ -581,6 +584,23 @@ class Handler:
                 endpoint_id or self._get_endpoint_id()
             ),
         }
+
+        # Promote authorized user info from event.requestContext.authorizer
+        # into metadata so Graphql.execute merges it into info.context for
+        # resolvers (which read info.context["user_id"], not event.requestContext).
+        authorized_user = self._get_authorized_user()
+        if isinstance(authorized_user, dict):
+            for key in (
+                "user_id",
+                "is_admin",
+                "group_id",
+                "roles",
+                "seller_id",
+                "team_id",
+            ):
+                if key in authorized_user:
+                    metadata[key] = authorized_user[key]
+
         extra = self._extract_additional_parameters(
             {
                 **self._get_headers(),
@@ -696,6 +716,17 @@ class Handler:
             "metadata": self._get_metadata(endpoint_id=endpoint_id),
             "event": self.event,
         }
+
+        # Explicitly extract part_id from header/query/setting so that
+        # business modules' _apply_partition_defaults can reliably build
+        # partition_key without depending on custom_header_keys config.
+        part_id = (
+            self._get_header("part_id")
+            or self._get_query_string_parameter("part_id")
+            or self.setting.get("part_id")
+        )
+        if part_id:
+            parameters["part_id"] = str(part_id).strip()
 
         return (
             api_key,
