@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 
+import copy
 import logging
 import os
 import time
@@ -55,6 +56,9 @@ _RUNTIME_RESERVED_KEYS = frozenset(
         "authorizer_class_name",
         "authorizer_authorize_function_name",
         "authorizer_verify_permission_function_name",
+        "area",
+        "stage",
+        "part_id",
     }
 )
 
@@ -79,7 +83,12 @@ class Handler:
         self.context = context
         # Shallow-copy to prevent per-request _merge_setting_to_default
         # from mutating the shared class-level _runtime_config dict.
-        self.setting = dict(setting or {})
+        # Deep-copy reserved-key values (plugins, etc.) because they are
+        # nested mutable objects that business modules could modify.
+        self.setting = {
+            k: (copy.deepcopy(v) if k in _RUNTIME_RESERVED_KEYS else v)
+            for k, v in (setting or {}).items()
+        }
 
     def handle(self) -> Any:
         raise NotImplementedError("Subclasses must implement the handle method.")
@@ -461,13 +470,17 @@ class Handler:
         including empty bodies, invalid JSON, and non-dictionary results.
 
         Returns:
-            A dictionary parsed from the event body, or an empty dict if parsing fails.
+            :return: A dictionary parsed from the event body, or an empty dict if parsing fails.
         """
         body = self.event.get("body")
 
         # Handle None or empty body
         if body is None:
             return {}
+
+        # Already-parsed dict body (Lambda-to-Lambda, test events)
+        if isinstance(body, dict):
+            return body
 
         # Handle empty string
         if isinstance(body, str) and not body.strip():
@@ -490,20 +503,13 @@ class Handler:
         except Exception as e:
             self.logger.warning(f"Unexpected error parsing event body: {e}")
             return {}
-        try:
-            # Some Lambda event sources pass an already-parsed dict body.
-            if isinstance(body, dict):
-                return body
-            return Serializer.json_loads(body)
-        except Exception:
-            raise ValueError("Invalid JSON in request body")
 
     def _get_api_key(self) -> str:
         def is_valid_api_key(value: Optional[str]) -> bool:
             return bool(value and str(value).strip())
 
-        api_key = (
-            (self.event.get("requestContext") or {}).get("identity", {}).get("apiKey")
+        api_key = ((self.event.get("requestContext") or {}).get("identity") or {}).get(
+            "apiKey"
         )
 
         if is_valid_api_key(value=api_key):
@@ -612,6 +618,7 @@ class Handler:
             "graphql_schema_picker": GraphqlSchemaModel.get_schema_picker(
                 endpoint_id or self._get_endpoint_id()
             ),
+            "endpoint_id": endpoint_id or self._get_endpoint_id(),
         }
 
         # Promote authorized user info from event.requestContext.authorizer
@@ -752,10 +759,12 @@ class Handler:
         part_id = (
             self._get_header("part_id")
             or self._get_query_string_parameter("part_id")
+            or self._parse_event_body().get("part_id")
             or self.setting.get("part_id")
         )
         if part_id:
             parameters["part_id"] = str(part_id).strip()
+            parameters["metadata"]["part_id"] = parameters["part_id"]
 
         return (
             api_key,

@@ -4,8 +4,9 @@ from __future__ import print_function
 
 from typing import Any, Dict
 
-from silvaengine_constants import AuthorizationAction
 from silvaengine_dynamodb_base.models import FunctionModel
+
+from silvaengine_constants import AuthorizationAction
 from silvaengine_utility import Authorizer
 
 from ..handler import Handler
@@ -85,6 +86,21 @@ class HttpHandler(Handler):
 
             if isinstance(permission, dict):
                 self._merge_metadata_to_event(permission)
+
+                # verify_permission stores computed roles in
+                # event["requestContext"]["additionalContext"], separate
+                # from the API Gateway authorizer context at
+                # event["requestContext"]["authorizer"].  Merge the two
+                # so _get_authorized_user() can see roles, then rebuild
+                # parameters["metadata"] so the updated authorizer info
+                # propagates into info.context for resolvers.
+                request_context = self.event.get("requestContext") or {}
+                additional = request_context.get("additionalContext")
+                if isinstance(additional, dict):
+                    authorizer = request_context.get("authorizer")
+                    if isinstance(authorizer, dict):
+                        authorizer.update(additional)
+                parameters["metadata"] = self._get_metadata(endpoint_id=endpoint_id)
             else:
                 raise PermissionError("Permission denied")
 

@@ -280,10 +280,20 @@ class EagerPluginContext(AbstractPluginContext):
             plugin_name: The normalized plugin name.
 
         Returns:
-            The plugin instance if found, None otherwise.
+            :return: The plugin instance if found, None otherwise.
         """
         initialized_objects = self._plugin_manager.get_initialized_objects()
         plugin_data = initialized_objects.get(plugin_name)
+
+        if plugin_data is None:
+            # Background async initialization may still be in progress
+            # (PluginManager._is_initialized is set True immediately after
+            # starting background init, before any plugin finishes).  Wait
+            # briefly for the requested plugin to appear rather than
+            # returning None and causing a PoolNotFoundError.
+            if self._wait_for_plugin_internal(plugin_name, timeout=5.0):
+                initialized_objects = self._plugin_manager.get_initialized_objects()
+                plugin_data = initialized_objects.get(plugin_name)
 
         if plugin_data is None:
             self._logger.debug(f"Plugin '{plugin_name}' not found or not initialized")
@@ -397,8 +407,7 @@ class EagerPluginContext(AbstractPluginContext):
             attempt += 1
             if attempt < MAX_BACKOFF_ATTEMPTS:
                 sleep_interval = min(
-                    sleep_interval * BACKOFF_MULTIPLIER,
-                    MAX_SLEEP_INTERVAL
+                    sleep_interval * BACKOFF_MULTIPLIER, MAX_SLEEP_INTERVAL
                 )
 
 
