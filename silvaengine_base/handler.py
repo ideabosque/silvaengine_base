@@ -62,7 +62,9 @@ class Handler:
         )
         self.event = event or {}
         self.context = context
-        self.setting = setting or {}
+        # Shallow-copy to prevent per-request _merge_setting_to_default
+        # from mutating the shared class-level _runtime_config dict.
+        self.setting = dict(setting or {})
 
     def handle(self) -> Any:
         raise NotImplementedError("Subclasses must implement the handle method.")
@@ -253,7 +255,14 @@ class Handler:
             if not api_key:
                 raise ValueError("Invalid api key")
 
-            connection = ConnectionModel.get(hash_key=endpoint_id, range_key=api_key)
+            try:
+                connection = ConnectionModel.get(
+                    hash_key=endpoint_id, range_key=api_key
+                )
+            except ConnectionModel.DoesNotExist:
+                raise ValueError(
+                    f"Connection not found for endpoint_id({endpoint_id})."
+                )
             middleman = next(
                 (
                     fn
@@ -295,24 +304,23 @@ class Handler:
 
             # Merge settings from connection and function, connection settings override function settings
             function_setting = (
-                ConfigModel.find(setting_id=function.config.setting)
+                ConfigModel.find(setting_id=function.config.setting, return_dict=True)
                 if function.config.setting
                 else {}
             )
             connection_setting = (
-                ConfigModel.find(setting_id=middleman.setting)
+                ConfigModel.find(setting_id=middleman.setting, return_dict=True)
                 if middleman.setting
                 else {}
             )
 
-            if len(function_setting) >= len(connection_setting):
-                function_setting.update(connection_setting)
-                return function_setting, function
-
-            connection_setting.update(function_setting)
-            return connection_setting, function
+            merged = dict(function_setting)
+            merged.update(connection_setting)
+            return merged, function
+        except ValueError:
+            raise
         except Exception as e:
-            raise ValueError(f"Failed to get function {function_name}: {str(e)}")
+            raise ValueError(f"Failed to get function {function_name}: {str(e)}") from e
 
     def _is_authorization_event(self) -> bool:
         """Check if the event is a request event."""
@@ -348,7 +356,7 @@ class Handler:
     def _get_endpoint_id(self) -> str:
         return (
             str(
-                self.event.get("pathParameters", {}).get("endpoint_id")
+                (self.event.get("pathParameters") or {}).get("endpoint_id")
                 or str(self.context.function_name).split("_")[0]
             )
             .strip()
@@ -356,13 +364,13 @@ class Handler:
         )
 
     def _get_api_stage(self) -> str:
-        return self.event.get("requestContext", {}).get("stage") or "beta"
+        return (self.event.get("requestContext") or {}).get("stage") or "beta"
 
     def _get_api_area(self) -> str:
-        return self.event.get("pathParameters", {}).get("area", "core")
+        return (self.event.get("pathParameters") or {}).get("area", "core")
 
     def _get_api_proxy(self) -> str:
-        return self.event.get("pathParameters", {}).get("proxy", "")
+        return (self.event.get("pathParameters") or {}).get("proxy", "")
 
     def _get_proxy_function_and_path(self) -> Tuple[str, str]:
         proxy = self._get_api_proxy()
@@ -383,10 +391,10 @@ class Handler:
         return function_name, path
 
     def _get_header(self, key: str) -> Optional[str]:
-        return self.event.get("headers", {}).get(str(key).strip())
+        return (self.event.get("headers") or {}).get(str(key).strip())
 
     def _get_query_string_parameter(self, key: str) -> Optional[str]:
-        return self.event.get("queryStringParameters", {}).get(str(key).strip())
+        return (self.event.get("queryStringParameters") or {}).get(str(key).strip())
 
     def _get_request_context(self) -> Dict[str, Any]:
         return self.event.get("requestContext", {}) or {}
@@ -436,12 +444,21 @@ class Handler:
         except Exception as e:
             self.logger.warning(f"Unexpected error parsing event body: {e}")
             return {}
+        try:
+            # Some Lambda event sources pass an already-parsed dict body.
+            if isinstance(body, dict):
+                return body
+            return Serializer.json_loads(body)
+        except Exception:
+            raise ValueError("Invalid JSON in request body")
 
     def _get_api_key(self) -> str:
         def is_valid_api_key(value: Optional[str]) -> bool:
             return bool(value and str(value).strip())
 
-        api_key = self.event.get("requestContext", {}).get("identity", {}).get("apiKey")
+        api_key = (
+            (self.event.get("requestContext") or {}).get("identity", {}).get("apiKey")
+        )
 
         if is_valid_api_key(value=api_key):
             return api_key.strip()
@@ -492,7 +509,7 @@ class Handler:
         )
 
     def _get_authorized_user(self) -> Dict[str, Any]:
-        return self.event.get("requestContext", {}).get("authorizer") or {}
+        return (self.event.get("requestContext") or {}).get("authorizer") or {}
 
     def _get_proxied_callable(
         self,
@@ -677,6 +694,7 @@ class Handler:
             "api_key": api_key,
             "stage": self._get_api_stage(),
             "metadata": self._get_metadata(endpoint_id=endpoint_id),
+            "event": self.event,
         }
 
         return (
