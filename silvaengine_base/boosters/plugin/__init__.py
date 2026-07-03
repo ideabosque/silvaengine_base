@@ -1289,47 +1289,51 @@ class PluginManager:
             self._logger.warning("No plugins configuration found")
             return
 
-        self._config = setting
-        self._metrics.record_start()
-        self._metrics.total_plugins = len(plugins_config)
+        # Acquire the manager lock to prevent concurrent mutation of
+        # _config, _plugin_states, _is_initialized, _initialized_event,
+        # and _async_initializer — consistent with the initialize() method.
+        with self._manager_lock:
+            self._config = setting
+            self._metrics.record_start()
+            self._metrics.total_plugins = len(plugins_config)
 
-        # Use lazy loading if enabled
-        if self._lazy_loading_enabled:
-            self._setup_lazy_loading(plugins_config)
-            self._is_initialized = True
-            self._initialized_event.set()
-            self._logger.info("PluginManager lazy loading setup complete")
-            return
+            # Use lazy loading if enabled
+            if self._lazy_loading_enabled:
+                self._setup_lazy_loading(plugins_config)
+                self._is_initialized = True
+                self._initialized_event.set()
+                self._logger.info("PluginManager lazy loading setup complete")
+                return
 
-        # Initialize the async initializer if needed
-        if self._async_initializer is None:
-            from .async_initializer import AsyncPluginInitializer
+            # Initialize the async initializer if needed
+            if self._async_initializer is None:
+                from .async_initializer import AsyncPluginInitializer
 
-            self._async_initializer = AsyncPluginInitializer(
-                plugin_manager=self,
-                logger=self._logger,
-                max_workers=self._max_workers,
+                self._async_initializer = AsyncPluginInitializer(
+                    plugin_manager=self,
+                    logger=self._logger,
+                    max_workers=self._max_workers,
+                )
+
+            # Initialize plugin states
+            for config in plugins_config:
+                plugin_type = config.get("type", "").strip().lower() if isinstance(config, dict) else ""
+                if plugin_type:
+                    self._plugin_states[plugin_type] = InitializationState.PENDING
+
+            # Start background initialization
+            self._async_initializer.initialize_background(
+                plugins_config=plugins_config,
+                timeout=self._global_init_timeout,
             )
 
-        # Initialize plugin states
-        for config in plugins_config:
-            plugin_type = config.get("type", "").strip().lower() if isinstance(config, dict) else ""
-            if plugin_type:
-                self._plugin_states[plugin_type] = InitializationState.PENDING
+            # Store callback for later invocation
+            if callback is not None:
+                self._stored_initialization_callback = callback
 
-        # Start background initialization
-        self._async_initializer.initialize_background(
-            plugins_config=plugins_config,
-            timeout=self._global_init_timeout,
-        )
-
-        # Store callback for later invocation
-        if callback is not None:
-            self._stored_initialization_callback = callback
-
-        self._is_initialized = True
-        self._initialized_event.set()
-        self._logger.info("PluginManager background initialization started")
+            self._is_initialized = True
+            self._initialized_event.set()
+            self._logger.info("PluginManager background initialization started")
 
     def wait_for_initialization(self, timeout: float = 120.0) -> Dict[str, bool]:
         """Wait for all plugins to complete initialization.

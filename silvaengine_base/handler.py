@@ -218,6 +218,11 @@ class Handler:
             raise ValueError(f"Invalid invocation_type: {invocation_type.value}")
 
         try:
+            # Shallow-copy the caller's payload so we don't mutate the
+            # original dict when injecting __execution_start_time / __type.
+            # Reused dicts would otherwise carry stale values to subsequent
+            # invokes.
+            payload = dict(payload)
             payload.update(
                 __execution_start_time=time.time(),
                 __type=EventType.LAMBDA_INVOCATION.value,
@@ -234,6 +239,22 @@ class Handler:
             if "Payload" not in response:
                 raise Exception("Invalid response structure")
             elif invocation_type == InvocationType.REQUEST_RESPONSE:
+                # If the downstream Lambda crashed, FunctionError will be
+                # present (e.g. "Unhandled").  We must NOT treat the error
+                # payload as a successful result.
+                if response.get("FunctionError"):
+                    try:
+                        error_payload = response["Payload"].read()
+                        error_msg = (
+                            Serializer.json_loads(error_payload)
+                            if error_payload
+                            else "Unknown downstream error"
+                        )
+                    except Exception:
+                        error_msg = str(response.get("FunctionError"))
+                    raise Exception(
+                        f"Downstream function error ({response['FunctionError']}): {error_msg}"
+                    )
                 try:
                     payload_content = response["Payload"].read()
 
@@ -566,13 +587,21 @@ class Handler:
         invocation_type: InvocationType = InvocationType.EVENT,
     ) -> Any:
         if not function_name:
-            function_name = self.context.function_name
+            function_name = getattr(self.context, "function_name", None)
+        if not function_name:
+            raise ValueError(
+                "function_name is required for Lambda-to-Lambda invocation"
+            )
 
         return self.__class__.invoke_aws_lambda_function(
             function_name=function_name,
             payload=payload,
             invocation_type=invocation_type,
-            qualifier=self.context.function_version,
+            # Do NOT forward the source Lambda's version/alias as the
+            # qualifier — the target Lambda may not have that version,
+            # causing ResourceNotFoundException.  Let Lambda resolve to
+            # $LATEST or the target's own alias.
+            qualifier=None,
         )
 
     def _get_metadata(self, endpoint_id: Optional[str] = None) -> Dict[str, Any]:
