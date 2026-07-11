@@ -446,10 +446,34 @@ class Handler:
         return function_name, path
 
     def _get_header(self, key: str) -> Optional[str]:
-        return (self.event.get("headers") or {}).get(str(key).strip())
+        """Get a header value, trying both underscore and hyphen variants.
+
+        Custom headers may use either ``part_id`` or ``part-id`` depending
+        on the client convention.  This method tries the exact key first,
+        then falls back to the alternate separator so both formats are
+        accepted.
+        """
+        headers = self.event.get("headers") or {}
+        key = str(key).strip()
+
+        if key in headers:
+            return headers[key]
+
+        # Try alternate separator: underscore ↔ hyphen
+        alt_key = key.replace("-", "_") if "-" in key else key.replace("_", "-")
+        return headers.get(alt_key)
 
     def _get_query_string_parameter(self, key: str) -> Optional[str]:
-        return (self.event.get("queryStringParameters") or {}).get(str(key).strip())
+        """Get a query string parameter, trying both underscore and hyphen variants."""
+        params = self.event.get("queryStringParameters") or {}
+        key = str(key).strip()
+
+        if key in params:
+            return params[key]
+
+        # Try alternate separator: underscore ↔ hyphen
+        alt_key = key.replace("-", "_") if "-" in key else key.replace("_", "-")
+        return params.get(alt_key)
 
     def _get_request_context(self) -> Dict[str, Any]:
         return self.event.get("requestContext", {}) or {}
@@ -756,6 +780,8 @@ class Handler:
         # Explicitly extract part_id from header/query/setting so that
         # business modules' _apply_partition_defaults can reliably build
         # partition_key without depending on custom_header_keys config.
+        # _get_header/_get_query_string_parameter already try both
+        # ``part_id`` and ``part-id`` variants.
         part_id = (
             self._get_header("part_id")
             or self._get_query_string_parameter("part_id")
