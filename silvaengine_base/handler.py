@@ -2,7 +2,9 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 
+import base64
 import copy
+import json
 import logging
 import os
 import time
@@ -585,7 +587,35 @@ class Handler:
         )
 
     def _get_authorized_user(self) -> Dict[str, Any]:
-        return (self.event.get("requestContext") or {}).get("authorizer") or {}
+        authorized = (self.event.get("requestContext") or {}).get("authorizer")
+        if authorized:
+            return authorized
+        # Fallback：API Gateway 未注入 authorizer context（如未配置
+        # Lambda authorizer 或 ``auth_required=False``）时，从 Authorization
+        # header 解析 JWT 的 unverified claims，使下游 ``sub``→``user_id``
+        # 兜底能读到操作人 ID。不验签，鉴权仍由 authorizer 负责；与
+        # ``silvaengine_authorizer.jwt.get_unverified_claims`` 同语义。
+        return self._parse_token_claims()
+
+    def _parse_token_claims(self) -> Dict[str, Any]:
+        """解析 Authorization header 中 JWT 的 unverified claims（零依赖）。"""
+        headers = self._get_headers() or {}
+        token = ""
+        for key, value in headers.items():
+            if str(key).strip().lower() == "authorization":
+                token = str(value or "").strip()
+                break
+        if token.lower().startswith("bearer "):
+            token = token[7:].strip()
+        if not token or token.count(".") != 2:
+            return {}
+        try:
+            payload_b64 = token.split(".")[1]
+            payload_b64 += "=" * (-len(payload_b64) % 4)
+            payload = json.loads(base64.urlsafe_b64decode(payload_b64).decode("utf-8"))
+            return payload if isinstance(payload, dict) else {}
+        except Exception:
+            return {}
 
     def _get_proxied_callable(
         self,
