@@ -661,10 +661,6 @@ class Handler:
                 if key in authorized_user:
                     metadata[key] = authorized_user[key]
 
-            # JWT 标准 claim ``sub`` 在 banyan 签发端承载 user_id；当
-            # authorizer 返回的 context 未显式映射 user_id 时，用 ``sub``
-            # 兜底，确保 ``require_operator_id`` 能读到操作人 ID
-            # （审计可追溯性）。有 ``user_id`` 时仍优先 ``user_id``。
             if "user_id" not in metadata and authorized_user.get("sub"):
                 metadata["user_id"] = authorized_user["sub"]
 
