@@ -12,7 +12,7 @@ from silvaengine_dynamodb_base.models import (
 )
 
 from silvaengine_constants import AuthorizationAction, HttpStatus
-from silvaengine_utility import Serializer
+from silvaengine_utility import Debugger
 
 from ..handler import Handler
 
@@ -46,11 +46,7 @@ class WebSocketHandler(Handler):
         try:
             body = self._parse_event_body()
 
-            return (
-                Serializer.json_loads(body.get("payload"))
-                if body.get("payload") is not None
-                else {}
-            )
+            return body.get("arguments") if body.get("arguments") is not None else {}
         except Exception:
             return {}
 
@@ -59,7 +55,7 @@ class WebSocketHandler(Handler):
             connection_id = self._get_connection_id()
             route_key = self._get_route_key()
 
-            if not connection_id or not route_key:
+            if not connection_id and not route_key:
                 return self._generate_response(
                     status_code=HttpStatus.BAD_REQUEST.value,
                     body={"data": "Missing required `connection_id` or `route_key`"},
@@ -70,7 +66,13 @@ class WebSocketHandler(Handler):
             if isinstance(e, DoesNotExist):
                 e = "The connection has been terminated, please establish a new connection."
 
-            self.logger.warning(f"WebSocket error: {e}")
+            Debugger.info(
+                variable=e,
+                stage="WEBSOCKET TEST(handle)",
+                delimiter="#",
+                setting=self.setting,
+                logger=self.logger,
+            )
             return self._generate_response(
                 status_code=HttpStatus.OK.value,
                 body={"data": str(e)},
@@ -88,8 +90,8 @@ class WebSocketHandler(Handler):
                     return self._invoke_authorization(
                         action=AuthorizationAction.AUTHORIZE
                     )
-                except Exception:
-                    raise
+                except Exception as e:
+                    raise e
 
             try:
                 url_parameters = self._get_query_string_parameters()
@@ -140,17 +142,17 @@ class WebSocketHandler(Handler):
                 status_code=HttpStatus.OK.value,
                 body={"data": "Disconnection successful"},
             )
-        elif route_key == "stream":
-            return self._message()
+        elif route_key in ["ask_model"]:
+            return self._message(function=route_key)
 
         return self._generate_response(
             status_code=HttpStatus.OK.value,
             body={"data": "Invalid websocket route"},
         )
 
-    def _message(self) -> Any:
+    def _message(self, function: str) -> Any:
         """
-        Process the 'stream' route for WebSocket events, managing the payload and dispatching tasks.
+        Process the specified function for WebSocket events, managing the payload and dispatching tasks.
         """
         try:
             connection_id = self._get_connection_id()
@@ -168,9 +170,6 @@ class WebSocketHandler(Handler):
                     status_code=HttpStatus.OK.value,
                     body={"data": "Invalid websocket connection endpoint id"},
                 )
-
-            body = self._parse_event_body()
-            function = body.get("funct")
 
             if not function:
                 return self._generate_response(
@@ -240,8 +239,4 @@ class WebSocketHandler(Handler):
                 function_name=function.function,
             )(aws_lambda_arn=function.aws_lambda_arn, **parameters)
         except Exception as e:
-            self.logger.error(f"WebSocket message processing failed: {e}")
-            return self._generate_response(
-                status_code=HttpStatus.OK.value,
-                body={"data": f"Error processing message: {str(e)}"},
-            )
+            raise e
