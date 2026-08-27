@@ -240,12 +240,19 @@ class Handler:
             )
 
             function_payload = Serializer.json_dumps(payload, separators=(",", ":"))
-            response = cls._get_aws_client().invoke(
-                FunctionName=function_name,
-                InvocationType=invocation_type.value,
-                Payload=function_payload,
-                Qualifier=qualifier,
-            )
+            # boto3 rejects `Qualifier=None` (Parameter validation failed:
+            # Invalid type ... valid types: <class 'str'>), so only include
+            # it when an actual qualifier was provided.
+            invoke_kwargs = {
+                "FunctionName": function_name,
+                "InvocationType": invocation_type.value,
+                "Payload": function_payload,
+            }
+
+            if qualifier:
+                invoke_kwargs["Qualifier"] = qualifier
+
+            response = cls._get_aws_client().invoke(**invoke_kwargs)
 
             if "Payload" not in response:
                 raise Exception("Invalid response structure")

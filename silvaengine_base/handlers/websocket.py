@@ -30,6 +30,22 @@ class WebSocketHandler(Handler):
         if isinstance(event, dict) and event.get("_internal_task"):
             return True
 
+        # A WebSocket message that reached the Lambda WITHOUT its requestContext
+        # wrapper (e.g. an `ask_model` route integration that forwards only the
+        # body instead of the API Gateway WebSocket proxy event). We match it
+        # here so we can emit an actionable diagnostic instead of the opaque
+        # "Unrecognized event" from DefaultHandler. No other handler matches
+        # this shape, so there is no risk of shadowing.
+        if (
+            isinstance(event, dict)
+            and not event.get("requestContext")
+            and not event.get("__type")
+            and isinstance(event.get("action"), str)
+            and str(event.get("action")).strip()
+            and isinstance(event.get("arguments"), dict)
+        ):
+            return True
+
         return (
             "requestContext" in event
             and "connectionId" in event["requestContext"]
@@ -246,6 +262,47 @@ class WebSocketHandler(Handler):
 
         if internal_task:
             return self._handle_internal_task(str(internal_task).strip().lower())
+
+        # A WebSocket message body that arrived WITHOUT its requestContext
+        # wrapper. A real API Gateway WebSocket event always carries
+        # `requestContext` (connectionId / routeKey / domainName / stage); a
+        # bare `{action, arguments}` payload means the route integration is
+        # forwarding only the body instead of the proxy event. Without
+        # requestContext there is no connectionId, so the message cannot be
+        # routed or answered. Surface a clear, actionable diagnostic instead
+        # of the generic "Unrecognized event".
+        event = self.event or {}
+
+        if not event.get("requestContext") and event.get("action"):
+            action = str(event.get("action")).strip()
+            Debugger.info(
+                variable={
+                    "message": (
+                        "WebSocket message received without requestContext; "
+                        "the route integration is not delivering the API Gateway "
+                        "WebSocket proxy event."
+                    ),
+                    "action": action,
+                    "event_keys": sorted(event.keys()),
+                },
+                stage="WEBSOCKET BODY WITHOUT REQUEST_CONTEXT",
+                delimiter="#",
+                setting=self.setting,
+                logger=self.logger,
+            )
+            return self._generate_response(
+                status_code=HttpStatus.BAD_REQUEST.value,
+                body={
+                    "data": (
+                        "WebSocket message received without requestContext. The "
+                        "API Gateway route integration must deliver the WebSocket "
+                        "proxy event (requestContext.connectionId/routeKey), not the "
+                        "raw body. Verify the route selection expression "
+                        "($request.body.action) and the route's Lambda integration."
+                    ),
+                    "action": action,
+                },
+            )
 
         try:
             connection_id = self._get_connection_id()
