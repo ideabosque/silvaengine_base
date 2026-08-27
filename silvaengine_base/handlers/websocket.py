@@ -2,8 +2,11 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 
+import json
+import os
 from typing import Any, Dict, Optional
 
+import boto3
 import pendulum
 from silvaengine_dynamodb_base.models import (
     DoesNotExist,
@@ -49,6 +52,73 @@ class WebSocketHandler(Handler):
             return body.get("arguments") if body.get("arguments") is not None else {}
         except Exception:
             return {}
+
+    def _get_websocket_callback_url(self) -> str:
+        """
+        Build the callback endpoint URL for the WebSocket API Gateway Management API
+        from the requestContext `domainName` and `stage`.
+        """
+        request_context = self.event.get("requestContext") or {}
+        domain_name = str(request_context.get("domainName") or "").strip()
+        stage = str(request_context.get("stage") or "").strip() or self._get_api_stage()
+
+        if not domain_name:
+            return ""
+
+        return f"https://{domain_name}/{stage}"
+
+    def _post_to_connection(
+        self,
+        connection_id: str,
+        data: Any,
+        endpoint_url: Optional[str] = None,
+    ) -> bool:
+        """
+        Send a message to an existing WebSocket connection via the API Gateway
+        Management API. Returns True on success, False on failure.
+
+        :param connection_id: The WebSocket connection id to send data to.
+        :param data: The payload to send; non-str values are JSON-serialized.
+        :param endpoint_url: The callback endpoint URL; if omitted, derived from
+                             the current event's requestContext.
+        """
+        if not connection_id:
+            return False
+
+        callback_url = endpoint_url or self._get_websocket_callback_url()
+        if not callback_url:
+            Debugger.info(
+                variable="Missing WebSocket callback URL (domainName/stage).",
+                stage="WEBSOCKET POST TO CONNECTION",
+                delimiter="#",
+                setting=self.setting,
+                logger=self.logger,
+            )
+            return False
+
+        payload = data if isinstance(data, str) else json.dumps(data, ensure_ascii=False)
+
+        try:
+            region = os.getenv("REGION_NAME", os.getenv("REGIONNAME", "us-east-1"))
+            apigw_client = boto3.client(
+                "apigatewaymanagementapi",
+                endpoint_url=callback_url,
+                region_name=region,
+            )
+            apigw_client.post_to_connection(
+                ConnectionId=connection_id,
+                Data=payload,
+            )
+            return True
+        except Exception as e:
+            Debugger.info(
+                variable=e,
+                stage="WEBSOCKET POST TO CONNECTION",
+                delimiter="#",
+                setting=self.setting,
+                logger=self.logger,
+            )
+            return False
 
     def handle(self) -> Any:
         try:
@@ -113,6 +183,21 @@ class WebSocketHandler(Handler):
                     WSSConnectionModel.cleanup_connections(
                         endpoint_id=endpoint_id,
                         expires_in_minutes=10,
+                    )
+
+                    # Send a welcome message back to the freshly established
+                    # WebSocket connection via the API Gateway Management API.
+                    # The `$connect` route's HTTP response is NOT delivered to
+                    # the WebSocket client, so we must push it explicitly.
+                    self._post_to_connection(
+                        connection_id=connection_id,
+                        data={
+                            "event": "welcome",
+                            "message": "Connection established successfully.",
+                            "connection_id": connection_id,
+                            "endpoint_id": endpoint_id,
+                            "timestamp": pendulum.now("UTC").isoformat(),
+                        },
                     )
             except Exception as e:
                 if not isinstance(e, DoesNotExist):
