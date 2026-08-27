@@ -418,7 +418,11 @@ class WebSocketHandler(Handler):
                 body={"data": "Disconnection successful"},
             )
         elif route_key in ["ask_model"]:
-            return self._message(function=route_key)
+            # `ask_model` is a friendly WebSocket route alias. The function
+            # registered in se-connections for this endpoint is
+            # `async_execute_ask_model` (ai_agent_core_engine.AIAgentCoreEngine),
+            # so map the route to that function name for the lookup.
+            return self._message(function="async_execute_ask_model")
 
         return self._generate_response(
             status_code=HttpStatus.OK.value,
