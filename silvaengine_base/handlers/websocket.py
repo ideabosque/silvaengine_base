@@ -422,7 +422,7 @@ class WebSocketHandler(Handler):
             # registered in se-connections for this endpoint is
             # `async_execute_ask_model` (ai_agent_core_engine.AIAgentCoreEngine),
             # so map the route to that function name for the lookup.
-            return self._message(function="async_execute_ask_model")
+            return self._message(function=route_key)
 
         return self._generate_response(
             status_code=HttpStatus.OK.value,
