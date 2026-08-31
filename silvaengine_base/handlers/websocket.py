@@ -417,14 +417,15 @@ class WebSocketHandler(Handler):
                 status_code=HttpStatus.OK.value,
                 body={"data": "Disconnection successful"},
             )
-        elif route_key in ["ask_model", "ping"]:
+        elif route_key in ["ask_model"]:
             # `ask_model` is a friendly WebSocket route alias. The function
             # registered in se-connections for this endpoint is
             # `async_execute_ask_model` (ai_agent_core_engine.AIAgentCoreEngine),
             # so map the route to that function name for the lookup.
             return self._message(function=route_key)
         elif route_key == "ping":
-            self._dispatch_internal_task(
+            print(">>>>>>>>>>>>>>>>>>>>>>>>>>> ping ............")
+            return self._dispatch_internal_task(
                 task="health_check",
                 payload={
                     "endpoint_id": endpoint_id,
@@ -577,6 +578,8 @@ class WebSocketHandler(Handler):
             "message": pendulum.now().int_timestamp()
         }
 
+        print("~~~~~~~~~~~~", data)
+
         self._post_to_connection(
             connection_id=connection_id,
             data=data,
@@ -586,7 +589,7 @@ class WebSocketHandler(Handler):
 
         return self._generate_response(
             status_code=HttpStatus.OK.value,
-            body={"data": "welcome dispatched"},
+            body={"data": "Health checked"},
         )
 
     def _message(self, function: str) -> Any:
