@@ -424,7 +424,6 @@ class WebSocketHandler(Handler):
             # so map the route to that function name for the lookup.
             return self._message(function=route_key)
         elif route_key == "ping":
-            print(">>>>>>>>>>>>>>>>>>>>>>>>>>> ping ............")
             return self._dispatch_internal_task(
                 task="health_check",
                 payload={
@@ -575,10 +574,8 @@ class WebSocketHandler(Handler):
         data = {
             "type": "pong",
             "connection_id": connection_id,
-            "message": pendulum.now().int_timestamp()
+            "message": int(pendulum.now().timestamp()),
         }
-
-        print("~~~~~~~~~~~~", data)
 
         self._post_to_connection(
             connection_id=connection_id,
