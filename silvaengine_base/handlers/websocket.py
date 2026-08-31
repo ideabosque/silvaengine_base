@@ -513,11 +513,8 @@ class WebSocketHandler(Handler):
         endpoint_id = str(params.get("endpoint_id") or "").strip()
 
         data = {
-            "event": "welcome",
-            "message": "Connection established successfully.",
+            "type": "connection_ack",
             "connection_id": connection_id,
-            "endpoint_id": endpoint_id,
-            "timestamp": pendulum.now("UTC").isoformat(),
         }
 
         self._post_to_connection(
