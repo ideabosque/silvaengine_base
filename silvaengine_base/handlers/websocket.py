@@ -424,11 +424,16 @@ class WebSocketHandler(Handler):
             # so map the route to that function name for the lookup.
             return self._message(function=route_key)
         elif route_key == "ping":
+            # The health_check internal task runs in a self-invoked Lambda event
+            # without requestContext, so the callback URL must be resolved here
+            # (while the original WebSocket event still carries domainName/stage)
+            # and forwarded in the payload, exactly like send_welcome.
             return self._dispatch_internal_task(
                 task="health_check",
                 payload={
                     "endpoint_id": endpoint_id,
                     "connection_id": connection_id,
+                    "callback_url": self._get_websocket_callback_url(),
                 },
             )
 
