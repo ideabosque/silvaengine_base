@@ -423,6 +423,14 @@ class WebSocketHandler(Handler):
             # `async_execute_ask_model` (ai_agent_core_engine.AIAgentCoreEngine),
             # so map the route to that function name for the lookup.
             return self._message(function=route_key)
+        elif route_key == "ping":
+            self._dispatch_internal_task(
+                task="health_check",
+                payload={
+                    "endpoint_id": endpoint_id,
+                    "connection_id": connection_id,
+                },
+            )
 
         return self._generate_response(
             status_code=HttpStatus.OK.value,
@@ -482,6 +490,8 @@ class WebSocketHandler(Handler):
                 return self._internal_send_welcome()
             elif task == "cleanup_connections":
                 return self._internal_cleanup_connections()
+            elif task == "health_check":
+                return self._internal_health_check()
 
             return self._generate_response(
                 status_code=HttpStatus.OK.value,
@@ -547,6 +557,36 @@ class WebSocketHandler(Handler):
         return self._generate_response(
             status_code=HttpStatus.OK.value,
             body={"data": "cleanup done"},
+        )
+
+    def _internal_health_check(self) -> Any:
+        """
+        Asynchronous welcome-message dispatch. Runs after `$connect` has
+        returned, so the connection is fully addressable via
+        apigatewaymanagementapi. GoneException (connection already closed by
+        the client) is handled and cleans up the stale DynamoDB record.
+        """
+        params = self.event or {}
+        connection_id = str(params.get("connection_id") or "").strip()
+        callback_url = str(params.get("callback_url") or "").strip()
+        endpoint_id = str(params.get("endpoint_id") or "").strip()
+
+        data = {
+            "type": "pong",
+            "connection_id": connection_id,
+            "message": pendulum.now().int_timestamp()
+        }
+
+        self._post_to_connection(
+            connection_id=connection_id,
+            data=data,
+            endpoint_url=callback_url or None,
+            endpoint_id=endpoint_id,
+        )
+
+        return self._generate_response(
+            status_code=HttpStatus.OK.value,
+            body={"data": "welcome dispatched"},
         )
 
     def _message(self, function: str) -> Any:
