@@ -436,15 +436,11 @@ class WebSocketHandler(Handler):
                     "callback_url": self._get_websocket_callback_url(),
                 },
             )
+        else:
             return self._generate_response(
                 status_code=HttpStatus.OK.value,
-                body={"data": "WebSocket connection health check passed"},
+                body={"data": "Invalid websocket route"},
             )
-
-        return self._generate_response(
-            status_code=HttpStatus.OK.value,
-            body={"data": "Invalid websocket route"},
-        )
 
     def _dispatch_internal_task(
         self,
