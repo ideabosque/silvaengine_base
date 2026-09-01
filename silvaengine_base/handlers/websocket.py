@@ -423,26 +423,31 @@ class WebSocketHandler(Handler):
             # `async_execute_ask_model` (ai_agent_core_engine.AIAgentCoreEngine),
             # so map the route to that function name for the lookup.
             return self._message(function=route_key)
+
         elif route_key == "ping":
-            # The health_check internal task runs in a self-invoked Lambda event
-            # without requestContext, so the callback URL must be resolved here
-            # (while the original WebSocket event still carries domainName/stage)
-            # and forwarded in the payload, exactly like send_welcome.
-            self._dispatch_internal_task(
-                task="health_check",
-                payload={
-                    "endpoint_id": endpoint_id,
-                    "connection_id": connection_id,
-                    "callback_url": self._get_websocket_callback_url(),
-                },
-            )
+            try:
+                # The health_check internal task runs in a self-invoked Lambda event
+                # without requestContext, so the callback URL must be resolved here
+                # (while the original WebSocket event still carries domainName/stage)
+                # and forwarded in the payload, exactly like send_welcome.
+                self._dispatch_internal_task(
+                    task="health_check",
+                    payload={
+                        "endpoint_id": endpoint_id,
+                        "connection_id": connection_id,
+                        "callback_url": self._get_websocket_callback_url(),
+                    },
+                )
+            except Exception as e:
+                pass
+
             return self._generate_response(
-                status_code=HttpStatus.OK.value,
+                status_code=HttpStatus.NO_CONTENT.value,
                 body={"data": "WebSocket connection health check passed"},
             )
 
         return self._generate_response(
-            status_code=HttpStatus.OK.value,
+            status_code=HttpStatus.BAD_REQUEST.value,
             body={"data": "Invalid websocket route"},
         )
 
@@ -687,9 +692,13 @@ class WebSocketHandler(Handler):
                 function_name=function.function,
             )(aws_lambda_arn=function.aws_lambda_arn, **parameters)
         except Exception as e:
-            self._generate_response(
+            return self._generate_response(
                 status_code=HttpStatus.INTERNAL_SERVER_ERROR.value,
-                body={"data": "Sent message to client successful"},
+                body={"data": e},
             )
-            raise e
+
+        return self._generate_response(
+            status_code=HttpStatus.NO_CONTENT.value,
+            body={"data": "Sent message to client successful"},
+        )
 
