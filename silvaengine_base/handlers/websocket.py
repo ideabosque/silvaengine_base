@@ -428,13 +428,17 @@ class WebSocketHandler(Handler):
             # without requestContext, so the callback URL must be resolved here
             # (while the original WebSocket event still carries domainName/stage)
             # and forwarded in the payload, exactly like send_welcome.
-            return self._dispatch_internal_task(
+            self._dispatch_internal_task(
                 task="health_check",
                 payload={
                     "endpoint_id": endpoint_id,
                     "connection_id": connection_id,
                     "callback_url": self._get_websocket_callback_url(),
                 },
+            )
+            return self._generate_response(
+                status_code=HttpStatus.OK.value,
+                body={"data": "WebSocket connection health check passed"},
             )
 
         return self._generate_response(
