@@ -607,7 +607,7 @@ class WebSocketHandler(Handler):
 
             if not connection_id:
                 return self._generate_response(
-                    status_code=HttpStatus.OK.value,
+                    status_code=HttpStatus.BAD_REQUEST.value,
                     body={"data": "Invalid websocket connection id"},
                 )
 
@@ -615,13 +615,13 @@ class WebSocketHandler(Handler):
 
             if not endpoint_id:
                 return self._generate_response(
-                    status_code=HttpStatus.OK.value,
+                    status_code=HttpStatus.BAD_REQUEST.value,
                     body={"data": "Invalid websocket connection endpoint id"},
                 )
 
             if not function:
                 return self._generate_response(
-                    status_code=HttpStatus.OK.value,
+                    status_code=HttpStatus.BAD_REQUEST.value,
                     body={"data": "Missing required `funct`"},
                 )
 
@@ -647,7 +647,7 @@ class WebSocketHandler(Handler):
 
             if not wss_connection:
                 return self._generate_response(
-                    status_code=HttpStatus.OK.value,
+                    status_code=HttpStatus.BAD_REQUEST.value,
                     body={"data": "WebSocket connection not found"},
                 )
             elif hasattr(wss_connection, "updated_at"):
@@ -677,14 +677,19 @@ class WebSocketHandler(Handler):
                 or not hasattr(function, "aws_lambda_arn")
             ):
                 return self._generate_response(
-                    status_code=HttpStatus.OK.value,
+                    status_code=HttpStatus.BAD_REQUEST.value,
                     body={"data": "Invalid function"},
                 )
 
-            return self._get_proxied_callable(
+            self._get_proxied_callable(
                 module_name=function.config.module_name,
                 class_name=function.config.class_name,
                 function_name=function.function,
             )(aws_lambda_arn=function.aws_lambda_arn, **parameters)
         except Exception as e:
             raise e
+
+        return self._generate_response(
+            status_code=HttpStatus.OK.value,
+            body={"data": "Sent message to client successful"},
+        )
