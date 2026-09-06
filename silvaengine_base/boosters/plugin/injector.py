@@ -4,12 +4,9 @@
 
 import threading
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Any, Optional
+from typing import Any, Optional
 
 from .context import AbstractPluginContext
-
-if TYPE_CHECKING:
-    from .context import PluginContext
 
 _context_storage: Optional["PluginContextStorage"] = None
 _storage_lock = threading.Lock()

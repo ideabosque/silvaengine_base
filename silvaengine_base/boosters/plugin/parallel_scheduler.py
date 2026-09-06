@@ -16,7 +16,7 @@ import heapq
 import logging
 import threading
 import time
-from collections import defaultdict, deque
+from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set, Tuple
 
@@ -376,8 +376,7 @@ class ParallelInitializationScheduler:
         Returns:
             A dictionary mapping plugin types to their dependents (plugins that depend on this one).
         """
-        from .dependency import UnifiedDependencyResolver
-        
+
         graph: Dict[str, List[str]] = {}
         task_types = {task.plugin_type for task in tasks}
         

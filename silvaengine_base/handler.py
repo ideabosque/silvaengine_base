@@ -8,8 +8,7 @@ import json
 import logging
 import os
 import time
-from functools import lru_cache
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import boto3
 from silvaengine_dynamodb_base.models import (
@@ -23,23 +22,19 @@ from silvaengine_constants import (
     AuthorizationAction,
     AuthorizationType,
     EventType,
-    HttpStatus,
     InvocationType,
     RequestMethod,
 )
 from silvaengine_utility import (
-    Authorizer,
-    Debugger,
     HttpResponse,
     Invoker,
     Serializer,
     Utility,
 )
 
-from .boosters.plugin import PluginContext, PluginManager
+from .boosters.plugin import PluginContext
 from .boosters.plugin.injector import (
     PluginContextDescriptor,
-    PluginContextInjector,
     get_current_plugin_context,
     set_current_plugin_context,
 )

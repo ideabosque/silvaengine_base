@@ -438,7 +438,7 @@ class WebSocketHandler(Handler):
                         "callback_url": self._get_websocket_callback_url(),
                     },
                 )
-            except Exception as e:
+            except Exception:
                 pass
 
             return self._generate_response(

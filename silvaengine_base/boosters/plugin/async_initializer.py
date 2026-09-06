@@ -11,11 +11,10 @@ This module provides a non-blocking plugin initialization system with:
 """
 
 import atexit
-import concurrent.futures
 import logging
 import threading
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Set
 from weakref import WeakValueDictionary
