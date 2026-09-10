@@ -682,8 +682,6 @@ class Handler:
         # resolvers (which read info.context["user_id"], not event.requestContext).
         authorized_user = self._get_authorized_user()
 
-        print("~~~~~~~~~~~~~~~~~~ authorized_user: ",authorized_user)
-
         if isinstance(authorized_user, dict):
             for key in (
                 "user_id",
@@ -709,8 +707,6 @@ class Handler:
 
         if isinstance(extra, dict) and len(extra) > 0:
             metadata.update(extra)
-
-        print("~~~~~~~~~~~~~~~~~~ metadata: ",metadata)
 
         return metadata
 
