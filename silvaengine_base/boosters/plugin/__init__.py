@@ -32,16 +32,10 @@ import logging
 import os
 import threading
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import as_completed
 from concurrent.futures import TimeoutError as FutureTimeoutError
 from dataclasses import dataclass, field
-from enum import Enum, auto
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Protocol, Set, Union
-
-if TYPE_CHECKING:
-    from .async_initializer import AsyncPluginInitializer
-
-from silvaengine_utility import Invoker
+from typing import Any, Callable, Dict, List, Optional, Protocol
 
 from .circuit_breaker import (
     CircuitBreaker,

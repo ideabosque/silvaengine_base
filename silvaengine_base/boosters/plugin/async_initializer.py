@@ -22,6 +22,8 @@ from weakref import WeakValueDictionary
 if TYPE_CHECKING:
     from . import PluginManager
 
+from .config_manager import DEFAULT_PLUGIN_INIT_TIMEOUT
+
 
 class InitializationState(Enum):
     """Enumeration of plugin initialization states."""

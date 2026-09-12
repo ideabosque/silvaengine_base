@@ -12,6 +12,8 @@ import logging
 import os
 from typing import Any, Dict, Optional
 
+DEFAULT_PLUGIN_INIT_TIMEOUT = 30.0
+
 
 class PluginConfigManager:
     """Centralized configuration manager for plugin system.
