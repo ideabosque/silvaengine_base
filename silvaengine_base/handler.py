@@ -690,6 +690,11 @@ class Handler:
                 "roles",
                 "seller_id",
                 "team_id",
+                # R6/P2a 数据域 claims（PermAuthorizer 注入）：白名单漏提
+                # 曾导致引擎 _get_ctx_tenant_id 运行时恒为 None，数据域
+                # 过滤 fail-open 全量泄漏（2026-09-30 隔离未生效根因）。
+                "tenant_id",
+                "merchant_id",
             ):
                 if key in authorized_user:
                     metadata[key] = authorized_user[key]
