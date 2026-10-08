@@ -608,6 +608,7 @@ class WebSocketHandler(Handler):
         Process the specified function for WebSocket events, managing the payload and dispatching tasks.
         """
         try:
+            print("Socket message debug 1 ...")
             connection_id = self._get_connection_id()
 
             if not connection_id:
@@ -624,6 +625,7 @@ class WebSocketHandler(Handler):
                     body={"data": "Invalid websocket connection endpoint id"},
                 )
 
+            print("Socket message debug 2 ...")
             if not function:
                 return self._generate_response(
                     status_code=HttpStatus.BAD_REQUEST.value,
@@ -642,7 +644,7 @@ class WebSocketHandler(Handler):
                 api_key=api_key,
                 method=self._get_request_method(),
             )
-
+            print("Socket message debug 3 ...")
             self._merge_setting_to_default(setting=setting)
 
             wss_connection = self._get_current_connection(
@@ -659,6 +661,7 @@ class WebSocketHandler(Handler):
                 wss_connection.updated_at = pendulum.now("UTC")
                 wss_connection.save()
 
+            print("Socket message debug 4 ...")
             metadata = self._get_metadata(endpoint_id=endpoint_id)
             url_parameters = wss_connection.url_parameters.as_dict()
 
@@ -673,6 +676,8 @@ class WebSocketHandler(Handler):
             else:
                 parameters["metadata"] = metadata
 
+            print("Socket message debug 5 ...")
+
             if (
                 not isinstance(function, FunctionModel)
                 or not hasattr(function, "config")
@@ -685,6 +690,10 @@ class WebSocketHandler(Handler):
                     status_code=HttpStatus.BAD_REQUEST.value,
                     body={"data": "Invalid function"},
                 )
+
+            print(">"*80)
+            print(f"Module: {function.config.module_name}, Class: {function.config.class_name}, Function: {function.function}, Parameters: {parameters}")
+            print("<"*80)
 
             self._get_proxied_callable(
                 module_name=function.config.module_name,
@@ -701,4 +710,3 @@ class WebSocketHandler(Handler):
             status_code=HttpStatus.NO_CONTENT.value,
             body={"data": "Sent message to client successful"},
         )
-
