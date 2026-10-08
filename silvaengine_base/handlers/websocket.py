@@ -695,13 +695,16 @@ class WebSocketHandler(Handler):
             print(f"Module: {function.config.module_name}, Class: {function.config.class_name}, Function: {function.function}, Parameters: {parameters}")
             print("<"*80)
 
-            self._get_proxied_callable(
+            r = self._get_proxied_callable(
                 module_name=function.config.module_name,
                 class_name=function.config.class_name,
                 function_name=function.function,
             )(aws_lambda_arn=function.aws_lambda_arn, **parameters)
+
+            print(r)
         except Exception as e:
             print("Socket message debug 6 ...")
+            print(e)
             return self._generate_response(
                 status_code=HttpStatus.INTERNAL_SERVER_ERROR.value,
                 body={"data": e},
