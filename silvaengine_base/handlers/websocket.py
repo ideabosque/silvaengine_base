@@ -701,11 +701,13 @@ class WebSocketHandler(Handler):
                 function_name=function.function,
             )(aws_lambda_arn=function.aws_lambda_arn, **parameters)
         except Exception as e:
+            print("Socket message debug 6 ...")
             return self._generate_response(
                 status_code=HttpStatus.INTERNAL_SERVER_ERROR.value,
                 body={"data": e},
             )
 
+        print("Socket message debug 7 ...")
         return self._generate_response(
             status_code=HttpStatus.NO_CONTENT.value,
             body={"data": "Sent message to client successful"},
